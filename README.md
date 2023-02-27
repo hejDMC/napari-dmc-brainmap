@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # napari-dmc-brainmap
 
 [![License BSD-3](https://img.shields.io/pypi/l/napari-dmc-brainmap.svg?color=green)](https://github.com/FelixJng/napari-dmc-brainmap/raw/main/LICENSE)
@@ -59,3 +60,6 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [tox]: https://tox.readthedocs.io/en/latest/
 [pip]: https://pypi.org/project/pip/
 [PyPI]: https://pypi.org/
+=======
+# napari-dmc-brainmap
+>>>>>>> 74fbe4a73dd218b114d4c03affce84e2cd6d7f2f
