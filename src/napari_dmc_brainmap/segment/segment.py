@@ -1,36 +1,147 @@
+import sys
+from pathlib import Path
+# from os import path
+# from napari_plugin_engine import napari_hook_implementation
 from napari import Viewer
 from napari.layers import Image, Shapes
 from magicgui import magicgui
-import sys
+from natsort import natsorted
+from skimage import io
+import pandas as pd
 
 def segment_widget():
     from napari.qt.threading import thread_worker
+    # @thread_worker
+    def get_base_dir(input_path):
 
-    @thread_worker
-    def 
+        base_dir = input_path.parents[1]
+        animal_id = input_path.parts[-2]
+        return base_dir, animal_id
+
+    # @thread_worker
+    def create_output_path(input_path, seg_type):
+        base_dir, animal_id = get_base_dir(input_path)
+        stats_dir = base_dir.joinpath(animal_id, 'stats', seg_type)
+        # if seg_type == 'cells (points)':
+        #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'cells')
+        # elif seg_type == 'injection side (areas)':
+        #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'injection_side')
+        if not stats_dir.exists():
+            stats_dir.mkdir(parents=True)
+            print('creating stats folder under: ' + str(stats_dir))
+        return stats_dir
+
+    def change_index(image_idx):
+        widget.image_idx.value = image_idx
+
+    # @thread_worker
+    def load_next(viewer, input_path, seg_type, image_idx, load_dapi):
+        stats_dir = create_output_path(input_path, seg_type)
+        print(stats_dir)
+        if viewer.layers:
+            save_data(viewer, input_path, stats_dir, image_idx)
+        im_list = input_path.glob('*.tif')
+        im_list_sorted = sorted(im_list)
+        print(im_list_sorted)
+        path_to_im = natsorted([f for f in input_path.glob('*.tif')])[image_idx]
+        im_loaded = io.imread(path_to_im)
+        viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
+        viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
+        if load_dapi:
+            viewer.add_image(im_loaded[:, :, 2], name='dapi channel')
+        viewer.layers['cy3 channel'].contrast_limits = [0, 100]
+        viewer.layers['green channel'].contrast_limits = [0, 100]
+        viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
+        print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
+        image_idx += 1
+        change_index(image_idx)
+        return image_idx, stats_dir
+
+    # @thread_worker
+    def save_data(viewer, input_path, stats_dir, image_idx):
+        # points data in [y, x] format
+        inj_side = pd.DataFrame(viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
+        path_to_im = natsorted([f for f in input_path.glob('*.tif')])[image_idx]
+        im_name_str = path_to_im.with_suffix('').parts[-1]
+        save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
+        if viewer.layers['injection'].data[0].shape[0] > 0:
+            inj_side.to_csv(save_name_inj)
+        del (viewer.layers[:])
+
+
 
     @magicgui(
         # todo sate that only RGB images for now, think about different image formats
         layout='vertical',
-        input_path = dict(widget_type='FileEdit', label='input path: ', tooltip='directory of folder containing images to be segmented'),
-        seg_type = dict(widget_type='ComboBox', label='segmentation type', choices=['cells (points)', 'injection side (areas)'], value='cells (points)', tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
-        image_idx = dict(widget_type='LineEdit', label='image to be loaded', value=0, tooltip='index of image to be loaded and segmented next'),
-        load_dapi_box = dict(widget_type='CheckBox', text='load blue channel', value=False, tooltip='option to load blue channel (0: red; 1: green; 2: dapi)'),
-        load_image_button  = dict(widget_type='PushButton', text='load next images', tooltip='load the next image (index specified above) for segmentation'),
-        close_images_box = dict(widget_type='CheckBox', text='close images after saving', value=True, tooltip='option to close all layers (images and segmentation data) after saving'),
-        save_data_button  = dict(widget_type='PushButton', text='save data', tooltip='segmentation data is saved and optionally all open layers closed'),
-        call_button = False
+        input_path=dict(widget_type='FileEdit', label='input path: ', mode='d',
+                        tooltip='directory of folder containing images to be segmented'),
+        seg_type=dict(widget_type='ComboBox', label='segmentation type',
+                      choices=['cells', 'injection_side'], value='cells',
+                      tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
+        image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
+                       tooltip='index (int) of image to be loaded and segmented next'),
+        load_dapi_box=dict(widget_type='CheckBox', text='load blue channel', value=False,
+                           tooltip='option to load blue channel (0: red; 1: green; 2: dapi)'),
+        # load_image_button=dict(widget_type='PushButton', text='load next images',
+        #                        tooltip='load the next image (index specified above) for segmentation'),
+        close_images_box=dict(widget_type='CheckBox', text='close images after saving', value=True,
+                              tooltip='option to close all layers (images and segmentation data) after saving'),
+        save_data_box=dict(widget_type='CheckBox', text='save segmentation data', value=True,
+                              tooltip='option to save segmentation data before closing previous image'),
+        # save_data_button=dict(widget_type='PushButton', text='save data',
+        #                       tooltip='segmentation data is saved and optionally all open layers closed'),
+        call_button="load image"
     )
     def widget(
-        # viewer: Viewer,
-        input_path,
+        viewer: Viewer,
+        input_path,  # posix path
         seg_type,
         image_idx,
         load_dapi_box,
-        load_image_button,
+        # load_image_button,
         close_images_box,
-        save_data_button
+        save_data_box,
+        # save_data_button
     ) -> None:
-        if not hasattr(widget, 'something'):
-            widget.something = []
+        if not hasattr(widget, 'segment_layers'):
+            widget.segment_layers = []
+
+        # i_p_str = str(widget.input_path.value)
+        # base_dir = path.join(xx.split(os.sep)[:-2])
+        # animal_id = xx.split(os.sep)[-2]
+        # print(base_dir)
+        # print(animal_id)
+        # load_next(viewer, input_path, seg_type, int(image_idx), load_dapi_box)
+        # worker = load_next(viewer, input_path, stats_dir, int(image_idx), load_dapi_box)
+        # worker = create_output_path(input_path, seg_type)
+        # worker.returned.connect()
+        # worker.start()
+
+        load_next(viewer, input_path, seg_type, int(image_idx), load_dapi_box)
+
+
+    #
+    #
+    # @widget.load_image_button.changed.connect
+    # def _load_image():
+    #     # todo check input path
+    #     # input_path = widget.input_path.value
+    #     # print(input_path)
+    #     # seg_type = widget.seg_type.value
+    #     # print(seg_type)
+    #     # image_idx = int(widget.image_idx.value)
+    #     # print(image_idx)
+    #     # load_dapi = widget.load_dapi_box.value
+    #     # print(load_dapi)
+    #     layers = []
+    #     # widget.segment_layers.append(layers)
+    #     im_loaded = io.imread(
+    #         '/home/felix/Academia/DMC-lab/Projects/Dopamine/Analyses/Anatomy/data/01_raw/injection-side/DP-256/rgb/DP-256_obj5_1_RGB.tif')
+    #     widget.viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
+
+
     return widget
+
+# @napari_hook_implementation
+# def napari_experimental_provide_dock_widget():
+#     return segment_widget, {'name': 'segment'}
