@@ -11,9 +11,11 @@ contributions:
     - id: napari-dmc-brainmap.write_single_image
       python_name: napari_dmc_brainmap._writer:write_single_image
       title: Save image data with dmc_brainmap
-    - id: napari-dmc-brainmap.make_qwidget
-      python_name: napari_dmc_brainmap._widget:ExampleQWidget
+
+    - id: napari-dmc-brainmap.segment_widget
+      python_name: napari_dmc_brainmap.segment:segment_widget
       title: Make example QWidget
+
     - id: napari-dmc-brainmap.make_magic_widget
       python_name: napari_dmc_brainmap._widget:example_magic_widget
       title: Make example magic widget
@@ -32,8 +34,8 @@ contributions:
       layer_types: ['image']
       filename_extensions: ['.npy']
   widgets:
-    - command: napari-dmc-brainmap.make_qwidget
-      display_name: Example QWidget
+    - command: napari-dmc-brainmap.segment_widget
+      display_name: Segmentation
     - command: napari-dmc-brainmap.make_magic_widget
       display_name: Example Magic Widget
     - command: napari-dmc-brainmap.make_func_widget
