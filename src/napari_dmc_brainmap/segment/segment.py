@@ -1,7 +1,10 @@
-import sys
-from pathlib import Path
-# from os import path
-# from napari_plugin_engine import napari_hook_implementation
+"""
+todo: write documentation
+- edit input params like contrast adjustment, channels to be loaded
+- new layers via fucntion?
+"""
+
+
 from napari import Viewer
 from napari.layers import Image, Shapes
 from magicgui import magicgui
@@ -19,7 +22,7 @@ def segment_widget():
         return base_dir, animal_id
 
     # @thread_worker
-    def create_output_path(input_path, seg_type):
+    def check_stats_dir(input_path, seg_type):
         base_dir, animal_id = get_base_dir(input_path)
         stats_dir = base_dir.joinpath(animal_id, 'stats', seg_type)
         # if seg_type == 'cells (points)':
@@ -36,14 +39,11 @@ def segment_widget():
 
     # @thread_worker
     def load_next(viewer, input_path, seg_type, image_idx, load_dapi):
-        stats_dir = create_output_path(input_path, seg_type)
-        print(stats_dir)
+        stats_dir = check_stats_dir(input_path, seg_type)
         if viewer.layers:
-            save_data(viewer, input_path, stats_dir, image_idx)
-        im_list = input_path.glob('*.tif')
-        im_list_sorted = sorted(im_list)
-        print(im_list_sorted)
-        path_to_im = natsorted([f for f in input_path.glob('*.tif')])[image_idx]
+            save_data(viewer, input_path, image_idx, seg_type)
+        im = natsorted([f.parts[-1] for f in input_path.glob('*.tif')])[image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
+        path_to_im = input_path.joinpath(im)
         im_loaded = io.imread(path_to_im)
         viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
         viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
@@ -51,21 +51,39 @@ def segment_widget():
             viewer.add_image(im_loaded[:, :, 2], name='dapi channel')
         viewer.layers['cy3 channel'].contrast_limits = [0, 100]
         viewer.layers['green channel'].contrast_limits = [0, 100]
-        viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
+        if seg_type == 'injection_side':
+            viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
+        elif seg_type == 'cells':  # todo presegment for cells
+            viewer.add_points(size=5, name='green', face_color='magenta')
+            viewer.add_points(size=5, name='cy3', face_color='cyan')
         print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
         change_index(image_idx)
         return image_idx, stats_dir
 
     # @thread_worker
-    def save_data(viewer, input_path, stats_dir, image_idx):
+    def save_data(viewer, input_path, image_idx, seg_type):
         # points data in [y, x] format
-        inj_side = pd.DataFrame(viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
-        path_to_im = natsorted([f for f in input_path.glob('*.tif')])[image_idx]
+        # todo edit channels
+        stats_dir = check_stats_dir(input_path, seg_type)
+        im = natsorted([f.parts[-1] for f in input_path.glob('*.tif')])[
+            image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
+        path_to_im = input_path.joinpath(im)
         im_name_str = path_to_im.with_suffix('').parts[-1]
-        save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
-        if viewer.layers['injection'].data[0].shape[0] > 0:
-            inj_side.to_csv(save_name_inj)
+        if seg_type == 'injection_side':
+            inj_side = pd.DataFrame(viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
+            save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
+            if viewer.layers['injection'].data[0].shape[0] > 0:
+                inj_side.to_csv(save_name_inj)
+        elif seg_type == 'cells':
+            green_cells = pd.DataFrame(viewer.layers['green'].data, columns=['Position Y', 'Position X'])
+            cy3_cells = pd.DataFrame(viewer.layers['cy3'].data, columns=['Position Y', 'Position X'])
+            save_name_green = stats_dir.joinpath(im_name_str + '_green.csv')
+            save_name_cy3 = stats_dir.joinpath(im_name_str + '_cy3.csv')
+            if viewer.layers['green'].data.shape[0] > 0:
+                green_cells.to_csv(save_name_green)
+            if viewer.layers['cy3'].data.shape[0] > 0:
+                cy3_cells.to_csv(save_name_cy3)
         del (viewer.layers[:])
 
 
@@ -77,7 +95,9 @@ def segment_widget():
                         tooltip='directory of folder containing images to be segmented'),
         seg_type=dict(widget_type='ComboBox', label='segmentation type',
                       choices=['cells', 'injection_side'], value='cells',
-                      tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
+                      tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
+                              'IMPORTANT: before switching between types, load next image, delete all image layers'
+                              'and reload image of interest!'),
         image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
                        tooltip='index (int) of image to be loaded and segmented next'),
         load_dapi_box=dict(widget_type='CheckBox', text='load blue channel', value=False,
@@ -103,21 +123,10 @@ def segment_widget():
         save_data_box,
         # save_data_button
     ) -> None:
-        if not hasattr(widget, 'segment_layers'):
-            widget.segment_layers = []
-
-        # i_p_str = str(widget.input_path.value)
-        # base_dir = path.join(xx.split(os.sep)[:-2])
-        # animal_id = xx.split(os.sep)[-2]
-        # print(base_dir)
-        # print(animal_id)
-        # load_next(viewer, input_path, seg_type, int(image_idx), load_dapi_box)
-        # worker = load_next(viewer, input_path, stats_dir, int(image_idx), load_dapi_box)
-        # worker = create_output_path(input_path, seg_type)
-        # worker.returned.connect()
-        # worker.start()
-
+        # if not hasattr(widget, 'segment_layers'):
+        #     widget.segment_layers = []
         load_next(viewer, input_path, seg_type, int(image_idx), load_dapi_box)
+    return widget
 
 
     #
@@ -138,10 +147,3 @@ def segment_widget():
     #     im_loaded = io.imread(
     #         '/home/felix/Academia/DMC-lab/Projects/Dopamine/Analyses/Anatomy/data/01_raw/injection-side/DP-256/rgb/DP-256_obj5_1_RGB.tif')
     #     widget.viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
-
-
-    return widget
-
-# @napari_hook_implementation
-# def napari_experimental_provide_dock_widget():
-#     return segment_widget, {'name': 'segment'}
