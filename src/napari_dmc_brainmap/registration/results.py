@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 from matplotlib import path
 from sklearn.preprocessing import minmax_scale
-from registration.sharpy_track.model.find_structure import sliceHandle
+from napari_dmc_brainmap.registration.sharpy_track.model.find_structure import sliceHandle
 import json
+
 
 def results_widget():
     from napari.qt.threading import thread_worker
@@ -142,17 +143,17 @@ def results_widget():
             results_button,
             quant_button
     ) -> None:
+        if not hasattr(widget, 'dummy'):  # todo, delete this or None exception?
+            widget.dummy = []
 
-        @widget.results_button.changed.connect
-        def _create_results_file():
-            # todo check input path
-            input_path = widget.input_path.value
-            print(type(input_path))
-            print(input_path)
-            seg_type = widget.seg_type.value
-            print(seg_type)
-            # image_idx = int(widget.image_idx.value)
-            # print(image_idx)
+    @widget.results_button.changed.connect
+    def _create_results_file():
+        # todo check input path
+        input_path = widget.input_path.value
+        seg_type = widget.seg_type.value
+        worker_results_file = create_results_file(input_path, seg_type)
+        worker_results_file.start()
+
     return widget
 
 # def get_regi_info(input_path):

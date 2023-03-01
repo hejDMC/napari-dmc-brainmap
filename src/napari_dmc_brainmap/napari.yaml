@@ -2,35 +2,14 @@ name: napari-dmc-brainmap
 display_name: dmc_brainmap
 contributions:
   commands:
-#    - id: napari-dmc-brainmap.get_reader
-#      python_name: napari_dmc_brainmap._reader:napari_get_reader
-#      title: Open data with dmc_brainmap
-#    - id: napari-dmc-brainmap.write_multiple
-#      python_name: napari_dmc_brainmap._writer:write_multiple
-#      title: Save multi-layer data with dmc_brainmap
-#    - id: napari-dmc-brainmap.write_single_image
-#      python_name: napari_dmc_brainmap._writer:write_single_image
-#      title: Save image data with dmc_brainmap
-
     - id: napari-dmc-brainmap.segment_widget
       python_name: napari_dmc_brainmap.segment:segment_widget
       title: Make segmentation widget
 
     - id: napari-dmc-brainmap.results_widget
-      python_name: napari_dmc_brainmap.results:results_widget
+      python_name: napari_dmc_brainmap.registration:results_widget
       title: Make widget to create results file
 
-#  readers:
-#    - command: napari-dmc-brainmap.get_reader
-#      accepts_directories: false
-#      filename_patterns: ['*.npy']
-#  writers:
-#    - command: napari-dmc-brainmap.write_multiple
-#      layer_types: ['image*','labels*']
-#      filename_extensions: []
-#    - command: napari-dmc-brainmap.write_single_image
-#      layer_types: ['image']
-#      filename_extensions: ['.npy']
   widgets:
 
     - command: napari-dmc-brainmap.segment_widget

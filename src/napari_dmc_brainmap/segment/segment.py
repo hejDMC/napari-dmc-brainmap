@@ -9,7 +9,7 @@ from napari import Viewer
 from napari.layers import Image, Shapes
 from magicgui import magicgui
 from natsort import natsorted
-from skimage import io
+from skimage import io  # todo use cv2 instead?
 import pandas as pd
 
 def segment_widget():

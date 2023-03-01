@@ -1,0 +1,133 @@
+from PyQt5.QtWidgets import QSlider,QWidget,QGridLayout,QLabel,QGraphicsItemGroup
+from PyQt5.QtCore import Qt
+from sharpy_track.view.GraphicViewers import ViewerLeft,ViewerRight
+from sharpy_track.view.ModeToggle import ModeToggle
+from sharpy_track.view.DotObject import DotObject
+from sharpy_track.model.calculation import *
+
+class MainWidget():
+    def __init__(self,regViewer):
+        self.widget = QWidget()
+        self.layoutGrid = QGridLayout()
+        self.widget.setLayout(self.layoutGrid)
+
+        # add left viewer
+        self.viewerLeft = ViewerLeft(regViewer)
+        self.layoutGrid.addWidget(self.viewerLeft.view,1,1)
+        self.viewerLeft.loadSlice(regViewer)
+        # add right viewer
+        self.viewerRight = ViewerRight(regViewer)
+        self.layoutGrid.addWidget(self.viewerRight.view,1,3)
+        self.viewerRight.loadSample(regViewer)
+        # create volume slider
+        self.createAPslider(regViewer)
+        self.createMLslider(regViewer)
+        self.createDVslider(regViewer)
+
+    def createAPslider(self,regViewer):
+        self.apSlider = QSlider(Qt.Horizontal)
+        self.apSlider.setMinimum(0)
+        self.apSlider.setMaximum(1319)
+        self.apSlider.setSingleStep(1)
+        self.apSlider.setSliderPosition(539)
+        self.apSlider.valueChanged.connect(lambda: regViewer.status.apChanged(regViewer))
+        self.layoutGrid.addWidget(self.apSlider,2,1)
+
+    def createMLslider(self,regViewer):
+        self.mlSlider = QSlider(Qt.Horizontal)
+        self.mlSlider.setMinimum(-200)
+        self.mlSlider.setMaximum(200)
+        self.mlSlider.setSingleStep(1)
+        self.mlSlider.valueChanged.connect(lambda: regViewer.status.mlChanged(regViewer))
+        self.layoutGrid.addWidget(self.mlSlider,0,1)
+
+    def createDVslider(self,regViewer):
+        self.dvSlider = QSlider(Qt.Vertical)
+        self.dvSlider.setMinimum(-200)
+        self.dvSlider.setMaximum(200)
+        self.dvSlider.setSingleStep(1)
+        self.dvSlider.valueChanged.connect(lambda: regViewer.status.dvChanged(regViewer))
+        self.layoutGrid.addWidget(self.dvSlider,1,0)
+
+    def createSampleSlider(self,regViewer):
+        self.sampleSlider = QSlider(Qt.Horizontal)
+        self.sampleSlider.setMinimum(0)
+        self.sampleSlider.setMaximum(regViewer.status.sliceNum-1)
+        self.sampleSlider.setSingleStep(1)
+        self.sampleSlider.valueChanged.connect(lambda: regViewer.status.sampleChanged(regViewer))
+        self.layoutGrid.addWidget(self.sampleSlider,2,3)
+    
+    def createImageTitle(self,regViewer):
+        self.imageTitle = QLabel()
+        self.imageTitle.setText(str(regViewer.status.currentSliceNumber)+'---'+regViewer.status.imgFileName[regViewer.status.currentSliceNumber])
+        font = self.imageTitle.font()
+        font.setPointSize(20)
+        self.imageTitle.setFont(font)
+        self.imageTitle.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.layoutGrid.addWidget(self.imageTitle,0,3)
+    
+    def createTransformToggle(self,regViewer):
+        self.toggle = ModeToggle()
+        self.layoutGrid.addWidget(self.toggle,1,2)
+        # make space for toggle
+        regViewer.setFixedSize(2394, 940) # make horizontal space for toggle, from (2350,940)
+        # link click to buttonstate
+        self.toggle.clicked.connect(lambda: regViewer.status.toggleChanged(regViewer))
+    
+    def addDots(self,regViewer):
+        # get clicked coordinates
+        x_clicked, y_clicked = regViewer.status.pressPos.x(),regViewer.status.pressPos.y()
+        # create DotObject inside itemGroup
+        dotLeft = DotObject(x_clicked, y_clicked, 10)
+        # predict dot at sample based on previous transformation
+        if len(self.viewerLeft.itemGroup) >5 :
+            x_predict,y_predict = predictPointSample(x_clicked,y_clicked,regViewer.atlasModel.rtransform)
+            dotRight = DotObject(x_predict, y_predict, 10)
+        else:
+            dotRight = DotObject(x_clicked, y_clicked, 10)
+
+        dotLeft.linkPairedDot(dotRight)
+        dotRight.linkPairedDot(dotLeft)
+        # add dots to scene
+        self.viewerLeft.scene.addItem(dotLeft)
+        self.viewerRight.scene.addItem(dotRight)
+        # store dot to itemGroup
+        self.viewerLeft.itemGroup.append(dotLeft) # add dot to leftViewer
+        self.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
+        # # check number of dots, if more than 5, do transformation
+        # numDots = len(self.viewerLeft.itemGroup)
+        # if numDots >= 5:
+        #     regViewer.atlasModel.updateTransform(regViewer)
+        # else:
+        #     pass
+
+    
+    def removeRecentDot(self):
+        itemGroupL = self.viewerLeft.itemGroup
+        itemGroupR = self.viewerRight.itemGroup
+
+        if len(itemGroupL) == 0:
+            print("There's no point on the screen!")
+
+        else:
+            # remove dots from scene
+            self.viewerLeft.scene.removeItem(self.viewerLeft.itemGroup[-1])
+            self.viewerRight.scene.removeItem(self.viewerRight.itemGroup[-1])
+            # remove dots from itemGroup storage
+            self.viewerLeft.itemGroup = self.viewerLeft.itemGroup[:-1]
+            self.viewerRight.itemGroup = self.viewerRight.itemGroup[:-1]
+        
+
+
+
+
+        
+
+
+
+    
+
+
+
+        
+    
