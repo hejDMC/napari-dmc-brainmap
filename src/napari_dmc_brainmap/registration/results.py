@@ -69,12 +69,12 @@ def results_widget():
         injection_data = pd.DataFrame()  # todo not only for injection data
         for im in stats_list:
             curr_im = im[:-len(stats_suffix)]
-            img = cv2.imread(seg_im_dir.joinpath(curr_im + seg_im_suffix))
+            img = cv2.imread(str(seg_im_dir.joinpath(curr_im + seg_im_suffix)))
             y_im, x_im, z_im = img.shape  # original resolution of image
             # correct for 0 indices
             y_im -= 1
             x_im -= 1
-            img_regi = cv2.imread(regi_dir.joinpath(curr_im + regi_suffix))
+            img_regi = cv2.imread(str(regi_dir.joinpath(curr_im + regi_suffix)))
             y_low, x_low, z_low = img_regi.shape  # original resolution of image
             # correct for 0 indices
             y_low -= 1
@@ -119,6 +119,7 @@ def results_widget():
             injection_data = pd.concat((injection_data, section_data))
         fn = results_dir.joinpath(animal_id + '_injection.csv')
         injection_data.to_csv(fn)
+        print("done! data saved to: " + fn)
 
 
     # todo think about solution to check and load atlas data

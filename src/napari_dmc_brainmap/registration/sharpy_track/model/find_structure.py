@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 
 class sliceHandle():
     def __init__(self,registration) -> None:
-        # self.atlasDir =
-        print(os.getcwd())
+        self.atlasDir = os.path.join(os.getcwd(), 'src/napari_dmc_brainmap/atlas')
         self.jsonPath = registration
         self.loadAnnot()
         self.parseJSON()
@@ -17,7 +16,7 @@ class sliceHandle():
         self.calculateImageGrid()
         self.currentSlice = None
         self.ImgFolder = None
-        self.df_tree = pd.read_csv(os.path.join('atlas', 'structure_tree_safe_2017.csv'))
+        self.df_tree = pd.read_csv(os.path.join(self.atlasDir, 'structure_tree_safe_2017.csv'))
         self.bregma = [540,0,570] # DV=0 for now, can be 65 (Pierre, Neuron 2021),
         # or 44 (https://community.brain-map.org/t/how-to-transform-ccf-x-y-z-coordinates-into-stereotactic-coordinates/1858)
     
@@ -41,7 +40,7 @@ class sliceHandle():
 
 
     def loadAnnot(self):
-        self.annot = np.load(os.path.join('atlas', 'annotation_volume_10um_by_index.npy'))
+        self.annot = np.load(os.path.join(self.atlasDir, 'annotation_volume_10um_by_index.npy'))
 
     def parseJSON(self):
         with open(self.jsonPath,"r") as f:
