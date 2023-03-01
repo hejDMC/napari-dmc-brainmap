@@ -181,3 +181,5 @@ dmypy.json
 
 # ignore folder containing brain atlases
 src/napari_dmc_brainmap/atlas/
+src/napari_dmc_brainmap/registration/sharpy_track/atlas/
+
