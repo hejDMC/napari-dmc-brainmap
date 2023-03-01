@@ -177,3 +177,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 >>>>>>> 74fbe4a73dd218b114d4c03affce84e2cd6d7f2f
+
+
+# ignore folder containing brain atlases
+src/napari_dmc_brainmap/atlas/
