@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class sliceHandle():
     def __init__(self,registration) -> None:
-        self.atlasDir =
+        # self.atlasDir =
         self.jsonPath = registration
         self.loadAnnot()
         self.parseJSON()
