@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class sliceHandle():
     def __init__(self,registration) -> None:
-        self.atlasDir = os.path.join(os.getcwd(), 'src/napari_dmc_brainmap/atlas')
+        self.atlasDir = os.path.join(os.getcwd(), 'src', 'napari_dmc_brainmap', 'atlas')
         self.jsonPath = registration
         self.loadAnnot()
         self.parseJSON()

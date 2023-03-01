@@ -10,6 +10,7 @@ from sklearn.preprocessing import minmax_scale
 from napari_dmc_brainmap.registration.sharpy_track.model.find_structure import sliceHandle
 import json
 
+# todo path things for regi data
 
 def results_widget():
     from napari.qt.threading import thread_worker
