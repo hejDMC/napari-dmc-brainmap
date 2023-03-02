@@ -11,39 +11,40 @@ from magicgui import magicgui
 from natsort import natsorted
 from skimage import io  # todo use cv2 instead?
 import pandas as pd
+from napari_dmc_brainmap.utils import get_animal_id, get_info
 
 def segment_widget():
     from napari.qt.threading import thread_worker
     # @thread_worker
-    def get_base_dir(input_path):
+    # def get_base_dir(input_path):
+    #
+    #     base_dir = input_path.parents[1]
+    #     animal_id = input_path.parts[-2]
+    #     return base_dir, animal_id
 
-        base_dir = input_path.parents[1]
-        animal_id = input_path.parts[-2]
-        return base_dir, animal_id
-
-    # @thread_worker
-    def check_stats_dir(input_path, seg_type):
-        base_dir, animal_id = get_base_dir(input_path)
-        stats_dir = base_dir.joinpath(animal_id, 'stats', seg_type)
-        # if seg_type == 'cells (points)':
-        #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'cells')
-        # elif seg_type == 'injection side (areas)':
-        #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'injection_side')
-        if not stats_dir.exists():
-            stats_dir.mkdir(parents=True)
-            print('creating stats folder under: ' + str(stats_dir))
-        return stats_dir
+    # def check_stats_dir(input_path, seg_type):
+    #     animal_id = get_animal_id(input_path)
+    #     stats_dir = input_path.joinpath(animal_id, 'stats', seg_type)
+    #     # if seg_type == 'cells (points)':
+    #     #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'cells')
+    #     # elif seg_type == 'injection side (areas)':
+    #     #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'injection_side')
+    #     if not stats_dir.exists():
+    #         stats_dir.mkdir(parents=True)
+    #         print('creating stats folder under: ' + str(stats_dir))
+    #     return stats_dir
 
     def change_index(image_idx):
         widget.image_idx.value = image_idx
 
     # @thread_worker
     def load_next(viewer, input_path, seg_type, image_idx, load_dapi):
-        stats_dir = check_stats_dir(input_path, seg_type)
+        stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
+        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         if viewer.layers:
             save_data(viewer, input_path, image_idx, seg_type)
-        im = natsorted([f.parts[-1] for f in input_path.glob('*.tif')])[image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
-        path_to_im = input_path.joinpath(im)
+        im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
+        path_to_im = seg_im_dir.joinpath(im)
         im_loaded = io.imread(path_to_im)
         viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
         viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
@@ -65,10 +66,9 @@ def segment_widget():
     def save_data(viewer, input_path, image_idx, seg_type):
         # points data in [y, x] format
         # todo edit channels
-        stats_dir = check_stats_dir(input_path, seg_type)
-        im = natsorted([f.parts[-1] for f in input_path.glob('*.tif')])[
-            image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
-        path_to_im = input_path.joinpath(im)
+        stats_dir = get_info(input_path, 'stats', seg_type=seg_type, only_dir=True)
+        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
+        path_to_im = seg_im_dir.joinpath(seg_im_list[image_idx - 1])
         im_name_str = path_to_im.with_suffix('').parts[-1]
         if seg_type == 'injection_side':
             inj_side = pd.DataFrame(viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
@@ -91,8 +91,9 @@ def segment_widget():
     @magicgui(
         # todo sate that only RGB images for now, think about different image formats
         layout='vertical',
-        input_path=dict(widget_type='FileEdit', label='input path: ', mode='d',
-                        tooltip='directory of folder containing images to be segmented'),
+        input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
+                        tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+                                'folder containing segmentation results'),
         seg_type=dict(widget_type='ComboBox', label='segmentation type',
                       choices=['cells', 'injection_side'], value='cells',
                       tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import path
 from sklearn.preprocessing import minmax_scale
+from napari_dmc_brainmap.utils import get_animal_id, get_info
 from napari_dmc_brainmap.registration.sharpy_track.model.find_structure import sliceHandle
 import json
 
@@ -14,20 +15,6 @@ import json
 
 def results_widget():
     from napari.qt.threading import thread_worker
-
-    def find_common_suffix(image_list, folder='unknown'):
-        if len(image_list) > 1:
-            for i in range(len(image_list[0])):
-                if i > 0:
-                    if image_list[0][-i] == image_list[1][-i]:
-                        continue
-                    else:
-                        break
-            common_suffix = image_list[0][-i + 1:]
-            print("estimated common_suffix for " + folder + " folder: " + common_suffix)
-        else:
-            common_suffix = input("only one image in folder, manually enter suffix for " + folder + " folder")
-        return common_suffix
 
     def split_strings_layers(s):
         # from: https://stackoverflow.com/questions/430079/how-to-split-strings-into-text-and-number
@@ -39,27 +26,12 @@ def results_widget():
             tail = s[len(head):]
         return head, tail
 
-    def get_animal_id(input_path):
-        animal_id = input_path.parts[-1]
-        return animal_id
-
-    def get_info(input_path, folder_id, seg_type=False):
-        if not seg_type:
-            data_dir = input_path.joinpath(folder_id)
-            data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.tif')])
-        else:
-            data_dir = input_path.joinpath(folder_id, seg_type)
-            data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.csv')])
-        data_suffix = find_common_suffix(data_list, folder=folder_id)
-        return data_dir, data_list, data_suffix
-
-
-    def check_results_dir(input_path, seg_type):
-        results_dir = input_path.joinpath('results', seg_type)
-        if not results_dir.exists():
-            results_dir.mkdir(parents=True)
-            print("creating results folder under: " + str(results_dir))
-        return results_dir
+    # def check_results_dir(input_path, seg_type):
+    #     results_dir = input_path.joinpath('results', seg_type)
+    #     if not results_dir.exists():
+    #         results_dir.mkdir(parents=True)
+    #         print("creating results folder under: " + str(results_dir))
+    #     return results_dir
 
     def clean_results_df(df, st):  # todo this somewhere seperate
         path_list = st['structure_id_path'][df['sphinx_id']]
@@ -95,7 +67,7 @@ def results_widget():
 
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         stats_dir, stats_list, stats_suffix = get_info(input_path, 'stats', seg_type=seg_type)
-        results_dir = check_results_dir(input_path, seg_type)
+        results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
         s = sliceHandle(regi_dir.joinpath('registration.json'))
         injection_data = pd.DataFrame()  # todo not only for injection data
         for im in stats_list:
@@ -162,7 +134,7 @@ def results_widget():
         s = sliceHandle(regi_dir.joinpath('registration.json'))
         st = s.df_tree
         animal_id = get_animal_id(input_path)
-        results_dir = check_results_dir(input_path, seg_type)
+        results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
         results_fn = results_dir.joinpath(animal_id + '_injection.csv')  # todo fix this to be seg_type name
         if results_fn.exists():
             results_data = pd.read_csv(results_fn)  # load the data
@@ -221,7 +193,7 @@ def results_widget():
     # todo think about solution to check and load atlas data
     @magicgui(
         layout='vertical',
-        input_path=dict(widget_type='FileEdit', label='input path: ', mode='d',
+        input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                         tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                                 'folder containing segmentation results'),
         seg_type=dict(widget_type='ComboBox', label='segmentation type',
