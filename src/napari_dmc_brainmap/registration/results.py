@@ -29,6 +29,16 @@ def results_widget():
             common_suffix = input("only one image in folder, manually enter suffix for " + folder + " folder")
         return common_suffix
 
+    def split_strings_layers(s):
+        # from: https://stackoverflow.com/questions/430079/how-to-split-strings-into-text-and-number
+        if s.startswith('TEa'):  # special case due to small 'a', will otherwise split 'TE' + 'a1', not 'TEa' + '1'
+            head = s[:3]
+            tail = s[3:]
+        else:
+            head = s.rstrip('0123456789/ab')
+            tail = s[len(head):]
+        return head, tail
+
     def get_animal_id(input_path):
         animal_id = input_path.parts[-1]
         return animal_id
@@ -44,13 +54,33 @@ def results_widget():
         return data_dir, data_list, data_suffix
 
 
-
     def check_results_dir(input_path, seg_type):
         results_dir = input_path.joinpath('results', seg_type)
         if not results_dir.exists():
             results_dir.mkdir(parents=True)
             print("creating results folder under: " + str(results_dir))
         return results_dir
+
+    def clean_results_df(df, st):  # todo this somewhere seperate
+        path_list = st['structure_id_path'][df['sphinx_id']]
+        path_list = path_list.to_list()
+        df['path_list'] = path_list
+        df = df.reset_index()
+
+        # clean data - not cells in root, fiber tracts and ventricles
+        # drop "root"
+        df = df.drop(df[df['name'] == 'root'].index)
+
+        # fiber tracks and all children of it
+        fiber_path = st[st['name'] == 'fiber tracts']['structure_id_path'].iloc[0]
+        df = df.drop(
+            df[df['path_list'].str.contains(fiber_path)].index)
+
+        ventricle_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
+        df = df.drop(
+            df[df['path_list'].str.contains(ventricle_path)].index)
+        df = df.reset_index(drop=True)
+        return df
 
     @thread_worker
     def create_results_file(input_path, seg_type):
@@ -120,8 +150,73 @@ def results_widget():
             injection_data = pd.concat((injection_data, section_data))
         fn = results_dir.joinpath(animal_id + '_injection.csv')
         injection_data.to_csv(fn)
-        print("done! data saved to: " + fn)
+        print("done! data saved to: " + str(fn))
 
+    @thread_worker
+    def quantify_injection_side(input_path, seg_type):
+
+        if seg_type == 'cells':
+            print("not implemented ! only for injection side!")
+            return
+        regi_dir, regi_im_list, regi_suffix = get_info(input_path, 'registration')
+        s = sliceHandle(regi_dir.joinpath('registration.json'))
+        st = s.df_tree
+        animal_id = get_animal_id(input_path)
+        results_dir = check_results_dir(input_path, seg_type)
+        results_fn = results_dir.joinpath(animal_id + '_injection.csv')  # todo fix this to be seg_type name
+        if results_fn.exists():
+            results_data = pd.read_csv(results_fn)  # load the data
+            results_data['sphinx_id'] -= 1  # correct for matlab indices starting at 1
+            results_data['animal_id'] = [animal_id] * len(
+                    results_data)  # add the animal_id as a column for later identification
+            # add the injection hemisphere stored in params.json file
+            params_file = input_path.joinpath('params.json')  # directory of params.json file   # todo this as function
+            with open(params_file) as fn:  # load the file
+                params_data = json.load(fn)
+            injection_side = params_data['general']['injection_side']  # add the injection_side as a column
+            results_data['injection_side'] = [injection_side] * len(results_data)
+            # add if the location of a cell is ipsi or contralateral to the injection side
+            # injection_data = get_ipsi_contra(injection_data)
+            # read the genotype
+            genotype = params_data['general']['genotype']
+            # if geno != genotype:
+            #     print("WARNING: genotype doesn't match for " + animal_id)
+            # and add column
+            results_data['genotype'] = [genotype] * len(results_data)
+            # injection_data_merged = pd.concat([injection_data_merged, injection_data])
+        print("loaded " + animal_id)
+        results_data = clean_results_df(results_data, st)
+        # step 1: get the absolute pixel count on area level (not layers)
+        # add parent acronym to the injection data
+        acronym_parent = [split_strings_layers(s)[0] for s in results_data['acronym']]
+        results_data['acronym_parent'] = acronym_parent
+
+        # get list of all areas with cells (=tgt_list)
+        tgt_list = results_data['acronym_parent'].unique().tolist()
+
+        # count pixels (injection side) for each cell, add 0 for empty regions
+        quant_df = pd.DataFrame()
+        temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
+                                             ["acronym_parent"].value_counts())
+        temp_data = temp_data.reset_index()
+        temp_data = temp_data.rename(columns={"index": "acronym", "acronym_parent": "injection_volume"})
+        missing_areas = pd.DataFrame(set(tgt_list).difference(temp_data['acronym'].to_list()),
+                                        columns={'acronym'})
+        missing_areas['injection_volume'] = 0
+        temp_data = pd.concat((temp_data, missing_areas), axis=0)
+        temp_data = temp_data.reset_index(drop=True)
+        temp_data['injection_distribution'] = temp_data['injection_volume'] / temp_data[
+                'injection_volume'].sum()
+
+        temp_data['animal_id'] = animal_id
+        quant_df = pd.concat((quant_df, temp_data), axis=0)
+
+        quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
+                                                        index='animal_id')
+
+        save_fn = results_dir.joinpath('quantification_injection_side.csv')
+        quant_df_pivot.to_csv(save_fn)
+        print(quant_df_pivot)
 
     # todo think about solution to check and load atlas data
     @magicgui(
@@ -155,6 +250,14 @@ def results_widget():
         seg_type = widget.seg_type.value
         worker_results_file = create_results_file(input_path, seg_type)
         worker_results_file.start()
+
+    @widget.quant_button.changed.connect
+    def _quantify_injection_side():
+        # todo check input path
+        input_path = widget.input_path.value
+        seg_type = widget.seg_type.value
+        worker_quantification = quantify_injection_side(input_path, seg_type)
+        worker_quantification.start()
 
     return widget
 
