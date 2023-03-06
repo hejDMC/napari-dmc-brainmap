@@ -42,6 +42,7 @@ def segment_widget():
         stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         if viewer.layers:
+            # todo this needs to be changed, see todo in save_data function
             save_data(viewer, input_path, image_idx, seg_type)
         im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
         path_to_im = seg_im_dir.joinpath(im)
@@ -66,6 +67,7 @@ def segment_widget():
     def save_data(viewer, input_path, image_idx, seg_type):
         # points data in [y, x] format
         # todo edit channels
+        # todo here come errors when going 'down' in index and layers are still open
         stats_dir = get_info(input_path, 'stats', seg_type=seg_type, only_dir=True)
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         path_to_im = seg_im_dir.joinpath(seg_im_list[image_idx - 1])
