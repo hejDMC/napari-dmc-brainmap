@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QLabel,QGraphicsScene,QGraphicsView,QFrame
+from PyQt5.QtWidgets import QLabel,QGraphicsScene,QFrame
+from sharpy_track.view.QGraphicsViewerMT import QGraphicsViewMT
 
 class ViewerGeneral():
     def __init__(self,regViewer) -> None:
@@ -8,7 +9,7 @@ class ViewerGeneral():
         self.scene.changed.connect(lambda: regViewer.atlasModel.updateDotPosition(regViewer)) # here update
         self.scene.addWidget(self.labelImg)
         self.itemGroup = [] # create itemGroup, store DotObjects
-        self.view = QGraphicsView(self.scene)
+        self.view = QGraphicsViewMT(self.scene) # QGraphicsView with mousetracking
         self.view.leaveEvent = lambda event: self.leaveLabel(regViewer)
         self.view.setFixedSize(1140,800)
         self.view.setSceneRect(0,0,1140,800)
@@ -16,4 +17,15 @@ class ViewerGeneral():
 
     def leaveLabel(self,regViewer):
         regViewer.status.cursor = 0
+    
+    def getCursorPos(self,regViewer):
+        if regViewer.status.contour == 1: # only when contour active, update in status
+            regViewer.status.hoverX = self.view.cursorPos[0] # save hover position to status
+            regViewer.status.hoverY = self.view.cursorPos[1]
+            regViewer.atlasModel.treeFindArea(regViewer)
+        else:
+            pass
+
+
+
         

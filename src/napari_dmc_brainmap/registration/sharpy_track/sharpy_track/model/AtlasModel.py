@@ -4,11 +4,13 @@ from PyQt5.QtGui import QImage, QPixmap
 from sharpy_track.view.DotObject import DotObject
 from sharpy_track.model.calculation import *
 import os
+import pandas as pd
 
 class AtlasModel():
     def __init__(self) -> None:
         self.loadVolume()
         self.loadAnnot()
+        self.loadStructureTree()
         self.calculateImageGrid()
         self.imgStack = None
     
@@ -18,6 +20,11 @@ class AtlasModel():
     
     def loadAnnot(self):
         self.annot = np.load(os.path.join('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
+        # self.ap_mat = np.full((800,1140),539) # initiate ap_map at AP = 0mm
+    
+    def loadStructureTree(self):
+        self.sTree = pd.read_csv(os.path.join('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
+        self.bregma = [540,0,570]
 
     def calculateImageGrid(self):
         dv = np.arange(800)
@@ -52,6 +59,30 @@ class AtlasModel():
     def hideContour(self,regViewer):
         regViewer.status.contour = 0 # set status contour inactive
         regViewer.widget.viewerLeft.hideContourLabel()
+    
+    def treeFindArea(self,regViewer):
+        dv = regViewer.status.hoverY
+        ml = regViewer.status.hoverX
+        ap = int(self.ap_mat[dv,ml])
+        # get coordinates in mm
+        ap_mm,dv_mm,ml_mm = self.getCoordMM(ap,dv,ml)
+        # from cursor position get annotation index
+        sphinx_id = self.annot[ap,dv,ml]
+        # get highlight area index
+        activeArea = np.where(self.sliceAnnot == sphinx_id)
+        # find name in sTree
+        structureName = self.sTree.iloc[sphinx_id-1,:]['safe_name']
+        # print('AP:',ap_mm,' DV:',dv_mm,' ML:',ml_mm)
+        regViewer.widget.viewerLeft.highlightArea(regViewer,[ap_mm,dv_mm,ml_mm],activeArea,structureName)
+
+    
+
+
+    def getCoordMM(self,ap,dv,ml):
+        ap_mm = np.round((self.bregma[0] - ap) * 0.01,2)
+        dv_mm = np.round((self.bregma[1] - dv) * 0.01,2)
+        ml_mm = np.round((self.bregma[2] - ml) * 0.01,2)
+        return [ap_mm,dv_mm,ml_mm]
 
         
 
@@ -78,6 +109,7 @@ class AtlasModel():
 
     def simpleSlice(self,regViewer):
         self.slice = self.vol[get_ap(regViewer.status.currentAP),:,:].copy()
+        self.ap_mat = np.full((800,1140),get_ap(regViewer.status.currentAP))
     
     def angleSlice(self,regViewer):
         # calculate from ML and DV angle, the plane of current slice
@@ -98,7 +130,8 @@ class AtlasModel():
         outside_vol = np.argwhere((ap_flat<0)|(ap_flat>1319)) # outside of volume index
         if outside_vol.size == 0: # if outside empty, inside of volume
             # index volume with ap_mat and grid
-            self.ap_flat = ap_flat # add current AP list to AtlasModel for getContourIndex
+            self.ap_mat = ap_mat # save AP plane for indexing structure information 
+            self.ap_flat = ap_flat # save current AP list to AtlasModel for getContourIndex
             self.slice = self.vol[ap_flat,self.r_grid_y,self.r_grid_x].reshape(800,1140)
         else: # if not empty, show black image with warning
             self.slice = np.zeros((800,1140),dtype=np.uint8)

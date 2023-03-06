@@ -1,4 +1,4 @@
-from napari_dmc_brainmap.registration.sharpy_track.model.calculation import *
+from model.calculation import *
 import numpy as np
 import json
 
