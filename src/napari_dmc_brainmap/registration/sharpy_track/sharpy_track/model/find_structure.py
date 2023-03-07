@@ -1,12 +1,14 @@
-from model.tools_slice import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.tools_slice import *
 import tifffile
 from natsort import natsorted
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from pathlib import Path
+from pkg_resources import resource_filename
 
 class sliceHandle():
     def __init__(self,registration) -> None:
+        self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
         self.jsonPath = registration
         self.loadAnnot()
         self.parseJSON()
@@ -14,7 +16,7 @@ class sliceHandle():
         self.calculateImageGrid()
         self.currentSlice = None
         self.ImgFolder = None
-        self.df_tree = pd.read_csv('atlas\\structure_tree_safe_2017.csv')
+        self.df_tree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track', 'sharpy_track', 'atlas', 'structure_tree_safe_2017.csv'))
         self.bregma = [540,0,570] # DV=0 for now, can be 65 (Pierre, Neuron 2021),
         # or 44 (https://community.brain-map.org/t/how-to-transform-ccf-x-y-z-coordinates-into-stereotactic-coordinates/1858)
     
@@ -38,7 +40,7 @@ class sliceHandle():
 
 
     def loadAnnot(self):
-        self.annot = np.load('atlas\\annotation_volume_10um_by_index.npy')
+        self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track', 'sharpy_track', 'atlas', 'annotation_volume_10um_by_index.npy'))
 
     def parseJSON(self):
         with open(self.jsonPath,"r") as f:

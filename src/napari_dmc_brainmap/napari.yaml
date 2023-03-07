@@ -2,6 +2,10 @@ name: napari-dmc-brainmap
 display_name: dmc_brainmap
 contributions:
   commands:
+    - id: napari-dmc-brainmap.registration_widget
+      python_name: napari_dmc_brainmap.registration:registration_widget
+      title: Make registration widget
+
     - id: napari-dmc-brainmap.segment_widget
       python_name: napari_dmc_brainmap.segment:segment_widget
       title: Make segmentation widget
@@ -11,6 +15,8 @@ contributions:
       title: Make widget to create results file
 
   widgets:
+    - command: napari-dmc-brainmap.registration_widget
+      display_name: Registration
 
     - command: napari-dmc-brainmap.segment_widget
       display_name: Segmentation

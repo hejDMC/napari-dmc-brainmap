@@ -8,7 +8,7 @@ import pandas as pd
 from matplotlib import path
 from sklearn.preprocessing import minmax_scale
 from napari_dmc_brainmap.utils import get_animal_id, get_info
-from napari_dmc_brainmap.registration.sharpy_track.model.find_structure import sliceHandle
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
 import json
 
 # todo path things for regi data

@@ -1,5 +1,5 @@
 from PyQt5.QtGui import QPixmap,QImage
-from sharpy_track.view.ViewerGeneral import ViewerGeneral
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ViewerGeneral import ViewerGeneral
 from PyQt5.QtWidgets import QLabel
 import cv2
 

@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import QSlider,QWidget,QGridLayout,QLabel,QGraphicsItemGroup
 from PyQt5.QtCore import Qt
-from sharpy_track.view.GraphicViewers import ViewerLeft,ViewerRight
-from sharpy_track.view.ModeToggle import ModeToggle
-from sharpy_track.view.DotObject import DotObject
-from sharpy_track.model.calculation import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.GraphicViewers import ViewerLeft,ViewerRight
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle import ModeToggle
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 
 class MainWidget():
     def __init__(self,regViewer):

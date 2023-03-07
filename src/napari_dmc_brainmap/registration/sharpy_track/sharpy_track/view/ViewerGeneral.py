@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QLabel,QGraphicsScene,QFrame
-from sharpy_track.view.QGraphicsViewerMT import QGraphicsViewMT
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.QGraphicsViewerMT import QGraphicsViewMT
 
 class ViewerGeneral():
     def __init__(self,regViewer) -> None:

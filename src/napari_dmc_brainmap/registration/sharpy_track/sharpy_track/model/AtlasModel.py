@@ -1,13 +1,16 @@
 import numpy as np
 import cv2
 from PyQt5.QtGui import QImage, QPixmap
-from sharpy_track.view.DotObject import DotObject
-from sharpy_track.model.calculation import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 import os
 import pandas as pd
+from pathlib import Path
+from pkg_resources import resource_filename
 
 class AtlasModel():
     def __init__(self) -> None:
+        self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
         self.loadVolume()
         self.loadAnnot()
         self.loadStructureTree()
@@ -16,14 +19,14 @@ class AtlasModel():
     
 
     def loadVolume(self):
-        self.vol = np.load(os.path.join('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
+        self.vol = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
     
     def loadAnnot(self):
-        self.annot = np.load(os.path.join('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
+        self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
         # self.ap_mat = np.full((800,1140),539) # initiate ap_map at AP = 0mm
     
     def loadStructureTree(self):
-        self.sTree = pd.read_csv(os.path.join('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
+        self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
         self.bregma = [540,0,570]
 
     def calculateImageGrid(self):
@@ -101,7 +104,7 @@ class AtlasModel():
 
     def getSample(self,regViewer):
         if regViewer.status.sliceNum == 0:
-            self.sampleQimg = QImage(os.path.join('sharpy_track','sharpy_track','images','empty.png'))
+            self.sampleQimg = QImage(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')))
         else:
             self.sample = cv2.resize(self.imgStack[regViewer.status.currentSliceNumber],(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)

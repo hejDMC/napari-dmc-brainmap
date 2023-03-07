@@ -3,13 +3,13 @@
 
 # from PyQt5.QtPrintSupport import QPrintDialog
 from PyQt5.QtWidgets import QMessageBox, QMainWindow, QMenu, QAction, QFileDialog
-from sharpy_track.view.ModeToggle import ModeToggle
-from sharpy_track.view.DotObject import DotObject
-from sharpy_track.view.MainWidget import MainWidget
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle import ModeToggle
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.MainWidget import MainWidget
 import json
-from sharpy_track.model.AtlasModel import AtlasModel
-from sharpy_track.model.calculation import *
-from sharpy_track.controller.status import StatusContainer
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import AtlasModel
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.status import StatusContainer
 
 class RegistrationViewer(QMainWindow):
     def __init__(self, app):

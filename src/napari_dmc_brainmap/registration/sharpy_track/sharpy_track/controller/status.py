@@ -1,5 +1,5 @@
 import numpy as np
-from sharpy_track.model.calculation import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 from PyQt5.QtCore import Qt
 import json
 
