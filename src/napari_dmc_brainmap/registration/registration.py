@@ -6,7 +6,7 @@ from pathlib import Path
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
 import sys
 from PyQt5.QtWidgets import QApplication
-
+# todo clean import
 
 def registration_widget():
     from napari.qt.threading import thread_worker
@@ -21,15 +21,14 @@ def registration_widget():
     # todo think about solution to check and load atlas data
     @magicgui(
         layout='vertical',
-        input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                        tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                'folder containing segmentation results'),
+        # input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
+        #                 tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+        #                         'folder containing segmentation results'),
         call_button='start registration GUI'
     )
 
     def widget(
-            viewer: Viewer,
-            input_path
+            viewer: Viewer
     )-> None:
         # if not hasattr(widget, 'segment_layers'):
         #     widget.segment_layers = []
