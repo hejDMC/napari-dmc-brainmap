@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QApplication
 # todo clean import
 
 def registration_widget():
+    # todo probe_track in sharpy_track
     from napari.qt.threading import thread_worker
 
     # @thread_worker

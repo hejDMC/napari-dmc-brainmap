@@ -2,8 +2,8 @@ name: napari-dmc-brainmap
 display_name: dmc_brainmap
 contributions:
   commands:
-    - id: napari-dmc-brainmap.preprocessing_widget
-      python_name: napari_dmc_brainmap.preprocessing:preprocessing_widget
+    - id: napari-dmc-brainmap.PreprocessingWidget
+      python_name: napari_dmc_brainmap.preprocessing:PreprocessingWidget
       title: Make widget to perform preprocessing operations
 
     - id: napari-dmc-brainmap.registration_widget
@@ -19,7 +19,7 @@ contributions:
       title: Make widget to create results file
 
   widgets:
-    - command: napari-dmc-brainmap.preprocessing_widget
+    - command: napari-dmc-brainmap.PreprocessingWidget
       display_name: Preprocessing
 
     - command: napari-dmc-brainmap.registration_widget
