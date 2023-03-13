@@ -5,13 +5,19 @@ def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
     return animal_id
 
-def get_info(input_path, folder_id, seg_type=False, create_dir=False, only_dir=False):
+def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=False, only_dir=False):
 
     if not seg_type:
-        data_dir = input_path.joinpath(folder_id)
+        if channel:
+            data_dir = input_path.joinpath(folder_id, channel)
+        else:
+            data_dir = input_path.joinpath(folder_id)
         data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.tif')])
     else:
-        data_dir = input_path.joinpath(folder_id, seg_type)
+        if channel:
+            data_dir = input_path.joinpath(folder_id, seg_type, channel)
+        else:
+            data_dir = input_path.joinpath(folder_id, seg_type)
         data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.csv')])
     if create_dir:
         if not data_dir.exists():
@@ -45,6 +51,7 @@ def get_im_list(input_path):
     im_list_name = input_path.joinpath('image_names.csv')
     if im_list_name.exists():
         image_list = pd.read_csv(im_list_name)
+        image_list = image_list['0'].to_list()
     else:
         stitched_dir = get_info(input_path, 'stitched', only_dir=True)
         filter_dir = [f for f in stitched_dir.glob('**/*') if f.is_dir()][0]  # just take the first folder
@@ -53,7 +60,7 @@ def get_im_list(input_path):
         image_list = [image[:-len(common_suffix)] for image in image_list]  # delete the common_suffix
 
         # store data as .csv file
-        image_list = pd.DataFrame(image_list)
-        image_list.to_csv(im_list_name)
-    image_list = image_list['0'].to_list()
+        image_list_store = pd.DataFrame(image_list)
+        image_list_store.to_csv(im_list_name)
+
     return image_list

@@ -40,28 +40,120 @@ def header_widget(
 ):
     return header_widget
 
+
 # todo this as class
 @magicgui(
-    rgb_button=dict(widget_type='CheckBox', text='create RGB images', value=False,
+    button=dict(widget_type='CheckBox', text='create RGB images', value=False,
                     tooltip='option to create RGB images, tick to create RGB images'),
-    rgb_channels=dict(widget_type='Select', label='imaged channels', value='all',
+    channels=dict(widget_type='Select', label='selected channels', value='all',
                       choices=['all', 'dapi', 'green', 'cy3'],
-                      tooltip='select all channels imaged, to select multiple hold shift'),  # todo fix height of widget
-    rgb_ds=dict(widget_type='CheckBox', text='perform downsampling on RGB images', value=True,
+                      tooltip='select channels to create RGB image, to select multiple hold shift'),  # todo fix height of widget
+    ds_bool=dict(widget_type='CheckBox', text='perform downsampling on RGB images', value=True,
                 tooltip='option to downsample images, see option details below'),
-    rgb_contrast=dict(widget_type='CheckBox', text='perform contrast adjustment on RGB images', value=True,
+    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on RGB images', value=True,
                       tooltip='option to adjust contrast on images, see option details below'),
     call_button=False
 )
 def do_rgb(
         self,
-        rgb_button,
-        rgb_channels,
-        rgb_ds,
-        rgb_contrast
+        button,
+        channels,
+        ds_bool,
+        contrast_bool
 
 ):
     return do_rgb
+
+
+@magicgui(
+    button=dict(widget_type='CheckBox', text='process single channels', value=False,
+                    tooltip='option to process single channels individually'),
+    channels=dict(widget_type='Select', label='selected channels', value='all',
+                      choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+                      tooltip='select channels to be processed, to select multiple hold shift'),  # todo fix height of widget
+    ds_bool=dict(widget_type='CheckBox', text='perform downsampling on images', value=True,
+                tooltip='option to downsample images, see option details below'),
+    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images', value=True,
+                      tooltip='option to adjust contrast on images, see option details below'),
+    call_button=False
+)
+def do_single_channel(
+        self,
+        button,
+        channels,
+        ds_bool,
+        contrast_bool
+
+):
+    return do_single_channel
+
+@magicgui(
+    button=dict(widget_type='CheckBox', text='create image stack', value=False,
+                tooltip='option to create image stacks'),
+    channels=dict(widget_type='Select', label='selected channels', value='all',
+                  choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+                  tooltip='select channels to be processed, to select multiple hold shift'),
+    # todo fix height of widget
+    ds_bool=dict(widget_type='CheckBox', text='perform downsampling on images', value=True,
+                 tooltip='option to downsample images, see option details below'),
+    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images', value=True,
+                       tooltip='option to adjust contrast on images, see option details below'),
+    call_button=False
+)
+def do_stack(
+        self,
+        button,
+        channels,
+        ds_bool,
+        contrast_bool
+
+):
+    return do_stack
+
+@magicgui(
+    button=dict(widget_type='CheckBox', text='create downsampled images for sharpy-track', value=False,
+                tooltip='option to create downsampled images [1140x800 px] for brain registration using sharpy-track'),
+    channels=dict(widget_type='Select', label='selected channels', value='all',
+                  choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+                  tooltip='select channels to be processed, to select multiple hold shift'),
+    # todo fix height of widget
+    ds_bool=dict(widget_type='CheckBox', text='perform downsampling on images', value=True,
+                 tooltip='option to downsample images, see option details below'),
+    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images', value=True,
+                       tooltip='option to adjust contrast on images, see option details below'),
+    call_button=False
+)
+def do_sharpy(
+        self,
+        button,
+        channels,
+        ds_bool,
+        contrast_bool
+
+):
+    return do_sharpy
+
+@magicgui(
+    button=dict(widget_type='CheckBox', text='create binary images', value=False,
+                tooltip='option to create binary images (yen-thresholding)'),  # todo add option for other methods and entering of threshold
+    channels=dict(widget_type='Select', label='selected channels', value='all',
+                  choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+                  tooltip='select channels to be processed, to select multiple hold shift'),
+    # todo fix height of widget
+    ds_bool=dict(widget_type='CheckBox', text='perform downsampling on images', value=True,
+                 tooltip='option to downsample images, see option details below'),
+    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images', value=True,
+                       tooltip='option to adjust contrast on images, see option details below'),
+    call_button=False
+)
+def do_binary(
+        self,
+        button,
+        channels,
+        ds_bool,
+        contrast_bool
+):
+    return do_binary
 
 @magicgui(
     ds_params=dict(widget_type='SpinBox', label='enter downsampling factor', value=3,
@@ -74,8 +166,10 @@ def do_rgb(
                       value='50,2000', tooltip='enter contrast limits (default values for 16-bit image)'),
     contrast_cy5=dict(widget_type='LineEdit', label='set contrast limits for the cy5 channel',
                       value='50,1000', tooltip='enter contrast limits (default values for 16-bit image)'),
+    contrast_sharpy=dict(widget_type='LineEdit', label='set contrast limits for the sharpy-track',
+                      value='50,300', tooltip='enter contrast limits (default values for 16-bit image)'),
     num_cores=dict(widget_type='SpinBox', label='enter the number of parallel processes', value=1, min=1,
-                   tooltip='XXX'),  # todo write this better
+                   tooltip='select number of parallel processes to run in parallel'),  # todo write this better
     call_button=False
 )
 def footer_widget(
@@ -85,6 +179,7 @@ def footer_widget(
         contrast_green,
         contrast_cy3,
         contrast_cy5,
+        contrast_sharpy,
         num_cores
 ):
     return footer_widget
@@ -92,11 +187,14 @@ def footer_widget(
 @thread_worker
 def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, save_dirs):
 
-    if num_cores > multiprocessing.cpu_count():
-        print("maximum available cores = " + str(multiprocessing.cpu_count()))
+    # if num_cores > multiprocessing.cpu_count():
+    #     print("maximum available cores = " + str(multiprocessing.cpu_count()))
+    #     num_cores = multiprocessing.cpu_count()
     if save_dirs:
-        Parallel(n_jobs=num_cores)(
-            delayed(preprocess_images)(im, filter_list, input_path, params_dict, save_dirs) for im in tqdm(img_list))
+        if num_cores > 1:
+            print("parallel processing not implemented yet")
+        Parallel(n_jobs=num_cores)(delayed(preprocess_images)
+                                   (im, filter_list, input_path, params_dict, save_dirs) for im in tqdm(img_list))
         print("DONE!")
     else:
         print("No preprocessing operations selected, expand the respective windows and tick check box")
@@ -106,33 +204,36 @@ class PreprocessingWidget(QWidget):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
         header = header_widget
-
-        #self.input_path = QLineEdit()
-            #QFileDialog(self, 'input path (animal_id):')#, mode='d', tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                                      #'folder containing segmentation results')
-        # input_path = dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-        #                                       tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-        #                                             'folder containing segmentation results')
-        # QCollapsible creates a collapse container for inner widgets
-        self._collapse2 = QCollapsible('Create RGB: expand for more', self)
-        # magicgui doesn't need to be used as a decorator, you can call it
-        # repeatedly to create new widgets:
+        self._collapse_rgb = QCollapsible('Create RGB: expand for more', self)
         rgb_widget = do_rgb
-        # if you're mixing Qt and magicgui, you need to use the "native"
-        # attribute in magicgui to access the QWidget
-        self._collapse2.addWidget(rgb_widget.native)
+        self._collapse_rgb.addWidget(rgb_widget.native)
 
-        self._collapse3 = QCollapsible('Class: expand for more', self)
+        self._collapse_single = QCollapsible('Processed single channels: expand for more', self)
+        single_channel_widget = do_single_channel
+        self._collapse_single.addWidget(single_channel_widget.native)
+
+        self._collapse_stack = QCollapsible('Create image stacks: expand for more', self)
+        stack_widget = do_stack
+        self._collapse_stack.addWidget(stack_widget.native)
+
+        self._collapse_sharpy = QCollapsible('Create sharpy_track images: expand for more', self)
+        sharpy_widget = do_sharpy
+        self._collapse_sharpy.addWidget(sharpy_widget.native)
+
+        self._collapse_binary = QCollapsible('Create binary images: expand for more', self)
+        binary_widget = do_binary
+        self._collapse_binary.addWidget(binary_widget.native)
 
         footer = footer_widget
-
-
 
         btn = QPushButton("Do the preprocessing!")
         btn.clicked.connect(self._do_preprocessing)
         self.layout().addWidget(header.native)
-        self.layout().addWidget(self._collapse2)
-        self.layout().addWidget(self._collapse3)
+        self.layout().addWidget(self._collapse_rgb)
+        self.layout().addWidget(self._collapse_single)
+        self.layout().addWidget(self._collapse_stack)
+        self.layout().addWidget(self._collapse_sharpy)
+        self.layout().addWidget(self._collapse_binary)
         self.layout().addWidget(footer.native)
         self.layout().addWidget(btn)
 
@@ -145,17 +246,41 @@ class PreprocessingWidget(QWidget):
                 },
             "operations":
                 {
-                    "rgb": do_rgb.rgb_button.value,
-                    "single_channel": False,
-                    "stack": False,
-                    "sharpy_track": False,
-                    "binary": False
+                    "rgb": do_rgb.button.value,
+                    "single_channel": do_single_channel.button.value,
+                    "stack": do_stack.button.value,
+                    "sharpy_track": do_sharpy.button.value,
+                    "binary": do_binary.button.value
                 },
             "rgb_params":
                 {
-                    "channels": do_rgb.rgb_channels.value,
-                    "downsampling": do_rgb.rgb_ds.value,
-                    "contrast_adjustment": do_rgb.rgb_contrast.value
+                    "channels": do_rgb.channels.value,
+                    "downsampling": do_rgb.ds_bool.value,
+                    "contrast_adjustment": do_rgb.contrast_bool.value
+                },
+            "single_channel_params":
+                {
+                    "channels": do_single_channel.channels.value,
+                    "downsampling": do_single_channel.ds_bool.value,
+                    "contrast_adjustment": do_single_channel.contrast_bool.value
+                },
+            "stack_params":
+                {
+                    "channels": do_stack.channels.value,
+                    "downsampling": do_stack.ds_bool.value,
+                    "contrast_adjustment": do_stack.contrast_bool.value
+                },
+            "sharpy_track_params":
+                {
+                    "channels": do_sharpy.channels.value,
+                    "downsampling": do_sharpy.ds_bool.value,
+                    "contrast_adjustment": do_sharpy.contrast_bool.value
+                },
+            "binary_params":
+                {
+                    "channels": do_binary.channels.value,
+                    "downsampling": do_binary.ds_bool.value,
+                    "contrast_adjustment": do_binary.contrast_bool.value
                 },
             "downsample_params":
                 {  # todo rigid downsampling option
@@ -167,6 +292,7 @@ class PreprocessingWidget(QWidget):
                     "green": [int(i) for i in footer_widget.contrast_green.value.split(',')],
                     "cy3": [int(i) for i in footer_widget.contrast_cy3.value.split(',')],
                     "cy5": [int(i) for i in footer_widget.contrast_cy5.value.split(',')],
+                    "sharpy_track_contrast": [int(i) for i in footer_widget.contrast_sharpy.value.split(',')]
                 }
         }
         return params_dict
