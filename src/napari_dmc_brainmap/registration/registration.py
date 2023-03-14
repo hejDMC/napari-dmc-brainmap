@@ -36,11 +36,11 @@ def registration_widget():
         # pp = '/home/felix/Academia/DMC-lab/Projects/dmc-brainmap/napari-dmc-brainmap/src/napari_dmc_brainmap/registration/sharpy_track'
         # import os
         # os.system("python " + pp)
-        app = QApplication(sys.argv)
-        RegViewer = RegistrationViewer(app)
-        #RegViewer = RegistrationViewer(viewer)
-        #RegViewer.show()
-        viewer.window.add_dock_widget(RegViewer)
+        # app = QApplication(sys.argv)
+        # RegViewer = RegistrationViewer(app)
+        RegViewer = RegistrationViewer(viewer)
+        RegViewer.show()
+        # viewer.window.add_dock_widget(RegViewer)
         # viewer.window.qt_viewer(RegViewer)
         # RegViewer.show()
         # sys.exit(app.exec_())
