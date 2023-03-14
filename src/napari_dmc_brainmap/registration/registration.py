@@ -27,7 +27,6 @@ def registration_widget():
         #                         'folder containing segmentation results'),
         call_button='start registration GUI'
     )
-
     def widget(
             viewer: Viewer
     )-> None:
@@ -39,6 +38,7 @@ def registration_widget():
         # app = QApplication(sys.argv)
         # RegViewer = RegistrationViewer(app)
         RegViewer = RegistrationViewer(viewer)
+        #print('hi')
         RegViewer.show()
         # viewer.window.add_dock_widget(RegViewer)
         # viewer.window.qt_viewer(RegViewer)

@@ -9,7 +9,8 @@ from napari import Viewer
 from napari.layers import Image, Shapes
 from magicgui import magicgui
 from natsort import natsorted
-from skimage import io  # todo use cv2 instead?
+# from skimage import io  # todo use cv2 instead?
+import cv2
 import pandas as pd
 from napari_dmc_brainmap.utils import get_animal_id, get_info
 
@@ -37,20 +38,24 @@ def segment_widget():
     def change_index(image_idx):
         widget.image_idx.value = image_idx
 
-    # @thread_worker
+    # todo add options for channel limits etc.
     def load_next(viewer, input_path, seg_type, image_idx, load_dapi):
         stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
+
         if viewer.layers:
+            print("in if")
             # todo this needs to be changed, see todo in save_data function
             save_data(viewer, input_path, image_idx, seg_type)
         im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
         path_to_im = seg_im_dir.joinpath(im)
-        im_loaded = io.imread(path_to_im)
-        viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
+        print(str(path_to_im))
+        im_loaded =cv2.imread(str(path_to_im))  # loads RGB as BGR
+        print("post-load")
+        viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
         viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
         if load_dapi:
-            viewer.add_image(im_loaded[:, :, 2], name='dapi channel')
+            viewer.add_image(im_loaded[:, :, 0], name='dapi channel')
         viewer.layers['cy3 channel'].contrast_limits = [0, 100]
         viewer.layers['green channel'].contrast_limits = [0, 100]
         if seg_type == 'injection_side':
