@@ -10,8 +10,8 @@ contributions:
       python_name: napari_dmc_brainmap.registration:registration_widget
       title: Make registration widget to start registration GUI
 
-    - id: napari-dmc-brainmap.segment_widget
-      python_name: napari_dmc_brainmap.segment:segment_widget
+    - id: napari-dmc-brainmap.SegmentWidget
+      python_name: napari_dmc_brainmap.segment:SegmentWidget
       title: Make segmentation widget
 
     - id: napari-dmc-brainmap.results_widget
@@ -25,7 +25,7 @@ contributions:
     - command: napari-dmc-brainmap.registration_widget
       display_name: Registration
 
-    - command: napari-dmc-brainmap.segment_widget
+    - command: napari-dmc-brainmap.SegmentWidget
       display_name: Segmentation
 
     - command: napari-dmc-brainmap.results_widget

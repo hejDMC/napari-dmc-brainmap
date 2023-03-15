@@ -16,8 +16,6 @@ from napari_dmc_brainmap.utils import get_animal_id, get_im_list
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFileDialog, QLineEdit
 from superqt import QCollapsible
 from magicgui import magicgui
-# from magicclass import magicclass
-from dataclasses import dataclass
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
 
 @magicgui(
