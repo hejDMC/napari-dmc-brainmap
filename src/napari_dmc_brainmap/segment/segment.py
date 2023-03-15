@@ -9,49 +9,49 @@ from napari import Viewer
 from napari.layers import Image, Shapes
 from magicgui import magicgui
 from natsort import natsorted
-# from skimage import io  # todo use cv2 instead?
 import cv2
 import pandas as pd
 from napari_dmc_brainmap.utils import get_animal_id, get_info
 
 def segment_widget():
-    from napari.qt.threading import thread_worker
-    # @thread_worker
-    # def get_base_dir(input_path):
-    #
-    #     base_dir = input_path.parents[1]
-    #     animal_id = input_path.parts[-2]
-    #     return base_dir, animal_id
 
-    # def check_stats_dir(input_path, seg_type):
-    #     animal_id = get_animal_id(input_path)
-    #     stats_dir = input_path.joinpath(animal_id, 'stats', seg_type)
-    #     # if seg_type == 'cells (points)':
-    #     #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'cells')
-    #     # elif seg_type == 'injection side (areas)':
-    #     #     stats_dir = base_dir.joinpath(animal_id, 'stats', 'injection_side')
-    #     if not stats_dir.exists():
-    #         stats_dir.mkdir(parents=True)
-    #         print('creating stats folder under: ' + str(stats_dir))
-    #     return stats_dir
+
 
     def change_index(image_idx):
         widget.image_idx.value = image_idx
 
+    def default_save_dict():
+        save_dict = {
+            "image_idx": False,
+            "seg_type": False,
+            "chan_list": False
+        }
+        return save_dict
+    def update_save_dict(save_dict, image_idx, seg_type):
+        # get image idx and segmentation type for saving segmentation data
+        print('in update')
+        save_dict['image_idx'] = image_idx
+        save_dict['seg_type'] = seg_type
+        return save_dict
+
     # todo add options for channel limits etc.
-    def load_next(viewer, input_path, seg_type, image_idx, load_dapi):
+    def load_and_save(viewer, input_path, save_dict, seg_type, image_idx, load_dapi):
         stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-
-        if viewer.layers:
-            print("in if")
-            # todo this needs to be changed, see todo in save_data function
-            save_data(viewer, input_path, image_idx, seg_type)
-        im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
+        if save_dict['image_idx']:
+            save_data(viewer, input_path, save_dict)
+        im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
+            image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
         path_to_im = seg_im_dir.joinpath(im)
-        print(str(path_to_im))
-        im_loaded =cv2.imread(str(path_to_im))  # loads RGB as BGR
-        print("post-load")
+        print('before load')
+        save_dict = load_next(viewer, path_to_im, seg_type, image_idx, load_dapi)
+        return save_dict
+
+
+    def load_next(viewer, path_to_im, save_dict, seg_type, image_idx, load_dapi):
+        print('in load')
+        save_dict = update_save_dict(save_dict, image_idx, seg_type)
+        im_loaded = cv2.imread(str(path_to_im))  # loads RGB as BGR
         viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
         viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
         if load_dapi:
@@ -66,23 +66,27 @@ def segment_widget():
         print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
         change_index(image_idx)
-        return image_idx, stats_dir
+        return viewer, image_idx, save_dict
 
     # @thread_worker
-    def save_data(viewer, input_path, image_idx, seg_type):
+    def save_data(viewer, input_path, save_dict):
         # points data in [y, x] format
+        # todo use save_dict with info for saving
         # todo edit channels
         # todo here come errors when going 'down' in index and layers are still open
-        stats_dir = get_info(input_path, 'stats', seg_type=seg_type, only_dir=True)
+        save_idx = save_dict['idx']
+        seg_type_save = save_dict['seg_type']
+
+        stats_dir = get_info(input_path, 'stats', seg_type=seg_type_save, only_dir=True)
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        path_to_im = seg_im_dir.joinpath(seg_im_list[image_idx - 1])
+        path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
         im_name_str = path_to_im.with_suffix('').parts[-1]
-        if seg_type == 'injection_side':
+        if seg_type_save == 'injection_side':
             inj_side = pd.DataFrame(viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
             save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
             if viewer.layers['injection'].data[0].shape[0] > 0:
                 inj_side.to_csv(save_name_inj)
-        elif seg_type == 'cells':
+        elif seg_type_save == 'cells':
             green_cells = pd.DataFrame(viewer.layers['green'].data, columns=['Position Y', 'Position X'])
             cy3_cells = pd.DataFrame(viewer.layers['cy3'].data, columns=['Position Y', 'Position X'])
             save_name_green = stats_dir.joinpath(im_name_str + '_green.csv')
@@ -118,7 +122,7 @@ def segment_widget():
                               tooltip='option to save segmentation data before closing previous image'),
         # save_data_button=dict(widget_type='PushButton', text='save data',
         #                       tooltip='segmentation data is saved and optionally all open layers closed'),
-        call_button="load image"
+        call_button="save data and load next image"
     )
     def widget(
         viewer: Viewer,
@@ -129,29 +133,12 @@ def segment_widget():
         # load_image_button,
         close_images_box,
         save_data_box,
+        save_dict=None,
         # save_data_button
     ) -> None:
         # if not hasattr(widget, 'segment_layers'):
         #     widget.segment_layers = []
-        load_next(viewer, input_path, seg_type, int(image_idx), load_dapi_box)
+        if save_dict is None:
+            save_dict = default_save_dict()
+        save_dict = load_and_save(viewer, input_path, save_dict, seg_type, int(image_idx), load_dapi_box)
     return widget
-
-
-    #
-    #
-    # @widget.load_image_button.changed.connect
-    # def _load_image():
-    #     # todo check input path
-    #     # input_path = widget.input_path.value
-    #     # print(input_path)
-    #     # seg_type = widget.seg_type.value
-    #     # print(seg_type)
-    #     # image_idx = int(widget.image_idx.value)
-    #     # print(image_idx)
-    #     # load_dapi = widget.load_dapi_box.value
-    #     # print(load_dapi)
-    #     layers = []
-    #     # widget.segment_layers.append(layers)
-    #     im_loaded = io.imread(
-    #         '/home/felix/Academia/DMC-lab/Projects/Dopamine/Analyses/Anatomy/data/01_raw/injection-side/DP-256/rgb/DP-256_obj5_1_RGB.tif')
-    #     widget.viewer.add_image(im_loaded[:, :, 0], name='cy3 channel', colormap='red', opacity=1.0)
