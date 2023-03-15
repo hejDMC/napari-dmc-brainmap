@@ -3,7 +3,7 @@ import math
 import numpy as np
 from skimage.exposure import rescale_intensity
 from skimage.filters import threshold_yen
-from tifffile import TiffWriter
+import tifffile as tiff
 from napari_dmc_brainmap.utils import get_info
 
 # todo warning for overwriting
@@ -57,7 +57,7 @@ def do_8bit(data):
 
 def save_zstack(path, stack_dict):
     #
-    with TiffWriter(path) as tif:
+    with tiff.TiffWriter(path) as tif:
         for value in stack_dict.values():
             tif.write(value)
 
@@ -132,7 +132,7 @@ def make_binary(data, chan, params):
     if params['binary_params']['downsampling'] > 1:
         scale_factor = params['binary_params']['downsampling']
         data = downsample_image(data, scale_factor)
-    if params['binary_params'][chan]:
+    if params['binary_params']['thresh']:
         thresh = params['binary_params'][chan]
     else:
         thresh = threshold_yen(data)
@@ -168,15 +168,16 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs):
             downsampled_image = make_sharpy_track(stack_dict[chan].copy(), chan, params)
             ds_image_name = im + '_downsampled.tif'
             ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
-            cv2.imwrite(str(ds_image_path), downsampled_image)
-
+            tiff.imwrite(str(ds_image_path), downsampled_image)
+            # todo use tifffile to write images, cv2.imwrite resulted in some errors
     if params['operations']['rgb']:
         chans = select_chans(params['rgb_params']['channels'], filter_list, 'rgb')
         rgb_dict = dict((c, stack_dict[c]) for c in chans)
         rgb_stack = make_rgb(rgb_dict, params)  # todo do I need to copy dict?
         rgb_fn = im + '_RGB.tif'
         rgb_save_dir = save_dirs['rgb'].joinpath(rgb_fn)
-        cv2.imwrite(str(rgb_save_dir), cv2.cvtColor(rgb_stack, cv2.COLOR_RGB2BGR))  # cv2 defaults to BGR, reverse this to write RGB image
+        tiff.imwrite(str(rgb_save_dir), rgb_stack)
+        # cv2.imwrite(str(rgb_save_dir), cv2.cvtColor(rgb_stack, cv2.COLOR_RGB2BGR))  # cv2 defaults to BGR, reverse this to write RGB image
 
     if params['operations']['single_channel']:
         chans = select_chans(params['single_channel_params']['channels'], filter_list, 'single_channel')
@@ -201,4 +202,4 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs):
             binary_image = make_binary(stack_dict[chan].copy(), chan, params)
             binary_image_name = im + '_binary.tif'
             binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
-            cv2.imwrite(str(binary_image_path), binary_image)
+            tiff.imwrite(str(binary_image_path), binary_image)
