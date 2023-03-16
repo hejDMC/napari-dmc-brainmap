@@ -1,16 +1,25 @@
 from napari import Viewer
-from napari.layers import Image, Shapes
-from napari.qt.threading import thread_worker
 from natsort import natsorted
 import cv2
 from napari_dmc_brainmap.utils import get_info
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFileDialog, QLineEdit
-from superqt import QCollapsible
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
 import pandas as pd
 
 def change_index(image_idx):
     segment_widget.image_idx.value = image_idx
+
+
+def cmap_cells():
+    # return default colormap for channel and color of cells
+    cmap = {
+        'dapi': 'yellow',
+        'green': 'magenta',
+        'cy3': 'cyan',
+        # 'cy5': 'lightblue'
+    }
+    return cmap
+
 
 def default_save_dict():
     save_dict = {
@@ -31,31 +40,23 @@ def default_save_dict():
                     tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
                             'IMPORTANT: before switching between types, load next image, delete all image layers'
                             'and reload image of interest!'),
+    channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
+                      choices=['dapi', 'green', 'cy3'],
+                      tooltip='select channels to be selected for cell segmentation, '
+                              'to select multiple hold ctrl/shift'),
     image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
                     tooltip='index (int) of image to be loaded and segmented next'),
-    load_dapi_bool=dict(widget_type='CheckBox', text='load blue channel', value=False,
-                        tooltip='option to load blue channel (0: red; 1: green; 2: dapi)'),
-    # load_image_button=dict(widget_type='PushButton', text='load next images',
-    #                        tooltip='load the next image (index specified above) for segmentation'),
-    close_images_bool=dict(widget_type='CheckBox', text='close images after saving', value=True,
-                            tooltip='option to close all layers (images and segmentation data) after saving'),
-    save_data_bool=dict(widget_type='CheckBox', text='save segmentation data', value=True,
-                        tooltip='option to save segmentation data before closing previous image'),
-    # save_data_button=dict(widget_type='PushButton', text='save data',
-    #                       tooltip='segmentation data is saved and optionally all open layers closed'),
+    # load_dapi_bool=dict(widget_type='CheckBox', text='load blue channel', value=False,
+    #                     tooltip='option to load blue channel (0: cy3; 1: green; 2: dapi)'),
     call_button=False
 )
 def segment_widget(
     viewer: Viewer,
     input_path,  # posix path
     seg_type,
+    channels,
     image_idx,
-    load_dapi_bool,
-    # load_image_button,
-    close_images_bool,
-    save_data_bool,
-    save_dict=None,
-    # save_data_button
+    # load_dapi_bool
 ) -> None:
 
     return segment_widget
@@ -87,7 +88,7 @@ class SegmentWidget(QWidget):
         input_path = segment_widget.input_path.value
         image_idx = int(segment_widget.image_idx.value)
         seg_type = segment_widget.seg_type.value
-        load_dapi = segment_widget.load_dapi_bool.value
+        channels = segment_widget.channels.value
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
             self.save_dict = default_save_dict()
@@ -99,25 +100,29 @@ class SegmentWidget(QWidget):
             im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
                 image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
             path_to_im = seg_im_dir.joinpath(im)
-            self._load_next(path_to_im, seg_type, image_idx, load_dapi)
+            self._load_next(path_to_im, seg_type, channels, image_idx)
         except IndexError:
             print("Index out of range, check that index matches image count in " + str(seg_im_dir))
 
 
-    def _load_next(self, path_to_im, seg_type, image_idx, load_dapi):
+    def _load_next(self, path_to_im, seg_type, channels, image_idx):
         self.save_dict = self._update_save_dict(image_idx, seg_type)
         im_loaded = cv2.imread(str(path_to_im))  # loads RGB as BGR
-        self.viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
-        self.viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
-        if load_dapi:
+        if 'cy3' in channels:
+            self.viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
+            self.viewer.layers['cy3 channel'].contrast_limits = [0, 100]
+        if 'green' in channels:
+            self.viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
+            self.viewer.layers['green channel'].contrast_limits = [0, 100]
+        if 'dapi' in channels:
             self.viewer.add_image(im_loaded[:, :, 0], name='dapi channel')
-        self.viewer.layers['cy3 channel'].contrast_limits = [0, 100]
-        self.viewer.layers['green channel'].contrast_limits = [0, 100]
+            self.viewer.layers['dapi channel'].contrast_limits = [0, 100]
         if seg_type == 'injection_side':
             self.viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
         elif seg_type == 'cells':  # todo presegment for cells
-            self.viewer.add_points(size=5, name='green', face_color='magenta')
-            self.viewer.add_points(size=5, name='cy3', face_color='cyan')
+            cmap_dict = cmap_cells()
+            for chan in channels:
+                self.viewer.add_points(size=5, name=chan, face_color=cmap_dict[chan])
         print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
         change_index(image_idx)
