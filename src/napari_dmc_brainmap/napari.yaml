@@ -6,8 +6,8 @@ contributions:
       python_name: napari_dmc_brainmap.preprocessing:PreprocessingWidget
       title: Make widget to perform preprocessing operations
 
-    - id: napari-dmc-brainmap.registration_widget
-      python_name: napari_dmc_brainmap.registration:registration_widget
+    - id: napari-dmc-brainmap.RegistrationWidget
+      python_name: napari_dmc_brainmap.registration:RegistrationWidget
       title: Make registration widget to start registration GUI
 
     - id: napari-dmc-brainmap.SegmentWidget
@@ -22,7 +22,7 @@ contributions:
     - command: napari-dmc-brainmap.PreprocessingWidget
       display_name: Preprocessing
 
-    - command: napari-dmc-brainmap.registration_widget
+    - command: napari-dmc-brainmap.RegistrationWidget
       display_name: Registration
 
     - command: napari-dmc-brainmap.SegmentWidget

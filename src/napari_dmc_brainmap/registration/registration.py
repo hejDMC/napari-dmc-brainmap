@@ -1,37 +1,19 @@
-from napari import Viewer
-from napari.layers import Image, Shapes
-from magicgui import magicgui
-from pkg_resources import resource_filename
-from pathlib import Path
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFileDialog, QLineEdit
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
-import sys
-from PyQt5.QtWidgets import QApplication
-# todo clean import
 
-def registration_widget():
-    # todo probe_track in sharpy_track
-    from napari.qt.threading import thread_worker
 
-    # @thread_worker
-    # def run():
-    #     app = QApplication(sys.argv)
-    #     RegViewer = RegistrationViewer(app)
-    #     RegViewer.show()
-    #     sys.exit(app.exec_())
+class RegistrationWidget(QWidget):
+    def __init__(self, napari_viewer):
+        super().__init__()
+        self.viewer = napari_viewer
+        self.setLayout(QVBoxLayout())
+        btn = QPushButton("start registration GUI")
+        btn.clicked.connect(self._start_sharpy_track)
 
-    # todo think about solution to check and load atlas data
-    @magicgui(
-        layout='vertical',
-        call_button='start registration GUI'
-    )
-    def widget(
-            viewer: Viewer
-    ) -> None:
-        # app = QApplication(sys.argv)
-        # RegViewer = RegistrationViewer(app)
-        RegViewer = RegistrationViewer(viewer)
-        RegViewer.show()
-        # viewer.window.add_dock_widget(RegViewer)
-        # viewer.window.qt_viewer(RegViewer)
-        # sys.exit(app.exec_())
-    return widget
+        self.layout().addWidget(btn)
+
+    def _start_sharpy_track(self):
+        # todo probe_track in sharpy_track
+        # todo think about solution to check and load atlas data
+        reg_viewer = RegistrationViewer(self.viewer)
+        reg_viewer.show()

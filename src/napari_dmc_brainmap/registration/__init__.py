@@ -1,3 +1,2 @@
-from .registration import registration_widget
-from .results import results_widget
-# from sharpy_track import model
+# from .registration_old import registration_widget
+from .registration import RegistrationWidget

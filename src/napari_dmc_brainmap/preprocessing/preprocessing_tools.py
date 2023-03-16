@@ -7,9 +7,8 @@ import tifffile as tiff
 from napari_dmc_brainmap.utils import get_info
 
 # todo warning for overwriting
-
 def create_dirs(params, input_path):
-    save_dirs = {}  # todo this as function?
+    save_dirs = {}
     for operation in params['operations']:
         if params['operations'][operation]:
             if operation == 'rgb' or operation == 'stack':
@@ -154,8 +153,6 @@ def select_chans(chan_list, filter_list, operation):
         chans = list(set(chan_list) & set(filter_list))
     return chans
 
-# todo: contrast adjustment and downsampling, all in one go or not?     if any([v for v, k in zip(params['operations'].values(), params['operations']) if k != 'sharpy_track']):
-#
 def preprocess_images(im, filter_list, input_path, params, save_dirs):
     print("started with " + str(im))
     stack_dict = {}  # save all loaded filters as dict['filter'][array]
@@ -169,15 +166,14 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs):
             ds_image_name = im + '_downsampled.tif'
             ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
             tiff.imwrite(str(ds_image_path), downsampled_image)
-            # todo use tifffile to write images, cv2.imwrite resulted in some errors
+            # use tifffile to write images, cv2.imwrite resulted in some errors
     if params['operations']['rgb']:
         chans = select_chans(params['rgb_params']['channels'], filter_list, 'rgb')
         rgb_dict = dict((c, stack_dict[c]) for c in chans)
-        rgb_stack = make_rgb(rgb_dict, params)  # todo do I need to copy dict?
+        rgb_stack = make_rgb(rgb_dict, params)
         rgb_fn = im + '_RGB.tif'
         rgb_save_dir = save_dirs['rgb'].joinpath(rgb_fn)
         tiff.imwrite(str(rgb_save_dir), rgb_stack)
-        # cv2.imwrite(str(rgb_save_dir), cv2.cvtColor(rgb_stack, cv2.COLOR_RGB2BGR))  # cv2 defaults to BGR, reverse this to write RGB image
 
     if params['operations']['single_channel']:
         chans = select_chans(params['single_channel_params']['channels'], filter_list, 'single_channel')

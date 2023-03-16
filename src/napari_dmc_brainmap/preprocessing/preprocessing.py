@@ -6,12 +6,9 @@ see: https://napari.org/stable/plugins/guides.html?#widgets
 
 Replace code below according to your needs.
 """
-from napari import Viewer
-from napari.layers import Image, Shapes
 from napari.qt.threading import thread_worker
 from tqdm import tqdm
 from joblib import Parallel, delayed
-import multiprocessing
 from napari_dmc_brainmap.utils import get_animal_id, get_im_list
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFileDialog, QLineEdit
 from superqt import QCollapsible
@@ -34,7 +31,7 @@ def header_widget(
 ):
     return header_widget
 
-# todo this as class
+# todo: all these function as class
 @magicgui(
     button=dict(widget_type='CheckBox', text='create RGB images', value=False,
                     tooltip='option to create RGB images, tick to create RGB images'),
@@ -224,6 +221,8 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, 
         print("DONE!")
     else:
         print("No preprocessing operations selected, expand the respective windows and tick check box")
+
+
 class PreprocessingWidget(QWidget):
 
     def __init__(self, parent=None):

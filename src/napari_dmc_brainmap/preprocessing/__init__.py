@@ -1,2 +1,1 @@
-from .preprocessing_old import preprocessing_widget
 from .preprocessing import PreprocessingWidget
