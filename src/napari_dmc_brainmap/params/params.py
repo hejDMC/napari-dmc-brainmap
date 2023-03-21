@@ -1,5 +1,5 @@
 import json
-from napari_dmc_brainmap.utils import get_animal_id, update_params_dict
+from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
 
@@ -59,9 +59,9 @@ class ParamsWidget(QWidget):
                 "chans_imaged": chans_imaged
             }
         }
+        params_dict = clean_params_dict(params_dict, "general")
         params_fn = input_path.joinpath('params.json')
         params_dict = update_params_dict(input_path, params_dict)
-
         with open(params_fn, 'w') as fn:
             json.dump(params_dict, fn, indent=4)
 

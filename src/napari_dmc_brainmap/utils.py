@@ -67,6 +67,21 @@ def get_im_list(input_path):
     return image_list
 
 
+def clean_params_dict(params_dict, key):
+    # remove empty keys and processes that have not run
+    del_list = []
+    for k in params_dict[key]:
+        if not params_dict[key][k]:
+            del_list.append(k)
+    for d in del_list:
+        del params_dict[key][d]
+        try:
+            del params_dict[d+"_params"]
+        except KeyError:
+            pass
+    return params_dict
+
+
 def update_params_dict(input_path, params_dict):
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
