@@ -1,3 +1,4 @@
+import json
 from natsort import natsorted
 import pandas as pd
 
@@ -64,3 +65,15 @@ def get_im_list(input_path):
         image_list_store.to_csv(im_list_name)
 
     return image_list
+
+
+def update_params_dict(input_path, params_dict):
+    params_fn = input_path.joinpath('params.json')
+    if params_fn.exists():
+        print("params.json exists -- overriding existing values")
+        with open(params_fn) as fn:
+            params_dict_old = json.load(fn)
+        params_dict_new = {**params_dict_old, **params_dict}  # todo z = {**x, **y} python 3.8, for 3.9: z = x | y
+        return params_dict_new
+    else:
+        return params_dict
