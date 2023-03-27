@@ -22,8 +22,8 @@ contributions:
       python_name: napari_dmc_brainmap.segment:SegmentWidget
       title: Make segmentation widget
 
-    - id: napari-dmc-brainmap.results_widget
-      python_name: napari_dmc_brainmap.registration:results_widget
+    - id: napari-dmc-brainmap.ResultsWidget
+      python_name: napari_dmc_brainmap.results:ResultsWidget
       title: Make widget to create results file
 
     - id: napari-dmc-brainmap.VisualizationWidget
@@ -46,7 +46,7 @@ contributions:
     - command: napari-dmc-brainmap.SegmentWidget
       display_name: Segmentation
 
-    - command: napari-dmc-brainmap.results_widget
+    - command: napari-dmc-brainmap.ResultsWidget
       display_name: Create results file
 
     - command: napari-dmc-brainmap.VisualizationWidget

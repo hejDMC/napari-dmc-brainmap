@@ -42,7 +42,8 @@ def find_common_suffix(image_list, folder='unknown'):
         common_suffix = image_list[0][-i + 1:]
         # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
     elif len(image_list) == 1:
-        common_suffix = input("only one image in folder, manually enter suffix for " + folder + " folder")
+        print('only one image in ' + folder + ' folder: ' + image_list[0])
+        common_suffix = input("please, manually enter suffix: ")
     else:
         common_suffix = []
     return common_suffix
@@ -83,6 +84,7 @@ def clean_params_dict(params_dict, key):
 
 
 def update_params_dict(input_path, params_dict):
+    # todo this overrides from create params to prerpocessing
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
         print("params.json exists -- overriding existing values")

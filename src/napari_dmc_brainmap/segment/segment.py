@@ -93,7 +93,7 @@ class SegmentWidget(QWidget):
         if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
             self.save_dict = default_save_dict()
         if type(self.save_dict['image_idx']) == int:  # todo there must be a better way :-D (for image_idx = 0)
-            self._save_data(input_path)
+            self._save_data(input_path, channels)
         del (self.viewer.layers[:])  # remove open layers
 
         try:
@@ -127,28 +127,28 @@ class SegmentWidget(QWidget):
         image_idx += 1
         change_index(image_idx)
 
-    def _save_data(self, input_path):
+    def _save_data(self, input_path, channels):
         # points data in [y, x] format
         # todo edit channels etc. this is very stiff at the moment
         save_idx = self.save_dict['image_idx']
         seg_type_save = self.save_dict['seg_type']
-        stats_dir = get_info(input_path, 'stats', seg_type=seg_type_save, create_dir=True, only_dir=True)
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
         im_name_str = path_to_im.with_suffix('').parts[-1]
         if seg_type_save == 'injection_side':
             if len(self.viewer.layers['injection'].data) > 0:
+                stats_dir = get_info(input_path, 'stats', seg_type=seg_type_save, create_dir=True, only_dir=True)
                 inj_side = pd.DataFrame(self.viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
                 save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
                 inj_side.to_csv(save_name_inj)
         elif seg_type_save == 'cells':
-            if len(self.viewer.layers['green'].data) > 0:
-                green_cells = pd.DataFrame(self.viewer.layers['green'].data, columns=['Position Y', 'Position X'])
-                save_name_green = stats_dir.joinpath(im_name_str + '_green.csv')
-                green_cells.to_csv(save_name_green)
-            if len(self.viewer.layers['cy3'].data) > 0:
-                cy3_cells = pd.DataFrame(self.viewer.layers['cy3'].data, columns=['Position Y', 'Position X'])
-                save_name_cy3 = stats_dir.joinpath(im_name_str + '_cy3.csv')
-                cy3_cells.to_csv(save_name_cy3)
+            for chan in channels:
+                if len(self.viewer.layers[chan].data) > 0:
+                    stats_dir = get_info(input_path, 'stats', channel=chan, seg_type=seg_type_save, create_dir=True,
+                                         only_dir=True)
+                    coords = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
+                    save_name = stats_dir.joinpath(im_name_str + '_cells.csv')
+                    coords.to_csv(save_name)
+
 
 
