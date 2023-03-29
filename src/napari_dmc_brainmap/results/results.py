@@ -1,4 +1,5 @@
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from napari.qt.threading import thread_worker
 from magicgui import magicgui
 import cv2
 import numpy as np
@@ -9,7 +10,7 @@ from napari_dmc_brainmap.utils import get_animal_id, get_info
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
 import json
 
-from napari.qt.threading import thread_worker
+
 
 # todo path things for regi data
 def split_strings_layers(s):

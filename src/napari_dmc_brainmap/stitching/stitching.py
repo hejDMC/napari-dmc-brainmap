@@ -1,65 +1,127 @@
-from napari import Viewer
-from natsort import natsorted
-import cv2
-from napari_dmc_brainmap.utils import get_info
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from napari import Viewer
+from napari.qt.threading import thread_worker
 from magicgui import magicgui
-import pandas as pd
 
-def change_index(image_idx):
-    segment_widget.image_idx.value = image_idx
+from natsort import natsorted
+import json
+import tifffile as tiff
+import numpy as np
 
-
-def cmap_cells():
-    # return default colormap for channel and color of cells
-    cmap = {
-        'dapi': 'yellow',
-        'green': 'magenta',
-        'cy3': 'cyan',
-        # 'cy5': 'lightblue'
-    }
-    return cmap
+from napari_dmc_brainmap.utils import get_info
+from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack
+from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict
 
 
-def default_save_dict():
-    save_dict = {
-        "image_idx": False,
-        "seg_type": False,
-        "chan_list": False
-    }
-    return save_dict
+@thread_worker
+def do_stitching(input_path, filter_list, params_dict):
+    animal_id = get_animal_id(input_path)
+    direct_sharpy_track = params_dict['operations']['sharpy_track']
+
+    # get obj sub-dirs
+    data_dir = input_path.joinpath('raw')
+    objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])
+    if not objs:
+        print('no object slides under raw-data folder!')
+        return
+
+    # iterate objs and chans
+    for obj in objs:
+        in_obj = data_dir.joinpath(obj)
+        for f in filter_list:
+            stitch_dir = get_info(input_path, 'stitching', channel=f, create_dir=True, only_dir=True)
+            in_chan = in_obj.joinpath(obj + '_' + f + '_1')
+            ## load tile stack name
+            stack = []
+            im_list = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
+            for fn in im_list:
+                stack.append(fn)
+            stack.sort()
+            ## load stack data
+            whole_stack = []
+            for stk in stack:
+                with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
+                    for page in tif.pages:  # iterate over pages
+                        image = page.asarray()  # convert to array
+                        whole_stack.append(image)  # append to whole_stack container
+            ## convert to numpy array
+            whole_stack = np.array(whole_stack)
+
+            # load tile location meta data from meta folder
+            meta_json_where = in_obj.joinpath(obj + '_meta_1', 'regions_pos.json')
+
+            with open(meta_json_where, 'r') as data:
+                img_meta = json.load(data)
+            # get number of regions on this objective slide
+            region_n = len(img_meta)
+            # iterate regions
+            for rn in range(region_n):
+                pos_list = img_meta['region_' + str(rn)]
+                stitched_path = stitch_dir.joinpath(animal_id + '_' + obj + '_' + str(rn + 1) + '_stitched.tif')
+                if direct_sharpy_track:
+                    sharpy_chans = params_dict['sharpy_track_params']['channels']
+                    if f in sharpy_chans:
+                        sharpy_dir = get_info(input_path, 'stitching', channel=f, create_dir=True, only_dir=True)
+                        sharpy_im_dir = sharpy_dir.joinpath(animal_id + '_' + obj + '_' +
+                                                            str(rn + 1) + '_downsampled.tif')
+                        pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, sharpy_im_dir)
+                    else:
+                        pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
+                else:
+                    pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
+                # remove stitched tiles from whole_stack
+                whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
+    params_dict = clean_params_dict(params_dict, "operations")
+    params_fn = input_path.joinpath('params.json')
+    params_dict = update_params_dict(input_path, params_dict)
+    with open(params_fn, 'w') as fn:
+        json.dump(params_dict, fn, indent=4)
+    print('all finished!')
+
 
 @magicgui(
-    # todo sate that only RGB images for now, think about different image formats
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                                 'folder containing segmentation results'),
-    seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                    choices=['cells', 'injection_side'], value='cells',
-                    tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
-                            'IMPORTANT: before switching between types, load next image, delete all image layers'
-                            'and reload image of interest!'),
-    channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'cy3'],
-                      tooltip='select channels to be selected for cell segmentation, '
+    channels=dict(widget_type='Select', label='imaged channels', value=['green', 'cy3'],
+                      choices=['dapi', 'green', 'cy3', 'cy5'],
+                      tooltip='select the imaged channels, '
                               'to select multiple hold ctrl/shift'),
-    image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
-                    tooltip='index (int) of image to be loaded and segmented next'),
-    # load_dapi_bool=dict(widget_type='CheckBox', text='load blue channel', value=False,
-    #                     tooltip='option to load blue channel (0: cy3; 1: green; 2: dapi)'),
+    sharpy_bool=dict(widget_type='CheckBox', text='get images for sharpy-track', value=True,
+                     tooltip='downsample image to resolution in sharpy track (1140 x 800)'),
+    sharpy_chan=dict(widget_type='Select', label='selected channels', value='green',
+                     choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+                     tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
+    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images for registration', value=True,
+                       tooltip='option to adjust contrast on images, see option details below'),
+    contrast_dapi=dict(widget_type='LineEdit', label='set contrast limits for the dapi channel',
+                       value='50,1000', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+    contrast_green=dict(widget_type='LineEdit', label='set contrast limits for the green channel',
+                        value='50,300', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+    contrast_cy3=dict(widget_type='LineEdit', label='set contrast limits for the cy3 channel',
+                      value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+    contrast_cy5=dict(widget_type='LineEdit', label='set contrast limits for the cy5 channel',
+                      value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+
+
     call_button=False
 )
-def segment_widget(
+def stitching_widget(
     viewer: Viewer,
     input_path,  # posix path
-    seg_type,
     channels,
-    image_idx,
-    # load_dapi_bool
+    sharpy_bool,
+    sharpy_chan,
+    contrast_bool,
+    contrast_dapi,
+    contrast_green,
+    contrast_cy3,
+    contrast_cy5
+
 ) -> None:
 
-    return segment_widget
+    return stitching_widget
 
 
 
@@ -68,87 +130,42 @@ class StitchingWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
-        segment = segment_widget
-        self.save_dict = default_save_dict()
-        btn = QPushButton("save data and load next image")
-        btn.clicked.connect(self._save_and_load)
+        stitching = stitching_widget
+        btn = QPushButton("stitch images")
+        btn.clicked.connect(self._do_stitching)
 
-        self.layout().addWidget(segment.native)
+        self.layout().addWidget(stitching.native)
         self.layout().addWidget(btn)
+    def _get_info(self, widget):
 
-    def _update_save_dict(self, image_idx, seg_type):
-        # get image idx and segmentation type for saving segmentation data
-        self.save_dict['image_idx'] = image_idx
-        self.save_dict['seg_type'] = seg_type
-        return self.save_dict
+            return {
+                "channels": widget.sharpy_chan.value,
+                "contrast_adjustment": widget.contrast_bool.value,
+                "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
+                "green": [int(i) for i in widget.contrast_green.value.split(',')],
+                "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
+                "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
+            }
 
-    def _save_and_load(self):
-        # stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
+    def _get_stitching_params(self):
+        params_dict = {
+            "general":
+                {
+                    "animal_id": get_animal_id(stitching_widget.input_path.value),
+                    "chans_imaged": stitching_widget.chans_imaged.value
+                },
+            "operations":
+                {
+                    "sharpy_track": stitching_widget.sharpy_bool.value,
+                },
+            "sharpy_track_params": self._get_info(stitching_widget),
 
-        input_path = segment_widget.input_path.value
-        image_idx = int(segment_widget.image_idx.value)
-        seg_type = segment_widget.seg_type.value
-        channels = segment_widget.channels.value
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
-            self.save_dict = default_save_dict()
-        if type(self.save_dict['image_idx']) == int:  # todo there must be a better way :-D (for image_idx = 0)
-            self._save_data(input_path)
-        del (self.viewer.layers[:])  # remove open layers
-
-        try:
-            im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
-                image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
-            path_to_im = seg_im_dir.joinpath(im)
-            self._load_next(path_to_im, seg_type, channels, image_idx)
-        except IndexError:
-            print("Index out of range, check that index matches image count in " + str(seg_im_dir))
-
-
-    def _load_next(self, path_to_im, seg_type, channels, image_idx):
-        self.save_dict = self._update_save_dict(image_idx, seg_type)
-        im_loaded = cv2.imread(str(path_to_im))  # loads RGB as BGR
-        if 'cy3' in channels:
-            self.viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
-            self.viewer.layers['cy3 channel'].contrast_limits = [0, 100]
-        if 'green' in channels:
-            self.viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
-            self.viewer.layers['green channel'].contrast_limits = [0, 100]
-        if 'dapi' in channels:
-            self.viewer.add_image(im_loaded[:, :, 0], name='dapi channel')
-            self.viewer.layers['dapi channel'].contrast_limits = [0, 100]
-        if seg_type == 'injection_side':
-            self.viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
-        elif seg_type == 'cells':  # todo presegment for cells
-            cmap_dict = cmap_cells()
-            for chan in channels:
-                self.viewer.add_points(size=5, name=chan, face_color=cmap_dict[chan])
-        print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
-        image_idx += 1
-        change_index(image_idx)
-
-    def _save_data(self, input_path):
-        # points data in [y, x] format
-        # todo edit channels etc. this is very stiff at the moment
-        save_idx = self.save_dict['image_idx']
-        seg_type_save = self.save_dict['seg_type']
-        stats_dir = get_info(input_path, 'stats', seg_type=seg_type_save, create_dir=True, only_dir=True)
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
-        im_name_str = path_to_im.with_suffix('').parts[-1]
-        if seg_type_save == 'injection_side':
-            if len(self.viewer.layers['injection'].data) > 0:
-                inj_side = pd.DataFrame(self.viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
-                save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
-                inj_side.to_csv(save_name_inj)
-        elif seg_type_save == 'cells':
-            if len(self.viewer.layers['green'].data) > 0:
-                green_cells = pd.DataFrame(self.viewer.layers['green'].data, columns=['Position Y', 'Position X'])
-                save_name_green = stats_dir.joinpath(im_name_str + '_green.csv')
-                green_cells.to_csv(save_name_green)
-            if len(self.viewer.layers['cy3'].data) > 0:
-                cy3_cells = pd.DataFrame(self.viewer.layers['cy3'].data, columns=['Position Y', 'Position X'])
-                save_name_cy3 = stats_dir.joinpath(im_name_str + '_cy3.csv')
-                cy3_cells.to_csv(save_name_cy3)
-
+        }
+        return params_dict
+    def _do_stitching(self):
+        input_path = stitching_widget.input_path.value
+        params_dict = self._get_preprocessing_params()
+        filter_list = params_dict['general']['chans_imaged']
+        preprocessing_worker = do_stitching(input_path, filter_list, params_dict)
+        preprocessing_worker.start()
 
