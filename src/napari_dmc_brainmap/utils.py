@@ -94,3 +94,35 @@ def update_params_dict(input_path, params_dict):
         return params_dict_new
     else:
         return params_dict
+
+
+def split_strings_layers(s):
+    # from: https://stackoverflow.com/questions/430079/how-to-split-strings-into-text-and-number
+    if s.startswith('TEa'):  # special case due to small 'a', will otherwise split 'TE' + 'a1', not 'TEa' + '1'
+        head = s[:3]
+        tail = s[3:]
+    else:
+        head = s.rstrip('0123456789/ab')
+        tail = s[len(head):]
+    return head, tail
+
+def clean_results_df(df, st):  # todo this somewhere seperate
+    path_list = st['structure_id_path'][df['sphinx_id']]
+    path_list = path_list.to_list()
+    df['path_list'] = path_list
+    df = df.reset_index()
+
+    # clean data - not cells in root, fiber tracts and ventricles
+    # drop "root"
+    df = df.drop(df[df['name'] == 'root'].index)
+
+    # fiber tracks and all children of it
+    fiber_path = st[st['name'] == 'fiber tracts']['structure_id_path'].iloc[0]
+    df = df.drop(
+        df[df['path_list'].str.contains(fiber_path)].index)
+
+    ventricle_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
+    df = df.drop(
+        df[df['path_list'].str.contains(ventricle_path)].index)
+    df = df.reset_index(drop=True)
+    return df

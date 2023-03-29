@@ -7,11 +7,12 @@ from pathlib import Path
 from pkg_resources import resource_filename
 
 class sliceHandle():
-    def __init__(self,registration) -> None:
+    def __init__(self, registration=False) -> None:
         self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
-        self.jsonPath = registration
+        if registration:
+            self.jsonPath = registration
+            self.parseJSON()
         self.loadAnnot()
-        self.parseJSON()
         self.getTransform()
         self.calculateImageGrid()
         self.currentSlice = None

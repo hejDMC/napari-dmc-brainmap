@@ -1,154 +1,210 @@
 from napari import Viewer
 from natsort import natsorted
-import cv2
+import json
 from napari_dmc_brainmap.utils import get_info
+from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
+from napari.qt.threading import thread_worker
 import pandas as pd
 
-def change_index(image_idx):
-    segment_widget.image_idx.value = image_idx
+from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
+from napari_dmc_brainmap.visualization.visualization_tools import *
 
-
-def cmap_cells():
-    # return default colormap for channel and color of cells
-    cmap = {
-        'dapi': 'yellow',
-        'green': 'magenta',
-        'cy3': 'cyan',
-        # 'cy5': 'lightblue'
-    }
-    return cmap
-
-
-def default_save_dict():
-    save_dict = {
-        "image_idx": False,
-        "seg_type": False,
-        "chan_list": False
-    }
-    return save_dict
 
 @magicgui(
-    # todo sate that only RGB images for now, think about different image formats
     layout='vertical',
-    input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                    tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                'folder containing segmentation results'),
-    seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                    choices=['cells', 'injection_side'], value='cells',
-                    tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
-                            'IMPORTANT: before switching between types, load next image, delete all image layers'
-                            'and reload image of interest!'),
-    channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'cy3'],
-                      tooltip='select channels to be selected for cell segmentation, '
+    input_path=dict(widget_type='FileEdit', label='input path: ', mode='d',
+                    tooltip='directory of folder containing folders with animals'),  # todo here groups
+    save_path=dict(widget_type='FileEdit', label='save path: ', mode='d',
+                    tooltip='select a folder for saving plots'),
+    animal_list=dict(widget_type='LineEdit', label='list of animals',
+                        value='', tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
+    channels=dict(widget_type='Select', label='select channels to plot', value=['green', 'cy3'],
+                      choices=['dapi', 'green', 'cy3', 'cy5'],
+                      tooltip='select the channels with segmented cells to be plotted, '
                               'to select multiple hold ctrl/shift'),
-    image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
-                    tooltip='index (int) of image to be loaded and segmented next'),
-    # load_dapi_bool=dict(widget_type='CheckBox', text='load blue channel', value=False,
-    #                     tooltip='option to load blue channel (0: cy3; 1: green; 2: dapi)'),
+
     call_button=False
 )
-def segment_widget(
+def header_widget(
     viewer: Viewer,
     input_path,  # posix path
-    seg_type,
+    save_path,
+    animal_list,
     channels,
-    image_idx,
-    # load_dapi_bool
+
 ) -> None:
 
-    return segment_widget
+    return header_widget
+
+@magicgui(
+    layout='vertical',
+    save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
+                        value='', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
+    hemisphere=dict(widget_type='ComboBox', label='injection side',
+                  choices=['left', 'right', 'both'], value='both',
+                  tooltip="select hemisphere to visualize (relative to injection side)"),
+    # channels=dict(widget_type='Select', label='select channels to plot', value=['all'],
+    #                       choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+    #                       tooltip='select the channels to plot, '
+    #                               'to select multiple hold ctrl/shift'),
+    tgt_list=dict(widget_type='LineEdit', label='list of brain areas (ABA)',
+                        value='', tooltip='enter the COMMA SEPERATED list of names of areas (ABA nomenclature)'
+                                          ' to plot (no white spaces: area1,area2)'),
+    tgt_colors=dict(widget_type='LineEdit', label='list of colors',
+                            value='', tooltip='enter the COMMA SEPERATED list of colors used for plotting '
+                                              '(no white spaces: color1,color2); '
+                                              'if empty default colors will be used'),
+    plot_size=dict(widget_type='LineEdit', label='enter plot size',
+                        value='8,6', tooltip='enter the COMMA SEPERATED size of the plot'),
+    orient=dict(widget_type='ComboBox', label='select orientation of plot', value='horizontal',
+                              choices=['horizontal', 'vertical'],
+                              tooltip='select orientation of plot'),
+    xlabel=dict(widget_type='LineEdit', label='enter the xlabel',
+                        value='Brain regions', tooltip='enter the xlabel of the plot'),
+    xlabel_size=dict(widget_type='SpinBox', label='size of xlabel', value=14, min=1,
+                   tooltip='select the size of the xlabel'),
+    rotate_xticks=dict(widget_type='SpinBox', label='rotation of xticklabels',
+                        value='45', tooltip='enter rotation of xticklabels, set to 0 for no rotation'),
+    ylabel=dict(widget_type='LineEdit', label='enter the ylabel',
+                        value='Proportion of cells [%]', tooltip='enter the ylabel of the plot'),
+    ylabel_size=dict(widget_type='SpinBox', label='size of ylabel', value=14, min=1,
+                   tooltip='select the size of the ylabel'),
+    title=dict(widget_type='LineEdit', label='enter the title',
+                            value='', tooltip='enter the title of the plot'),
+    title_size=dict(widget_type='SpinBox', label='size of title', value=18, min=1,
+                   tooltip='select the size of the title'),
+    tick_size=dict(widget_type='SpinBox', label='size of ticks', value=12, min=1,
+                       tooltip='select the size of the ticks'),
+    alphabetic=dict(widget_type='CheckBox', label='alphabetic order of brain areas', value=False,
+                   tooltip='choose to order brain areas alphabetically or in order of list provided above'),
+    style=dict(widget_type='ComboBox', label='background of plot', value='white',
+                              choices=['white', 'black'],
+                              tooltip='select background of plot'),
+    scatter_hue=dict(widget_type='CheckBox', label='plot individual data points', value=True,
+                   tooltip='option to add individual data points'),
+    scatter_palette=dict(widget_type='LineEdit', label='colors of data points',
+                                value='', tooltip='enter the COMMA SEPERATED list of colors used scatter plot'
+                                                  '(no white spaces: color1,color2); '
+                                                  'if empty default gray colors will be used'),
+    scatter_size=dict(widget_type='SpinBox', label='size of data points', value=5, min=1,
+                       tooltip='select the size individual data points'),
+    scatter_legend_hide=dict(widget_type='CheckBox', label='hide data points legend', value=True,
+                   tooltip='option to hide legend for individual data points'),
+    absolute_numbers=dict(widget_type='CheckBox', label='plot absolute numbers', value=False,
+                       tooltip='option to plot absolute numbers, if not ticked, relative percentages of used'),
+    call_button=False
+)
+def barplot_widget(
+    viewer: Viewer,
+    save_name,
+    hemisphere,
+    # channels,
+    tgt_list,
+    tgt_colors,
+    plot_size,
+    orient,
+    xlabel,
+    xlabel_size,
+    rotate_xticks,
+    ylabel,
+    ylabel_size,
+    title,
+    title_size,
+    tick_size,
+    alphabetic,
+    style,
+    scatter_hue,
+    scatter_palette,
+    scatter_size,
+    scatter_legend_hide,
+    absolute_numbers
+) -> None:
+
+    return barplot_widget
+
+@thread_worker
+def do_plotting(input_path, save_path, animal_list, channels, plotting_params):
+    s = sliceHandle()
+    st = s.df_tree
+    #  loop over animal_ids
+    results_data_merged = pd.DataFrame()  # initialize merged dataframe
+    for animal_id in animal_list:
+        # for animal_idx, animal_id in enumerate(animal_list):
+        for channel in channels:
+            results_dir = get_info(input_path.joinpath(animal_id), 'results', channel=channel, only_dir=True)
+            results_file = results_dir.joinpath(animal_id + '_cells.csv')
+            if results_file.exists():
+                results_data = pd.read_csv(results_file)  # load the data
+                results_data['sphinx_id'] -= 1  # correct for indices starting at 1
+                results_data['animal_id'] = [animal_id] * len(
+                    results_data)  # add the animal_id as a column for later identification
+                results_data['channel'] = [channel] * len(results_data)
+                # add the injection hemisphere stored in params.json file
+                params_file = input_path.joinpath(animal_id, 'params.json')  # directory of params.json file
+                with open(params_file) as fn:  # load the file
+                    params_data = json.load(fn)
+                injection_side = params_data['general']['injection_side']  # add the injection_side as a column
+                results_data['injection_side'] = [injection_side] * len(results_data)
+                # add if the location of a cell is ipsi or contralateral to the injection side
+                results_data = get_ipsi_contra(results_data)
+                results_data_merged = pd.concat([results_data_merged, results_data])
+        print("Done with " + animal_id)
+
+    results_data_merged = clean_results_df(results_data_merged, st)
+    tgt_list = barplot_widget.tgt_list.value
+    hemisphere = barplot_widget.hemisphere.value
+    fig, ax = plt.subplots(figsize=([int(i) for i in barplot_widget.plot_size.value.split(',')]))
+    ax = bar_plot_areas(results_data_merged, animal_list, tgt_list, plotting_params, hemisphere=hemisphere)
+
 
 
 
 class VisualizationWidget(QWidget):
-    def __init__(self, napari_viewer):
-        super().__init__()
-        self.viewer = napari_viewer
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setLayout(QVBoxLayout())
-        segment = segment_widget
-        self.save_dict = default_save_dict()
-        btn = QPushButton("save data and load next image")
-        btn.clicked.connect(self._save_and_load)
-
-        self.layout().addWidget(segment.native)
+        header = header_widget
+        self._collapse_bar = QCollapsible('Bar plot: expand for more', self)
+        barplot = barplot_widget
+        self._collapse_bar.addWidget(barplot.native)
+        btn = QPushButton("Create the plot")
+        btn.clicked.connect(self._do_plotting)
+        self.layout().addWidget(header.native)
+        self.layout().addWidget(self._collapse_bar)
         self.layout().addWidget(btn)
 
-    def _update_save_dict(self, image_idx, seg_type):
-        # get image idx and segmentation type for saving segmentation data
-        self.save_dict['image_idx'] = image_idx
-        self.save_dict['seg_type'] = seg_type
-        return self.save_dict
+    def _get_plotting_params(self):
+        plotting_params = {
 
-    def _save_and_load(self):
-        # stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
+            "horizontal": barplot_widget.orient.value,
+            "xlabel": [barplot_widget.xlabel.value, int(barplot_widget.xlabel_size.value)],  # 0: label, 1: fontsize
+            "ylabel": [barplot_widget.ylabel.value, int(barplot_widget.ylabel_size.value)],
+            "tick_size": int(barplot_widget.tick_size.value),  # for now only y and x same size
+            "rotate_xticks": int(barplot_widget.rotate_xticks.value),  # set to False of no rotation
+            "title": [barplot_widget.title.value, int(barplot_widget.title_size.value)],
+            "alphabetic": barplot_widget.alphabetic.value,
+            "style": barplot_widget.style.value,
+            "bar_palette": barplot_widget.tgt_colors.value,  # "Greens",
+            "scatter_palette": barplot_widget.scatter_palette.value,  # 'dark:salmon_r',
+            "scatter_hue": barplot_widget.scatter_hue.value,
+            "scatter_size": int(barplot_widget.scatter_size.value),
+            "scatter_legend_hide": barplot_widget.scatter_legend_hide.value,
+            "save_name": barplot_widget.save_name.value,
+            "absolute_numbers": barplot_widget.absolute_numbers.value
+        }
+        return plotting_params
 
-        input_path = segment_widget.input_path.value
-        image_idx = int(segment_widget.image_idx.value)
-        seg_type = segment_widget.seg_type.value
-        channels = segment_widget.channels.value
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
-            self.save_dict = default_save_dict()
-        if type(self.save_dict['image_idx']) == int:  # todo there must be a better way :-D (for image_idx = 0)
-            self._save_data(input_path)
-        del (self.viewer.layers[:])  # remove open layers
-
-        try:
-            im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
-                image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
-            path_to_im = seg_im_dir.joinpath(im)
-            self._load_next(path_to_im, seg_type, channels, image_idx)
-        except IndexError:
-            print("Index out of range, check that index matches image count in " + str(seg_im_dir))
+    def _do_plotting(self):
+        input_path = header_widget.input_path.value
+        save_path = header_widget.save_path.value
+        animal_list = header_widget.animal_list.value
+        channels = header_widget.channels.value
+        plotting_params = self._get_plotting_params()
+        plotting_worker = do_plotting(input_path, save_path, animal_list, channels, plotting_params)
+        plotting_worker.start()
 
 
-    def _load_next(self, path_to_im, seg_type, channels, image_idx):
-        self.save_dict = self._update_save_dict(image_idx, seg_type)
-        im_loaded = cv2.imread(str(path_to_im))  # loads RGB as BGR
-        if 'cy3' in channels:
-            self.viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
-            self.viewer.layers['cy3 channel'].contrast_limits = [0, 100]
-        if 'green' in channels:
-            self.viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
-            self.viewer.layers['green channel'].contrast_limits = [0, 100]
-        if 'dapi' in channels:
-            self.viewer.add_image(im_loaded[:, :, 0], name='dapi channel')
-            self.viewer.layers['dapi channel'].contrast_limits = [0, 100]
-        if seg_type == 'injection_side':
-            self.viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
-        elif seg_type == 'cells':  # todo presegment for cells
-            cmap_dict = cmap_cells()
-            for chan in channels:
-                self.viewer.add_points(size=5, name=chan, face_color=cmap_dict[chan])
-        print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
-        image_idx += 1
-        change_index(image_idx)
-
-    def _save_data(self, input_path):
-        # points data in [y, x] format
-        # todo edit channels etc. this is very stiff at the moment
-        save_idx = self.save_dict['image_idx']
-        seg_type_save = self.save_dict['seg_type']
-        stats_dir = get_info(input_path, 'stats', seg_type=seg_type_save, create_dir=True, only_dir=True)
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
-        im_name_str = path_to_im.with_suffix('').parts[-1]
-        if seg_type_save == 'injection_side':
-            if len(self.viewer.layers['injection'].data) > 0:
-                inj_side = pd.DataFrame(self.viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
-                save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
-                inj_side.to_csv(save_name_inj)
-        elif seg_type_save == 'cells':
-            if len(self.viewer.layers['green'].data) > 0:
-                green_cells = pd.DataFrame(self.viewer.layers['green'].data, columns=['Position Y', 'Position X'])
-                save_name_green = stats_dir.joinpath(im_name_str + '_green.csv')
-                green_cells.to_csv(save_name_green)
-            if len(self.viewer.layers['cy3'].data) > 0:
-                cy3_cells = pd.DataFrame(self.viewer.layers['cy3'].data, columns=['Position Y', 'Position X'])
-                save_name_cy3 = stats_dir.joinpath(im_name_str + '_cy3.csv')
-                cy3_cells.to_csv(save_name_cy3)
 
 
