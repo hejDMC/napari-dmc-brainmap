@@ -12,11 +12,11 @@ class sliceHandle():
         if registration:
             self.jsonPath = registration
             self.parseJSON()
-        self.loadAnnot()
-        self.getTransform()
-        self.calculateImageGrid()
-        self.currentSlice = None
-        self.ImgFolder = None
+            self.getTransform()
+            self.calculateImageGrid()
+            self.loadAnnot()
+            self.currentSlice = None
+            self.ImgFolder = None
         self.df_tree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track', 'sharpy_track', 'atlas', 'structure_tree_safe_2017.csv'))
         self.bregma = [540,0,570] # DV=0 for now, can be 65 (Pierre, Neuron 2021),
         # or 44 (https://community.brain-map.org/t/how-to-transform-ccf-x-y-z-coordinates-into-stereotactic-coordinates/1858)

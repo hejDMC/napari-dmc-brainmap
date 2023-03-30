@@ -126,3 +126,10 @@ def clean_results_df(df, st):  # todo this somewhere seperate
         df[df['path_list'].str.contains(ventricle_path)].index)
     df = df.reset_index(drop=True)
     return df
+
+def split_to_list(input_str):
+    if input_str.startswith('c:'):
+        return input_str[2:]
+    else:
+        output_str = [i for i in input_str.split(',')]
+        return output_str
