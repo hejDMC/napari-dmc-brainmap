@@ -245,9 +245,13 @@ class VisualizationWidget(QWidget):
             sns.swarmplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot,
                                palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
                                orient=plot_orient)
+        if plot_orient == 'v':
+            static_ax.set_xlabel(plotting_params["xlabel"][0], fontsize=plotting_params["xlabel"][1])
+            static_ax.set_ylabel(plotting_params["ylabel"][0], fontsize=plotting_params["ylabel"][1])
+        else:
+            static_ax.set_ylabel(plotting_params["xlabel"][0], fontsize=plotting_params["xlabel"][1])
+            static_ax.set_xlabel(plotting_params["ylabel"][0], fontsize=plotting_params["ylabel"][1])
 
-        static_ax.set_xlabel(plotting_params["xlabel"][0], fontsize=plotting_params["xlabel"][1])
-        static_ax.set_ylabel(plotting_params["ylabel"][0], fontsize=plotting_params["ylabel"][1])
         static_ax.set_title(plotting_params["title"][0], fontsize=plotting_params["title"][1])
         static_ax.spines['top'].set_visible(False)
         static_ax.spines['right'].set_visible(False)
