@@ -164,7 +164,7 @@ class StitchingWidget(QWidget):
         return params_dict
     def _do_stitching(self):
         input_path = stitching_widget.input_path.value
-        params_dict = self._get_preprocessing_params()
+        params_dict = self._get_stitching_params()
         filter_list = params_dict['general']['chans_imaged']
         preprocessing_worker = do_stitching(input_path, filter_list, params_dict)
         preprocessing_worker.start()
