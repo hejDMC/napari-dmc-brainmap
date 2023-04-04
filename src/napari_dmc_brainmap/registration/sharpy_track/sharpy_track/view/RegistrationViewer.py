@@ -10,17 +10,20 @@ import json
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import AtlasModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.status import StatusContainer
+from PyQt5.QtWidgets import QApplication
 
 class RegistrationViewer(QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app
+        QAppInstance = QApplication.instance() # get current QApplication Instance
         # create statusContainer
-        self.status = StatusContainer()
+        self.status = StatusContainer(QAppInstance.primaryScreen().size().width(),QAppInstance.primaryScreen().size().height()) # get screen resolution
+        # self.status = StatusContainer(1920,1080)
         # create atlasModel
         self.atlasModel = AtlasModel()
 
-        self.setFixedSize(2350, 940) # a suitable size for 2K screen or higher
+        self.setFixedSize(self.status.fullWindowSizeNarrow[0],self.status.fullWindowSizeNarrow[1])
         self.setWindowTitle("Registration Viewer")
         self.createActions()
         self.createMenus()

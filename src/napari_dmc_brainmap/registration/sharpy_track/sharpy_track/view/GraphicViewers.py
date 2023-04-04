@@ -7,6 +7,7 @@ class ViewerLeft(ViewerGeneral):
     def __init__(self,regViewer) -> None:
         super().__init__(regViewer)
         self.labelContour = QLabel()
+        self.labelContour.setFixedSize(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])
         self.labelContour.setVisible(False)
         self.labelContour.setStyleSheet("background:transparent")
         self.scene.addWidget(self.labelContour)
@@ -28,6 +29,7 @@ class ViewerLeft(ViewerGeneral):
     def showContourLabel(self,regViewer):
         # render transparent contour QImage
         contourImg = regViewer.atlasModel.outline
+        contourImg = cv2.resize(contourImg,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
         contourQimg = QImage(contourImg.data, contourImg.shape[1],contourImg.shape[0],contourImg.strides[0],QImage.Format_RGBA8888)
         self.labelContour.setPixmap(QPixmap.fromImage(contourQimg))
         # show contour
@@ -45,7 +47,8 @@ class ViewerLeft(ViewerGeneral):
         cv2.putText(contourHighlight, "DV:"+str(listCoordMM[1])+" mm", (970,790), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
 
         cv2.putText(contourHighlight, structureName, (10,790), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,0,0,255), 2, cv2.LINE_AA)
-
+        
+        contourHighlight = cv2.resize(contourHighlight,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
         contourHighlight = QImage(contourHighlight.data, contourHighlight.shape[1],contourHighlight.shape[0],contourHighlight.strides[0],QImage.Format_RGBA8888)
         self.labelContour.setPixmap(QPixmap.fromImage(contourHighlight)) # update contour label
 

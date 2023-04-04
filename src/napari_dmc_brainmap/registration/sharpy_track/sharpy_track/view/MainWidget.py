@@ -70,7 +70,7 @@ class MainWidget():
         self.toggle = ModeToggle()
         self.layoutGrid.addWidget(self.toggle,1,2)
         # make space for toggle
-        regViewer.setFixedSize(2394, 940) # make horizontal space for toggle, from (2350,940)
+        regViewer.setFixedSize(regViewer.status.fullWindowSizeWide[0], regViewer.status.fullWindowSizeWide[1]) # make horizontal space for toggle
         # link click to buttonstate
         self.toggle.clicked.connect(lambda: regViewer.status.toggleChanged(regViewer))
     
@@ -78,13 +78,13 @@ class MainWidget():
         # get clicked coordinates
         x_clicked, y_clicked = regViewer.status.pressPos.x(),regViewer.status.pressPos.y()
         # create DotObject inside itemGroup
-        dotLeft = DotObject(x_clicked, y_clicked, 10)
+        dotLeft = DotObject(x_clicked, y_clicked, int(10*regViewer.status.aspectRatio))
         # predict dot at sample based on previous transformation
         if len(self.viewerLeft.itemGroup) >5 :
             x_predict,y_predict = predictPointSample(x_clicked,y_clicked,regViewer.atlasModel.rtransform)
-            dotRight = DotObject(x_predict, y_predict, 10)
+            dotRight = DotObject(x_predict, y_predict, int(10*regViewer.status.aspectRatio))
         else:
-            dotRight = DotObject(x_clicked, y_clicked, 10)
+            dotRight = DotObject(x_clicked, y_clicked, int(10*regViewer.status.aspectRatio))
 
         dotLeft.linkPairedDot(dotRight)
         dotRight.linkPairedDot(dotLeft)

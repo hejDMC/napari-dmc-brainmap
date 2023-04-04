@@ -104,11 +104,13 @@ class AtlasModel():
 
     def getSample(self,regViewer):
         if regViewer.status.sliceNum == 0:
-            self.sampleQimg = QImage(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')))
+            # self.sampleQimg = QImage(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')))
+            self.sample = cv2.imread(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')),cv2.IMREAD_COLOR)
+            self.sample = cv2.resize(self.sample,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
+            self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888)
         else:
             self.sample = cv2.resize(self.imgStack[regViewer.status.currentSliceNumber],(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)
-            # regViewer.atlasModel.checkSaved(regViewer)
 
     def simpleSlice(self,regViewer):
         self.slice = self.vol[get_ap(regViewer.status.currentAP),:,:].copy()
@@ -158,16 +160,16 @@ class AtlasModel():
         else: # refresh dot coodinate
             atlas_pts = [] 
             for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([dot.pos().x(),dot.pos().y()])    
+                atlas_pts.append([int(dot.pos().x()/regViewer.status.aspectRatio),int(dot.pos().y()/regViewer.status.aspectRatio)]) # scale coordinates
             sample_pts = []
             for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([dot.pos().x(),dot.pos().y()])
+                sample_pts.append([int(dot.pos().x()/regViewer.status.aspectRatio),int(dot.pos().y()/regViewer.status.aspectRatio)]) # scale coordinates
             # update dot record in dictionary
             regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
             regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
             regViewer.status.saveRegistration()
             # apply transformation
-            self.updateTransform(regViewer,atlas_pts,sample_pts)
+            self.updateTransform(regViewer,np.array(atlas_pts)*regViewer.status.aspectRatio,np.array(sample_pts)*regViewer.status.aspectRatio) # scale coordinates
         
     def checkSaved(self,regViewer):
         # load exist dots if there is any
@@ -188,8 +190,8 @@ class AtlasModel():
             regViewer.widget.viewerLeft.loadSlice(regViewer) # slice atlas
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                dotLeft = DotObject(xyAtlas[0], xyAtlas[1], 10) # list to itemGroup
-                dotRight = DotObject(xySample[0], xySample[1], 10) # list to itemGroup
+                dotLeft = DotObject(int(xyAtlas[0]*regViewer.status.aspectRatio), int(xyAtlas[1]*regViewer.status.aspectRatio), int(10*regViewer.status.aspectRatio)) # list to itemGroup
+                dotRight = DotObject(int(xySample[0]*regViewer.status.aspectRatio), int(xySample[1]*regViewer.status.aspectRatio), int(10*regViewer.status.aspectRatio)) # list to itemGroup
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
                 # add dots to scene
@@ -202,7 +204,7 @@ class AtlasModel():
     def updateTransform(self,regViewer,atlas_pts,sample_pts):
         transform = fitGeoTrans(sample_pts,atlas_pts) # save transform for prediction
         self.rtransform = fitGeoTrans(atlas_pts,sample_pts)
-        self.sampleWarp = cv2.warpPerspective(self.sample,transform,(1140,800))
+        self.sampleWarp = cv2.warpPerspective(self.sample,transform,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
         self.sampleBlend = cv2.addWeighted(self.slice, 0.5, self.sampleWarp, 0.5, 0)
 
         self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_Grayscale8)

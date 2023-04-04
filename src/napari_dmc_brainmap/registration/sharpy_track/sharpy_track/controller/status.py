@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 import json
 
 class StatusContainer():
-    def __init__(self) -> None:
+    def __init__(self,screenWidth,screenHeight) -> None:
         self.cursor = 0
         self.currentAP = 0
         self.MLangle = 0
@@ -18,11 +18,24 @@ class StatusContainer():
         self.atlasDots = {}
         self.sampleDots = {}
         self.blendMode = {}
-        self.singleWindowSize = [1140,800]
+        self.screenSize = [screenWidth,screenHeight]
+        self.applySizePolicy()
         self.imgFileName = None
         self.folderPath = None
 
-    
+    def applySizePolicy(self):
+        if (self.screenSize == [2560,1440]) or (self.screenSize == [3840,2160]):
+            self.fullWindowSizeNarrow = [2350,940]
+            self.fullWindowSizeWide = [2394,940]
+            self.singleWindowSize = [1140,800]
+            self.aspectRatio = 1
+        else: # [1920,1080] resolution
+            self.fullWindowSizeNarrow = [1762,705]
+            self.fullWindowSizeWide = [1820,705]
+            self.singleWindowSize = [855,600]
+            self.aspectRatio = 0.75
+
+
     def sampleChanged(self,regViewer):
         self.currentSliceNumber = regViewer.widget.sampleSlider.value()
         regViewer.widget.imageTitle.setText(str(self.currentSliceNumber)+'---'+self.imgFileName[self.currentSliceNumber])

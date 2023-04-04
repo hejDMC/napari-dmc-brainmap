@@ -11,8 +11,8 @@ class ViewerGeneral():
         self.itemGroup = [] # create itemGroup, store DotObjects
         self.view = QGraphicsViewMT(self.scene) # QGraphicsView with mousetracking
         self.view.leaveEvent = lambda event: self.leaveLabel(regViewer)
-        self.view.setFixedSize(1140,800)
-        self.view.setSceneRect(0,0,1140,800)
+        self.view.setFixedSize(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])
+        self.view.setSceneRect(0,0,regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])
         self.view.setFrameShape(QFrame.NoFrame)
 
     def leaveLabel(self,regViewer):
@@ -20,8 +20,8 @@ class ViewerGeneral():
     
     def getCursorPos(self,regViewer):
         if regViewer.status.contour == 1: # only when contour active, update in status
-            regViewer.status.hoverX = self.view.cursorPos[0] # save hover position to status
-            regViewer.status.hoverY = self.view.cursorPos[1]
+            regViewer.status.hoverX = int(self.view.cursorPos[0] / regViewer.status.aspectRatio) # save hover position to status, if single window size different from 1140*800 scale coordinates
+            regViewer.status.hoverY = int(self.view.cursorPos[1] / regViewer.status.aspectRatio)
             regViewer.atlasModel.treeFindArea(regViewer)
         else:
             pass
