@@ -1,6 +1,7 @@
 import json
 from natsort import natsorted
 import pandas as pd
+from mergedeep import merge
 
 def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
@@ -84,13 +85,12 @@ def clean_params_dict(params_dict, key):
 
 
 def update_params_dict(input_path, params_dict):
-    # todo this overrides from create params to prerpocessing
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
         print("params.json exists -- overriding existing values")
         with open(params_fn) as fn:
             params_dict_old = json.load(fn)
-        params_dict_new = {**params_dict_old, **params_dict}  # todo z = {**x, **y} python 3.8, for 3.9: z = x | y
+        params_dict_new = merge(params_dict_old, params_dict)
         return params_dict_new
     else:
         return params_dict
