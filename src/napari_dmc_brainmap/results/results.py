@@ -30,9 +30,9 @@ def regi_points_polygon(x_scaled, y_scaled):
 
 
 
-def transform_points_to_regi(s, im, seg_type, stats_dir, stats_suffix, seg_im_dir, seg_im_suffix, regi_data, regi_dir, regi_suffix):
+def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir, seg_im_suffix, regi_data, regi_dir, regi_suffix):
     # todo input differently?
-    curr_im = im[:-len(stats_suffix)]
+    curr_im = im[:-len(segment_suffix)]
     img = cv2.imread(str(seg_im_dir.joinpath(curr_im + seg_im_suffix)))
     y_im, x_im, z_im = img.shape  # original resolution of image
     # correct for 0 indices
@@ -44,9 +44,9 @@ def transform_points_to_regi(s, im, seg_type, stats_dir, stats_suffix, seg_im_di
     y_low -= 1
     x_low -= 1
 
-    stats = pd.read_csv(stats_dir.joinpath(im))
-    y_pos = list(stats['Position Y'])
-    x_pos = list(stats['Position X'])
+    segment_data = pd.read_csv(segment_dir.joinpath(im))
+    y_pos = list(segment_data['Position Y'])
+    x_pos = list(segment_data['Position X'])
     # append mix max values for rescaling
     y_pos.append(0)
     y_pos.append(y_im)
@@ -55,7 +55,16 @@ def transform_points_to_regi(s, im, seg_type, stats_dir, stats_suffix, seg_im_di
     y_scaled = np.ceil(minmax_scale(y_pos, feature_range=(0, y_low)))[:-2].astype(int)
     x_scaled = np.ceil(minmax_scale(x_pos, feature_range=(0, x_low)))[:-2].astype(int)
     if seg_type == 'injection_side':
-        coords = regi_points_polygon(x_scaled, y_scaled)
+        for n in segment_data['idx_shape'].unique():
+            n_idx = segment_data.index[segment_data['idx_shape'] == n].tolist()
+            curr_x = np.array([x_scaled[i] for i in n_idx])
+            curr_y = np.array([y_scaled[i] for i in n_idx])
+            curr_coords = regi_points_polygon(curr_x, curr_y)
+            if n == 0:
+                coords = curr_coords
+            else:
+                coords = np.concatenate((coords, curr_coords), axis=0)
+
     elif seg_type == 'cells':
         coords = np.stack([x_scaled, y_scaled], axis=1)
     # todo areas
@@ -84,10 +93,10 @@ def create_results_file(input_path, seg_type, channels, regi_chan):
     s = sliceHandle(regi_dir.joinpath('registration.json'))
     if seg_type == 'injection_side':
         data = pd.DataFrame()
-        stats_dir, stats_list, stats_suffix = get_info(input_path, 'stats', seg_type=seg_type)
+        segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', seg_type=seg_type)
         results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
-        for im in stats_list:
-            section_data = transform_points_to_regi(s, im, seg_type, stats_dir, stats_suffix, seg_im_dir, seg_im_suffix,
+        for im in segment_list:
+            section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir, seg_im_suffix,
                                                     regi_data,
                                                     regi_dir, regi_suffix)
             data = pd.concat((data, section_data))
@@ -97,10 +106,10 @@ def create_results_file(input_path, seg_type, channels, regi_chan):
     elif seg_type == 'cells':
         for chan in channels:
             data = pd.DataFrame()
-            stats_dir, stats_list, stats_suffix = get_info(input_path, 'stats', channel=chan, seg_type=seg_type)
+            segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type)
             results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
-            for im in stats_list:
-                section_data = transform_points_to_regi(s, im, seg_type, stats_dir, stats_suffix, seg_im_dir,
+            for im in segment_list:
+                section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
                                                         seg_im_suffix, regi_data,
                                                         regi_dir, regi_suffix)
                 data = pd.concat((data, section_data))

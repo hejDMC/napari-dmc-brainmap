@@ -83,7 +83,6 @@ class SegmentWidget(QWidget):
         return self.save_dict
 
     def _save_and_load(self):
-        # stats_dir = get_info(input_path, 'stats', seg_type=seg_type, create_dir=True, only_dir=True)
 
         input_path = segment_widget.input_path.value
         image_idx = int(segment_widget.image_idx.value)
@@ -137,17 +136,21 @@ class SegmentWidget(QWidget):
         im_name_str = path_to_im.with_suffix('').parts[-1]
         if seg_type_save == 'injection_side':
             if len(self.viewer.layers['injection'].data) > 0:
-                stats_dir = get_info(input_path, 'stats', seg_type=seg_type_save, create_dir=True, only_dir=True)
-                inj_side = pd.DataFrame(self.viewer.layers['injection'].data[0], columns=['Position Y', 'Position X'])
-                save_name_inj = stats_dir.joinpath(im_name_str + '_injection_side.csv')
+                segment_dir = get_info(input_path, 'segmentation', seg_type=seg_type_save, create_dir=True, only_dir=True)
+                inj_side = pd.DataFrame()
+                for i in range(len(self.viewer.layers['injection'].data)):
+                    inj_data_temp = pd.DataFrame(self.viewer.layers['injection'].data[i], columns=['Position Y', 'Position X'])
+                    inj_data_temp['idx_shape'] = [i] * len(inj_data_temp)
+                    inj_side = pd.concat((inj_side, inj_data_temp))
+                save_name_inj = segment_dir.joinpath(im_name_str + '_injection_side.csv')
                 inj_side.to_csv(save_name_inj)
         elif seg_type_save == 'cells':
             for chan in channels:
                 if len(self.viewer.layers[chan].data) > 0:
-                    stats_dir = get_info(input_path, 'stats', channel=chan, seg_type=seg_type_save, create_dir=True,
+                    segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save, create_dir=True,
                                          only_dir=True)
                     coords = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
-                    save_name = stats_dir.joinpath(im_name_str + '_cells.csv')
+                    save_name = segment_dir.joinpath(im_name_str + '_cells.csv')
                     coords.to_csv(save_name)
 
 
