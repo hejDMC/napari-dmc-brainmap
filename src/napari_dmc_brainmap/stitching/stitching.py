@@ -8,9 +8,8 @@ import json
 import tifffile as tiff
 import numpy as np
 
-from napari_dmc_brainmap.utils import get_info
 from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack
-from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict
+from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
 
 
 @thread_worker
