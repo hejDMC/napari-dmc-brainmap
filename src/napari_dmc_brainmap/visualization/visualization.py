@@ -25,7 +25,7 @@ from napari_dmc_brainmap.visualization.visualization_tools import *
     animal_list=dict(widget_type='LineEdit', label='list of animals',
                         value='', tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
     channels=dict(widget_type='Select', label='select channels to plot', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'cy3', 'cy5'],
+                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       tooltip='select the channels with segmented cells to be plotted, '
                               'to select multiple hold ctrl/shift'),
 

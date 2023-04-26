@@ -177,7 +177,7 @@ def quantify_injection_side(input_path, seg_type, regi_chan):
     quant_df = pd.concat((quant_df, temp_data), axis=0)
 
     quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
-                                                    index='animal_id')
+                                    index='animal_id')
 
     save_fn = results_dir.joinpath('quantification_injection_side.csv')
     quant_df_pivot.to_csv(save_fn)
@@ -189,13 +189,13 @@ def quantify_injection_side(input_path, seg_type, regi_chan):
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                             'folder containing segmentation results'),
     regi_chan=dict(widget_type='ComboBox', label='registration channel',
-                  choices=['dapi', 'green', 'cy3', 'cy5'], value='green',
+                  choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], value='green',
                   tooltip='select the channel you registered to the brain atlas'),
     seg_type=dict(widget_type='ComboBox', label='segmentation type',
                   choices=['cells', 'injection_side'], value='cells',
                   tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
     channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
-                  choices=['dapi', 'green', 'cy3'],
+                  choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                   tooltip='select channels to be selected for cell segmentation, '
                           'to select multiple hold ctrl/shift'),
     call_button=False

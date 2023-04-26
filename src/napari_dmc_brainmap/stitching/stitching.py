@@ -85,7 +85,7 @@ def do_stitching(input_path, filter_list, params_dict):
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                                 'folder containing segmentation results'),
     channels=dict(widget_type='Select', label='imaged channels', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'cy3', 'cy5'],
+                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       tooltip='select the imaged channels, '
                               'to select multiple hold ctrl/shift'),
     sharpy_bool=dict(widget_type='CheckBox', text='get images for sharpy-track', value=True,
@@ -99,6 +99,8 @@ def do_stitching(input_path, filter_list, params_dict):
                        value='50,1000', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
     contrast_green=dict(widget_type='LineEdit', label='set contrast limits for the green channel',
                         value='50,300', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+    contrast_n3=dict(widget_type='LineEdit', label='set contrast limits for the n3 channel',
+                      value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
     contrast_cy3=dict(widget_type='LineEdit', label='set contrast limits for the cy3 channel',
                       value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
     contrast_cy5=dict(widget_type='LineEdit', label='set contrast limits for the cy5 channel',
@@ -143,6 +145,7 @@ class StitchingWidget(QWidget):
                 "contrast_adjustment": widget.contrast_bool.value,
                 "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
                 "green": [int(i) for i in widget.contrast_green.value.split(',')],
+                "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
                 "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
                 "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
             }
