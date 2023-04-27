@@ -94,6 +94,7 @@ def do_single_channel(
         contrast_bool,
         contrast_dapi,
         contrast_green,
+        contrast_n3,
         contrast_cy3,
         contrast_cy5
 ):
@@ -129,6 +130,7 @@ def do_stack(
         contrast_bool,
         contrast_dapi,
         contrast_green,
+        contrast_n3,
         contrast_cy3,
         contrast_cy5
 ):
@@ -164,6 +166,7 @@ def do_sharpy(
         contrast_bool,
         contrast_dapi,
         contrast_green,
+        contrast_n3,
         contrast_cy3,
         contrast_cy5
 
@@ -201,6 +204,7 @@ def do_binary(
         thresh_dapi,
         thresh_green,
         thresh_cy3,
+        thresh_n3,
         thresh_cy5
 ):
     return do_binary

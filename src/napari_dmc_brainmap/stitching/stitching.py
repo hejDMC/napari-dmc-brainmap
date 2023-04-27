@@ -90,7 +90,7 @@ def do_stitching(input_path, filter_list, params_dict):
     sharpy_bool=dict(widget_type='CheckBox', text='get images for sharpy-track', value=True,
                      tooltip='downsample image to resolution in sharpy track (1140 x 800)'),
     sharpy_chan=dict(widget_type='Select', label='selected channels', value='green',
-                     choices=['all', 'dapi', 'green', 'cy3', 'cy5'],
+                     choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
                      tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
     contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images for registration', value=True,
                        tooltip='option to adjust contrast on images, see option details below'),
@@ -117,6 +117,7 @@ def stitching_widget(
     contrast_bool,
     contrast_dapi,
     contrast_green,
+    contrast_n3,
     contrast_cy3,
     contrast_cy5
 
