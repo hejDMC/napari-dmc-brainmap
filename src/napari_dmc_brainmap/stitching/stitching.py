@@ -28,7 +28,7 @@ def do_stitching(input_path, filter_list, params_dict):
     for obj in objs:
         in_obj = data_dir.joinpath(obj)
         for f in filter_list:
-            stitch_dir = get_info(input_path, 'stitching', channel=f, create_dir=True, only_dir=True)
+            stitch_dir = get_info(input_path, 'stitched', channel=f, create_dir=True, only_dir=True)
             in_chan = in_obj.joinpath(obj + '_' + f + '_1')
             ## load tile stack name
             stack = []
