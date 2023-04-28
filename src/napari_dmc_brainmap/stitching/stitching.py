@@ -60,7 +60,7 @@ def do_stitching(input_path, filter_list, params_dict):
                 if direct_sharpy_track:
                     sharpy_chans = params_dict['sharpy_track_params']['channels']
                     if f in sharpy_chans:
-                        sharpy_dir = get_info(input_path, 'stitching', channel=f, create_dir=True, only_dir=True)
+                        sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
                         sharpy_im_dir = sharpy_dir.joinpath(animal_id + '_' + obj + '_' +
                                                             str(rn + 1) + '_downsampled.tif')
                         pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, sharpy_im_dir)
@@ -155,7 +155,7 @@ class StitchingWidget(QWidget):
             "general":
                 {
                     "animal_id": get_animal_id(stitching_widget.input_path.value),
-                    "chans_imaged": stitching_widget.chans_imaged.value
+                    "chans_imaged": stitching_widget.channels.value
                 },
             "operations":
                 {

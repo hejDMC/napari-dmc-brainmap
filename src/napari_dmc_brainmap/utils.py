@@ -24,7 +24,7 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
     if create_dir:
         if not data_dir.exists():
             data_dir.mkdir(parents=True)
-            print('creating stats folder under: ' + str(data_dir))
+            print('creating folder under: ' + str(data_dir))
     if only_dir:
         return data_dir
     else:
