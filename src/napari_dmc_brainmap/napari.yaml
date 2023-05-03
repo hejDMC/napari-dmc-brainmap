@@ -2,6 +2,10 @@ name: napari-dmc-brainmap
 display_name: dmc_brainmap
 contributions:
   commands:
+    - id: napari-dmc-brainmap.ParamsWidget
+      python_name: napari_dmc_brainmap.params:ParamsWidget
+      title: Create params.json file
+
     - id: napari-dmc-brainmap.ConfocalWidget
       python_name: napari_dmc_brainmap.confocal:ConfocalWidget
       title: Stitch confocal images
@@ -9,10 +13,6 @@ contributions:
     - id: napari-dmc-brainmap.StitchingWidget
       python_name: napari_dmc_brainmap.stitching:StitchingWidget
       title: Stitch tif images
-
-    - id: napari-dmc-brainmap.ParamsWidget
-      python_name: napari_dmc_brainmap.params:ParamsWidget
-      title: Create params.json file
 
     - id: napari-dmc-brainmap.PreprocessingWidget
       python_name: napari_dmc_brainmap.preprocessing:PreprocessingWidget
@@ -35,14 +35,14 @@ contributions:
       title: Make widget to visualize data
 
   widgets:
+    - command: napari-dmc-brainmap.ParamsWidget
+      display_name: Create params file (general info)
+
     - command: napari-dmc-brainmap.ConfocalWidget
       display_name: Stitch czi images
 
     - command: napari-dmc-brainmap.StitchingWidget
       display_name: Stitch tif images
-
-    - command: napari-dmc-brainmap.ParamsWidget
-      display_name: Create params file (general info)
 
     - command: napari-dmc-brainmap.PreprocessingWidget
       display_name: Preprocessing

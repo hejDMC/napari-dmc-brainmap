@@ -190,7 +190,10 @@ class VisualizationWidget(QWidget):
                     params_file = input_path.joinpath(animal_id, 'params.json')  # directory of params.json file
                     with open(params_file) as fn:  # load the file
                         params_data = json.load(fn)
-                    injection_side = params_data['general']['injection_side']  # add the injection_side as a column
+                    try:
+                        injection_side = params_data['general']['injection_side']  # add the injection_side as a column
+                    except KeyError:
+                        injection_side = input("no injection side specified in params.json file, please enter manually: ")
                     results_data['injection_side'] = [injection_side] * len(results_data)
                     # add if the location of a cell is ipsi or contralateral to the injection side
                     results_data = get_ipsi_contra(results_data)
