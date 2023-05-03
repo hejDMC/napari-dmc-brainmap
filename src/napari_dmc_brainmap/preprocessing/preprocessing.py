@@ -20,7 +20,7 @@ from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_ima
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                       tooltip='directory of folder containing subfolders with stitched images, '
                               'NOT folder containing stitched images itself'),
-    chans_imaged=dict(widget_type='Select', label='imaged channels', choices=['dapi', 'green', 'cy3', 'cy5'],
+    chans_imaged=dict(widget_type='Select', label='imaged channels', choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       value=['green', 'cy3'],
                       tooltip='select all channels imaged, to select multiple hold ctrl/shift'),
     call_button=False

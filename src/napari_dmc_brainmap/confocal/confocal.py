@@ -19,6 +19,7 @@ def create_tifs(input_path, chan_label_map):
     #data_dir = input_path.joinpath('confocal')
     image_list = get_im_list(input_path, folder_id='confocal', file_id='*.czi')
     for im in image_list:
+        print('started with ' + im)
         im_fn = input_path.joinpath('confocal', im + '.czi')
         reader = CziReader(im_fn)
         channels = reader.channel_names
@@ -32,8 +33,10 @@ def create_tifs(input_path, chan_label_map):
                 # do max intensity projection
                 curr_img = np.max(curr_img, axis=0)
             curr_img = anti_distortion(curr_img)  # padding
-            save_fn = stitched_dir.joinpath(im + '.tif')
+            save_fn = stitched_dir.joinpath(im + '_stitched.tif')
             cv2.imwrite(str(save_fn), curr_img)
+
+    print('DONE!')
 
 
 
