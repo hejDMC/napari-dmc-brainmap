@@ -7,6 +7,8 @@ from magicgui import magicgui
 import pandas as pd
 import random
 import matplotlib.colors as mcolors
+from napari.utils.notifications import show_info
+
 
 def change_index(image_idx):
     segment_widget.image_idx.value = image_idx
@@ -74,6 +76,16 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False):
                       choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       tooltip='select channels to be selected for cell segmentation, '
                               'to select multiple hold ctrl/shift'),
+    contrast_dapi=dict(widget_type='LineEdit', label='set contrast limits for the dapi channel',
+                       value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+    contrast_green=dict(widget_type='LineEdit', label='set contrast limits for the green channel',
+                        value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+    contrast_n3=dict(widget_type='LineEdit', label='set contrast limits for the n3 channel',
+                     value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+    contrast_cy3=dict(widget_type='LineEdit', label='set contrast limits for the cy3 channel',
+                      value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+    contrast_cy5=dict(widget_type='LineEdit', label='set contrast limits for the cy5 channel',
+                      value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
     image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
                     tooltip='index (int) of image to be loaded and segmented next'),
     call_button=False
@@ -84,6 +96,11 @@ def segment_widget(
     seg_type,
     n_probes,
     channels,
+    contrast_dapi,
+    contrast_green,
+    contrast_n3,
+    contrast_cy3,
+    contrast_cy5,
     image_idx,
     single_channel_bool
 ) -> None:
@@ -112,6 +129,16 @@ class SegmentWidget(QWidget):
         self.save_dict['n_probes'] = n_probes
         return self.save_dict
 
+    def _get_contrast_dict(self, widget):
+
+        return {
+            "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
+            "green": [int(i) for i in widget.contrast_green.value.split(',')],
+            "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
+            "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
+            "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
+        }
+
     def _save_and_load(self):
 
         input_path = segment_widget.input_path.value
@@ -120,6 +147,7 @@ class SegmentWidget(QWidget):
         channels = segment_widget.channels.value
         n_probes = int(segment_widget.n_probes.value)
         single_channel = segment_widget.single_channel_bool.value
+        contrast_dict = self._get_contrast_dict(segment_widget)
 
         if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
             self.save_dict = default_save_dict()
@@ -128,56 +156,45 @@ class SegmentWidget(QWidget):
         del (self.viewer.layers[:])  # remove open layers
 
         try:
-            # if not single_channel:
-            #     seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-            #     im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
-            #         image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
-            #     path_to_im = seg_im_dir.joinpath(im)
-            #     self._load_next_rgb(path_to_im, seg_type, channels, image_idx, n_probes)
-            # else:
-            #     for chan in channels:
-            #         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=chan)
-            #         im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
-            #             image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
-            #         path_to_im = seg_im_dir.joinpath(im)
-            self._load_next(input_path, seg_type, channels, image_idx, n_probes, single_channel)
+            self._load_next(input_path, seg_type, channels, image_idx, n_probes, single_channel, contrast_dict)
 
         except IndexError:
-            print("Index out of range, check that index matches image count in target folder")
+            show_info("Index out of range, check that index matches image count in target folder")
 
-    def _load_next(self, input_path, seg_type, channels, image_idx, n_probes, single_channel):
+    def _load_next(self, input_path, seg_type, channels, image_idx, n_probes, single_channel, contrast_dict):
         self.save_dict = self._update_save_dict(image_idx, seg_type, n_probes)
         if single_channel:
             for chan in channels:
                 path_to_im = get_path_to_im(input_path, image_idx, single_channel=single_channel, chan=chan)
-                self._load_single(path_to_im, chan)
+                self._load_single(path_to_im, chan, contrast_dict)
         else:
             path_to_im = get_path_to_im(input_path, image_idx)
-            self._load_rgb(path_to_im, channels)
+            self._load_rgb(path_to_im, channels, contrast_dict)
         self._create_seg_objects(seg_type, channels, n_probes)
-        print("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
+
+        show_info("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
         change_index(image_idx)
 
 
-    def _load_rgb(self, path_to_im, channels):
+    def _load_rgb(self, path_to_im, channels, contrast_dict):
         im_loaded = cv2.imread(str(path_to_im))  # loads RGB as BGR
         if 'cy3' in channels:
             self.viewer.add_image(im_loaded[:, :, 2], name='cy3 channel', colormap='red', opacity=1.0)
-            self.viewer.layers['cy3 channel'].contrast_limits = [0, 100]
+            self.viewer.layers['cy3 channel'].contrast_limits = contrast_dict['cy3']
         if 'green' in channels:
             self.viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
-            self.viewer.layers['green channel'].contrast_limits = [0, 100]
+            self.viewer.layers['green channel'].contrast_limits = contrast_dict['green']
         if 'dapi' in channels:
             self.viewer.add_image(im_loaded[:, :, 0], name='dapi channel')
-            self.viewer.layers['dapi channel'].contrast_limits = [0, 100]
+            self.viewer.layers['dapi channel'].contrast_limits = contrast_dict['dapi']
 
-    def _load_single(self, path_to_im, chan):
+    def _load_single(self, path_to_im, chan, contrast_dict):
 
         cmap_disp = cmap_display()
         im_loaded = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
         self.viewer.add_image(im_loaded, name=chan + ' channel', colormap=cmap_disp[chan], opacity=0.5)
-        self.viewer.layers[chan + ' channel'].contrast_limits = [0, 100]
+        self.viewer.layers[chan + ' channel'].contrast_limits = contrast_dict[chan]
 
     def _create_seg_objects(self, seg_type, channels, n_probes):
         if seg_type == 'injection_side':
