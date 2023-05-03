@@ -3,6 +3,21 @@ import json
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
 
+
+def dummy_load_allen_structure_tree():
+    s = sliceHandle()
+    st = s.df_tree
+    return st
+
+def dummy_load_allen_annot():
+    s = sliceHandle(load_annot=True)
+    annot = s.annot  # todo not sure this works
+    return annot
+def get_bregma():
+    s = sliceHandle()
+    bregma = s.bregma
+    return bregma
+
 def get_ipsi_contra(df):
     '''
     Function to add a column specifying if cells if ipsi or contralateral to injection side
@@ -22,9 +37,7 @@ def get_ipsi_contra(df):
 
 def get_tgt_data_only(df, tgt_list):
     tgt_path_list = []
-    #s = sliceHandle()
-    #st = s.df_tree
-    st = pd.read_csv(r'C:\Users\felix-arbeit\Documents\Academia\DMC-lab\projects\dmc-brainmap\napari-dmc-brainmap\src\napari_dmc_brainmap\registration\sharpy_track\sharpy_track\atlas\structure_tree_safe_2017.csv')
+    st = dummy_load_allen_structure_tree()
     for acr in tgt_list:
         curr_idx = st.index[st['acronym'] == acr].tolist()
         tgt_path_list.append(st['structure_id_path'].iloc[curr_idx])
@@ -39,49 +52,6 @@ def get_tgt_data_only(df, tgt_list):
             dummy_data['tgt_name'] = [tgt_list[idx]] * len(dummy_data)
             tgt_only_data = pd.concat([tgt_only_data, dummy_data])
     return tgt_only_data
-
-def calculate_percentage_bar_plot(df_all, animal_list, tgt_list, plotting_params):
-
-    absolute_numbers = plotting_params["absolute_numbers"]
-    if absolute_numbers:
-        rel_percentage = False
-    else:
-        rel_percentage = True
-    df = get_tgt_data_only(df_all, tgt_list)
-    df_geno = df.copy() # copy df to extract genotype of mice later on
-    df = df.pivot_table(index='tgt_name', columns=['animal_id'],
-                                                        aggfunc='count').fillna(0)
-    # add "missing" brain structures -- brain structures w/o cells
-    if len(df.index.values.tolist()) > 0:
-        miss_areas = list(set(df.index.values.tolist()) ^ set(tgt_list))
-    else:
-        miss_areas = tgt_list
-    if len(miss_areas) > 0:  # todo this fix does not work yet, if all areas are missing --> no column names
-        # create df with zeros and miss areas as rows and columsn as df
-        dd = pd.DataFrame(0, index=miss_areas, columns=df.columns.values)
-        # concat dataframes
-        df = pd.concat([df, dd])
-    # calculate percentages
-    df_to_plot = pd.DataFrame()
-    for animal_id in animal_list:
-       # genotype = df_geno[df_geno['animal_id'] == animal_id]['genotype'].unique()[0]
-        if absolute_numbers: # if absolute numbers
-            dummy_df = pd.DataFrame(df['ap_mm'][animal_id])
-        elif rel_percentage: # if relative percentage for cells in tgt_regions
-            dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / df['ap_mm'][
-                animal_id].sum()) * 100)
-        else: # to percentage for all cells
-            dummy_df = pd.DataFrame((df['ap_mm'][animal_id] /
-                                     len(df_all[df_all['animal_id']==animal_id]))*100)
-        dummy_df = dummy_df.rename(columns={animal_id: "percent_cells"})
-        dummy_df['animal_id'] = [animal_id] * len(tgt_list)
-        # dummy_df['genotype'] = [genotype] * len(tgt_list)
-        df_to_plot = pd.concat([df_to_plot, dummy_df])
-
-    df_to_plot.index.name = 'tgt_name'
-    df_to_plot.reset_index(inplace=True)
-
-    return df_to_plot
 
 def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
     # function to resort brain areas from alphabetic to tgt_list sorting
@@ -101,8 +71,7 @@ def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
 
 
 def load_data(input_path, animal_list, channels):
-    s = sliceHandle()
-    st = s.df_tree
+    st = dummy_load_allen_structure_tree()
     #  loop over animal_ids
     results_data_merged = pd.DataFrame()  # initialize merged dataframe
     for animal_id in animal_list:
@@ -130,6 +99,6 @@ def load_data(input_path, animal_list, channels):
                 # add if the location of a cell is ipsi or contralateral to the injection side
                 results_data = get_ipsi_contra(results_data)
                 results_data_merged = pd.concat([results_data_merged, results_data])
-        print("Done with " + animal_id)
+        print("loaded data from " + animal_id)
         results_data_merged = clean_results_df(results_data_merged, st)
     return results_data_merged

@@ -1,9 +1,53 @@
 import seaborn as sns
+import pandas as pd
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list
-from napari_dmc_brainmap.visualization.visualization_tools import calculate_percentage_bar_plot, resort_df
+from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df
+
+def calculate_percentage_bar_plot(df_all, animal_list, tgt_list, plotting_params):
+
+    absolute_numbers = plotting_params["absolute_numbers"]
+    if absolute_numbers:
+        rel_percentage = False
+    else:
+        rel_percentage = True
+    df = get_tgt_data_only(df_all, tgt_list)
+    df_geno = df.copy() # copy df to extract genotype of mice later on
+    df = df.pivot_table(index='tgt_name', columns=['animal_id'],
+                                                        aggfunc='count').fillna(0)
+    # add "missing" brain structures -- brain structures w/o cells
+    if len(df.index.values.tolist()) > 0:
+        miss_areas = list(set(df.index.values.tolist()) ^ set(tgt_list))
+    else:
+        miss_areas = tgt_list
+    if len(miss_areas) > 0:  # todo this fix does not work yet, if all areas are missing --> no column names
+        # create df with zeros and miss areas as rows and columsn as df
+        dd = pd.DataFrame(0, index=miss_areas, columns=df.columns.values)
+        # concat dataframes
+        df = pd.concat([df, dd])
+    # calculate percentages
+    df_to_plot = pd.DataFrame()
+    for animal_id in animal_list:
+       # genotype = df_geno[df_geno['animal_id'] == animal_id]['genotype'].unique()[0]
+        if absolute_numbers: # if absolute numbers
+            dummy_df = pd.DataFrame(df['ap_mm'][animal_id])
+        elif rel_percentage: # if relative percentage for cells in tgt_regions
+            dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / df['ap_mm'][
+                animal_id].sum()) * 100)
+        else: # to percentage for all cells
+            dummy_df = pd.DataFrame((df['ap_mm'][animal_id] /
+                                     len(df_all[df_all['animal_id']==animal_id]))*100)
+        dummy_df = dummy_df.rename(columns={animal_id: "percent_cells"})
+        dummy_df['animal_id'] = [animal_id] * len(tgt_list)
+        # dummy_df['genotype'] = [genotype] * len(tgt_list)
+        df_to_plot = pd.concat([df_to_plot, dummy_df])
+
+    df_to_plot.index.name = 'tgt_name'
+    df_to_plot.reset_index(inplace=True)
+
+    return df_to_plot
 
 def get_bar_plot_params(barplot_widget):
     plotting_params = {

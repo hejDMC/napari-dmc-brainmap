@@ -7,7 +7,7 @@ from pathlib import Path
 from pkg_resources import resource_filename
 
 class sliceHandle():
-    def __init__(self, registration=False) -> None:
+    def __init__(self, registration=False, load_annot=False) -> None:
         self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
         if registration:
             self.jsonPath = registration
@@ -17,6 +17,8 @@ class sliceHandle():
             self.loadAnnot()
             self.currentSlice = None
             self.ImgFolder = None
+        elif load_annot:
+            self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track', 'sharpy_track', 'atlas', 'annotation_volume_10um_by_index.npy'))
         self.df_tree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track', 'sharpy_track', 'atlas', 'structure_tree_safe_2017.csv'))
         self.bregma = [540,0,570] # DV=0 for now, can be 65 (Pierre, Neuron 2021),
         # or 44 (https://community.brain-map.org/t/how-to-transform-ccf-x-y-z-coordinates-into-stereotactic-coordinates/1858)
