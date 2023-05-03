@@ -1,4 +1,7 @@
 import pandas as pd
+import json
+from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
 
 def get_ipsi_contra(df):
     '''
@@ -95,3 +98,38 @@ def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
     tgt_data_to_plot.drop('tgt_name_sort', axis=1, inplace=True)
 
     return tgt_data_to_plot
+
+
+def load_data(input_path, animal_list, channels):
+    s = sliceHandle()
+    st = s.df_tree
+    #  loop over animal_ids
+    results_data_merged = pd.DataFrame()  # initialize merged dataframe
+    for animal_id in animal_list:
+        # for animal_idx, animal_id in enumerate(animal_list):
+        for channel in channels:
+            results_dir = get_info(input_path.joinpath(animal_id), 'results', seg_type='cells', channel=channel,
+                                    only_dir=True)
+            results_file = results_dir.joinpath(animal_id + '_cells.csv')
+
+            if results_file.exists():
+                results_data = pd.read_csv(results_file)  # load the data
+                results_data['sphinx_id'] -= 1  # correct for indices starting at 1
+                results_data['animal_id'] = [animal_id] * len(
+                    results_data)  # add the animal_id as a column for later identification
+                results_data['channel'] = [channel] * len(results_data)
+                # add the injection hemisphere stored in params.json file
+                params_file = input_path.joinpath(animal_id, 'params.json')  # directory of params.json file
+                with open(params_file) as fn:  # load the file
+                    params_data = json.load(fn)
+                try:
+                    injection_side = params_data['general']['injection_side']  # add the injection_side as a column
+                except KeyError:
+                    injection_side = input("no injection side specified in params.json file, please enter manually: ")
+                results_data['injection_side'] = [injection_side] * len(results_data)
+                # add if the location of a cell is ipsi or contralateral to the injection side
+                results_data = get_ipsi_contra(results_data)
+                results_data_merged = pd.concat([results_data_merged, results_data])
+        print("Done with " + animal_id)
+        results_data_merged = clean_results_df(results_data_merged, st)
+    return results_data_merged
