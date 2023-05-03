@@ -2,9 +2,13 @@ name: napari-dmc-brainmap
 display_name: dmc_brainmap
 contributions:
   commands:
+    - id: napari-dmc-brainmap.ConfocalWidget
+      python_name: napari_dmc_brainmap.confocal:ConfocalWidget
+      title: Stitch confocal images
+
     - id: napari-dmc-brainmap.StitchingWidget
       python_name: napari_dmc_brainmap.stitching:StitchingWidget
-      title: Stitch images
+      title: Stitch tif images
 
     - id: napari-dmc-brainmap.ParamsWidget
       python_name: napari_dmc_brainmap.params:ParamsWidget
@@ -31,8 +35,11 @@ contributions:
       title: Make widget to visualize data
 
   widgets:
+    - command: napari-dmc-brainmap.ConfocalWidget
+      display_name: Stitch czi images
+
     - command: napari-dmc-brainmap.StitchingWidget
-      display_name: Stitching
+      display_name: Stitch tif images
 
     - command: napari-dmc-brainmap.ParamsWidget
       display_name: Create params file (general info)

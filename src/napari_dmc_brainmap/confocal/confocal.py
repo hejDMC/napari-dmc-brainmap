@@ -7,43 +7,34 @@ import numpy as np
 import cv2
 from aicsimageio.readers import CziReader
 
-from napari_dmc_brainmap.utils import get_animal_id
+from napari_dmc_brainmap.utils import get_animal_id, get_info, get_im_list
+from napari_dmc_brainmap.stitching.stitching_tools import anti_distortion
 
 
-fn = r'C:\Users\felix-arbeit\Documents\Academia\DMC-lab\projects\dopamine\analysis\anatomy\data\478017_glp1r_syp_5488_555_1.czi'
-fn2 = r'C:\Users\felix-arbeit\Documents\Academia\DMC-lab\projects\dopamine\analysis\anatomy\data\478017_glp1r_syp_5488_555_1-Stitching-13-Orthogonal Projection-26.czi'
 
-chan_label_map = {
-    'dapi': '',
-    'green': 'AF488-T3',
-    'n3': '',
-    'cy3': 'AF555-T2',
-    'cy5': '',
-}
-
-reader = CziReader(fn)
-channels = reader.channel_names
-
-"""shape: [1, 1, channel, z, x, y, 1]"""
-num_z = reader.mosaic_data.shape[3]
-img = np.squeeze(reader.mosaic_data)
-
-for i, chan in enumerate(channels):
-    curr_img = img[i, :, :, :]
-    if num_z > 1:
-        # do max intensity projection
-        curr_img = np.max(curr_img, axis=0)
-    save_name = r'C:\Users\felix-arbeit\Documents\Academia\DMC-lab\projects\dopamine\analysis\anatomy\data\478017_glp1r_syp_5488_555_1.tif'
-    cv2.imwrite(curr_img, save_name)
 
 @thread_worker
-def create_tifs(input_path, chans_imaged, chan_label_map):
-    animal_id = get_animal_id(input_path)
-    data_dir = input_path.joinpath('confocal')
-    im_list =
-    stitched_dir = get_info(input_path, 'stitched', only_dir=True)
-    filter_dir = [f for f in stitched_dir.glob('**/*') if f.is_dir()][0]  # just take the first folder
-    image_list = natsorted([f.parts[-1] for f in data_dir.glob('*.czi')])
+def create_tifs(input_path, chan_label_map):
+    #animal_id = get_animal_id(input_path)
+    #data_dir = input_path.joinpath('confocal')
+    image_list = get_im_list(input_path, folder_id='confocal', file_id='*.czi')
+    for im in image_list:
+        im_fn = input_path.joinpath('confocal', im + '.czi')
+        reader = CziReader(im_fn)
+        channels = reader.channel_names
+        num_z = reader.mosaic_data.shape[3]  # shape: [1, 1, channel, z, x, y, 1]
+        img = np.squeeze(reader.mosaic_data)
+        for i, chan in enumerate(channels):
+            chan_new = [c for c in chan_label_map if chan_label_map[c] == chan][0]
+            stitched_dir = get_info(input_path, 'stitched', channel=chan_new, create_dir=True, only_dir=True)
+            curr_img = img[i, :, :, :]
+            if num_z > 1:
+                # do max intensity projection
+                curr_img = np.max(curr_img, axis=0)
+            curr_img = anti_distortion(curr_img)  # padding
+            save_fn = stitched_dir.joinpath(im + '.tif')
+            cv2.imwrite(str(save_fn), curr_img)
+
 
 
 @magicgui(
@@ -51,10 +42,10 @@ def create_tifs(input_path, chans_imaged, chan_label_map):
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                     tooltip='directory of folder containing subfolders. Folder with NOT STITCHED confocal images (czi)'
                             ' should be called >>confocal<< (without arrows). '),
-    channels=dict(widget_type='Select', label='imaged channels', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                      tooltip='select the imaged channels, '
-                              'to select multiple hold ctrl/shift'),
+    # channels=dict(widget_type='Select', label='imaged channels', value=['green', 'cy3'],
+    #                   choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+    #                   tooltip='select the imaged channels, '
+    #                           'to select multiple hold ctrl/shift'),
     dapi_name=dict(widget_type='LineEdit', label='name of dapi channel at confocal',
                        value='', tooltip='enter the name of the dapi channel at the confocal'),
     green_name=dict(widget_type='LineEdit', label='name of green channel at confocal',
@@ -71,9 +62,10 @@ def create_tifs(input_path, chans_imaged, chan_label_map):
 def confocal_widget(
     viewer: Viewer,
     input_path,  # posix path
-    channels,
+    # channels,
     dapi_name,
     green_name,
+    n3_name,
     cy3_name,
     cy5_name
 
@@ -105,8 +97,9 @@ class ConfocalWidget(QWidget):
 
     def _create_tifs(self):
         input_path = confocal_widget.input_path.value
-        chans_imaged = confocal_widget.chans_imaged.value
+        # chans_imaged = confocal_widget.chans_imaged.value
         chan_label_map = self._get_channel_name_map()
 
-        preprocessing_worker = create_tifs(input_path, chans_imaged, chan_label_map)
-        preprocessing_worker.start()
+        tif_worker = create_tifs(input_path, chan_label_map)
+        tif_worker.start()
+

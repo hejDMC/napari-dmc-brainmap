@@ -49,16 +49,20 @@ def find_common_suffix(image_list, folder='unknown'):
         common_suffix = []
     return common_suffix
 
-def get_im_list(input_path):
+def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
 
     im_list_name = input_path.joinpath('image_names.csv')
     if im_list_name.exists():
         image_list = pd.read_csv(im_list_name)
         image_list = image_list['0'].to_list()
+
     else:
-        stitched_dir = get_info(input_path, 'stitched', only_dir=True)
-        filter_dir = [f for f in stitched_dir.glob('**/*') if f.is_dir()][0]  # just take the first folder
-        image_list = natsorted([f.parts[-1] for f in filter_dir.glob('*.tif')])
+        data_dir = get_info(input_path, folder_id, only_dir=True)
+        if folder_id == 'confocal':
+            image_list = natsorted([f.parts[-1] for f in data_dir.glob(file_id)])
+        else:
+            filter_dir = [f for f in data_dir.glob('**/*') if f.is_dir()][0]  # just take the first folder
+            image_list = natsorted([f.parts[-1] for f in filter_dir.glob(file_id)])
         common_suffix = find_common_suffix(image_list)
         image_list = [image[:-len(common_suffix)] for image in image_list]  # delete the common_suffix
 
