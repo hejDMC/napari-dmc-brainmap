@@ -77,7 +77,10 @@ def get_layer_list(tgt_list):
     new_tgt_list = []
     for tgt in tgt_list:
         tgt_path = st[st['acronym'] == tgt]['structure_id_path'].to_list()[0]
-        new_tgt_list += st[st['structure_id_path'].str.contains(tgt_path)]['acronym'].to_list()[1:]  # ignore first entry -- this is parent
+        try:
+            new_tgt_list += st[st['structure_id_path'].str.contains(tgt_path)]['acronym'].to_list()[1:]  # ignore first entry -- this is parent
+        except IndexError:
+            pass
     # for some cortical regions, a layer 2 and layer 2/3 exist --> ignore the layer 2
     new_tgt_list = [t for t in new_tgt_list if not split_strings_layers(t)[1] == '2']
     return new_tgt_list
@@ -98,7 +101,7 @@ def check_brain_area_in_bin(df):
         else:
             ids_in_bin = np.unique(annot[b_start_coord:b_end_coord, :, :])
         for area in df.index:
-            area_id = int(st[st['acronym'] == area]['id'])
+            area_id = int(st[st['acronym'] == area]['sphinx_id'])
             if area_id not in ids_in_bin:
                 df[bin][area] = -1
     return df
@@ -145,7 +148,6 @@ def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, sub_l
     if plotting_params["transpose"]:
         tgt_data_to_plot = tgt_data_to_plot.transpose()
     max_range = tgt_data_to_plot.max().max()
-    print(max_range)
     interval_labels = plotting_params["interval_labels"]
     sns.set(style=plotting_params["style"])
     if plotting_params["style"] == 'white':
