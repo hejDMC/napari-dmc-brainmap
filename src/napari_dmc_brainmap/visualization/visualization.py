@@ -2,7 +2,7 @@ from napari import Viewer
 import json
 
 from superqt import QCollapsible
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QScrollArea
 from magicgui import magicgui
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure

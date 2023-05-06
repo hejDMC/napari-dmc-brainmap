@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout,QScrollArea
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
 import cv2

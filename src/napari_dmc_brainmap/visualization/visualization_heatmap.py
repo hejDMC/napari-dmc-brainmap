@@ -98,7 +98,8 @@ def check_brain_area_in_bin(df):
         b_end_coord = int(-(float(b_end) / 0.01 - bregma[0]))
         if b_start_coord > b_end_coord:
             ids_in_bin = np.unique(annot[b_end_coord:b_start_coord, :, :])
-        else:
+        else:  # todo here's a future warning: FutureWarning: Calling int on a single element Series is deprecated and will raise a TypeError in the future. Use int(ser.iloc[0]) instead!
+
             ids_in_bin = np.unique(annot[b_start_coord:b_end_coord, :, :])
         for area in df.index:
             area_id = int(st[st['acronym'] == area]['sphinx_id'])
