@@ -130,7 +130,7 @@ def get_heatmap_params(heatmap_widget):
     }
     return plotting_params
 
-def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, sub_list=False):
+def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_path, sub_list=False):
     # if applicable only get the ipsi or contralateral cells
     hemisphere = plotting_params['hemisphere']
     if hemisphere == 'ipsi':
@@ -218,6 +218,6 @@ def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, sub_l
 
     static_ax[0].set_ylabel(plotting_params["ylabel"][0], fontsize=plotting_params["ylabel"][1])
     if plotting_params["save_fig"]:
-        static_ax.figure.savefig(plotting_params["save_dir"])
+        static_ax.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
     return mpl_widget
 

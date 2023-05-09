@@ -137,3 +137,31 @@ def split_to_list(input_str):
     else:
         output_str = [i for i in input_str.split(',')]
         return output_str
+
+
+def load_group_dict(input_path, animal_list, group_id='genotype'):
+
+    dict = {}
+    for animal_id in animal_list:
+        data_dir = input_path.joinpath(animal_id)
+        params_fn = data_dir.joinpath('params.json')
+        if params_fn.exists():
+            with open(params_fn) as fn:
+                params_dict = json.load(fn)
+            try:
+                g_id = params_dict['general'][group_id]
+                if g_id in dict.keys():
+                    dict[g_id].append(animal_id)
+                else:
+                    dict[g_id] = [animal_id]
+            except KeyError:
+                print("no group_id value (*" + group_id + "*) specified for " + animal_id)
+                print("    --> skipping " + animal_id)
+                pass
+
+        else:
+            print("No params.json file under " + str(params_fn))
+            print("    --> skipping " + animal_id)
+
+    return dict
+

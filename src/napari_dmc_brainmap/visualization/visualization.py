@@ -12,7 +12,7 @@ from napari_dmc_brainmap.utils import split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import load_data
 from napari_dmc_brainmap.visualization.visualization_bar_plot import get_bar_plot_params, do_bar_plot
 from napari_dmc_brainmap.visualization.visualization_heatmap import get_heatmap_params, do_heatmap
-
+from napari_dmc_brainmap.visualization.visualization_heatmap import get_brain_section_params, do_brain_section_plot
 @magicgui(
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path: ',
@@ -23,7 +23,7 @@ from napari_dmc_brainmap.visualization.visualization_heatmap import get_heatmap_
                    value='',
                    tooltip='select a folder for saving plots'),
     animal_list=dict(widget_type='LineEdit', label='list of animals',
-                        value='', tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
+                        value='animal1,animal2', tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
     channels=dict(widget_type='Select', label='select channels to plot', value=['green', 'cy3'],
                       choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       tooltip='select the channels with segmented cells to be plotted, '
@@ -212,6 +212,45 @@ def heatmap_widget(
 
     return heatmap_widget
 
+
+@magicgui(
+    # todo option for only one hemisphere
+    layout='vertical',
+    save_fig=dict(widget_type='CheckBox', label='save figure?', value=False,
+                  tooltip='tick to save figure under directory and name'),
+    save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
+                   value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
+    plot_size=dict(widget_type='LineEdit', label='enter plot size',
+                            value='8,6', tooltip='enter the COMMA SEPERATED size of the plot'),
+    section_list=dict(widget_type='LineEdit', label='list of sections',
+                   value='-0.5,0.0,0.5,1.0,1.5', tooltip='enter a COMMA SEPERATED list of mm coordinates indicating'
+                                                         'the brainsections you want to plot'),
+    groups=dict(widget_type='LineEdit', label='group/genotype?',
+                   value='', tooltip='if you want to plot multiple groups/genotype on the same section, state the identifier in '
+                                     'the params.json file (either group or genotype)'),
+    cmap_groups=dict(widget_type='LineEdit', label='colors',
+                   value='', tooltip='enter COMMA SEPERATED list of colors (or c:map), should have the same length as '
+                                     'the groups/genotypes you want to plot'),
+    section_range=dict(widget_type='LineEdit', label='range around section', value='0.05',
+                       tooltip='enter the range around the section to include cells from, set to zero if only include '
+                               'cells on that particular coordinate, otherwise this value will be taken plus/minus to '
+                               'include cells'),
+    call_button=False
+)
+def brain_section_widget(
+    viewer: Viewer,
+    save_fig,
+    save_name,
+    plot_size,
+    section_list,
+    groups,
+    cmap_groups,
+    section_range
+) -> None:
+
+    return brain_section_widget
+
+
 class VisualizationWidget(QWidget):
     def __init__(self, napari_viewer):  #parent=None):
         super().__init__()  # (parent)
@@ -233,9 +272,17 @@ class VisualizationWidget(QWidget):
         btn_heat.clicked.connect(self._do_heatmap)
         self._collapse_heat.addWidget(btn_heat)
 
+        self._collapse_section = QCollapsible('Brain section plot: expand for more', self)
+        brain_section = brain_section_widget
+        self._collapse_section.addWidget(brain_section.native)
+        btn_section = QPushButton("Create brain section plot")
+        btn_section.clicked.connect(self._do_brain_section_plot)
+        self._collapse_section.addWidget(btn_section)
+
         self.layout().addWidget(header.native)
         self.layout().addWidget(self._collapse_bar)
         self.layout().addWidget(self._collapse_heat)
+        self.layout().addWidget(self._collapse_section)
 
     def _do_bar_plot(self):
         input_path = header_widget.input_path.value
@@ -259,5 +306,15 @@ class VisualizationWidget(QWidget):
 
         df = load_data(input_path, animal_list, channels)
         tgt_list = split_to_list(heatmap_widget.tgt_list.value)
-        mpl_widget = do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget)
+        mpl_widget = do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_path)
+        self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
+
+    def _do_brain_section_plot(self):
+        input_path = header_widget.input_path.value
+        save_path = header_widget.save_path.value
+        animal_list = split_to_list(header_widget.animal_list.value)
+        channels = header_widget.channels.value
+        plotting_params = get_brain_section_params(brain_section_widget)
+        df = load_data(input_path, animal_list, channels)
+        mpl_widget = do_brain_section_plot(df, animal_list, plotting_params, brain_section_widget, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
