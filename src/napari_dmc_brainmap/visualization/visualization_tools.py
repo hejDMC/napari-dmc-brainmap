@@ -96,9 +96,28 @@ def load_data(input_path, animal_list, channels):
                 try:
                     injection_side = params_data['general']['injection_side']  # add the injection_side as a column
                 except KeyError:
-                    injection_side = input("no injection side specified in params.json file, please enter manually: ")
-                # todo add genotype or exp_group from params.json
+                    injection_side = input("no injection side specified in params.json file for " + animal_id +
+                                           ", please enter manually: ")
+
+                try:
+                    genotype = params_data['general']['genotype']
+                except KeyError:
+                    print("warning, no genotype specified for " + animal_id +
+                          " this could lead to problems down the line, "
+                          "use the create params.json function to enter genotype")
+                    genotype = 0
+                try:
+                    group = params_data['general']['group']
+                except KeyError:
+                    print(
+                        "warning, no experimental group specified for " + animal_id +
+                        " this could lead to problems down the line, "
+                        "use the create params.json function to enter experimental group")
+                    group = 0
+
                 results_data['injection_side'] = [injection_side] * len(results_data)
+                results_data['genotype'] = [genotype] * len(results_data)
+                results_data['group'] = [group] * len(results_data)
                 # add if the location of a cell is ipsi or contralateral to the injection side
                 results_data = get_ipsi_contra(results_data)
                 results_data_merged = pd.concat([results_data_merged, results_data])
@@ -106,22 +125,41 @@ def load_data(input_path, animal_list, channels):
         results_data_merged = clean_results_df(results_data_merged, st)
     return results_data_merged
 
+def coord_mm_transform(df, to_coord = True):
+    """
+    Function to calculate atlas coordinates into mm and vice versa
+    Inserted df needs to have specified columns
+    """
+    bregma = get_bregma()
+    if to_coord:
+        print("Transforming mm TO coordinates...")
+        df['ap_mm'] = -(df['ap_mm'] / 0.01 - bregma[0]).astype(int)
+        df['dv_mm'] = -(df['dv_mm'] / 0.01).astype(int)
+        df['ml_mm'] = (df['ml_mm'] / 0.01 + bregma[2]).astype(int)
+    elif not to_coord:
+        print("Transforming coordinates TO mm...")
+        df['ap_mm'] = (-df['ap_mm'] + bregma[0])*0.01
+        df['dv_mm'] = -(df['dv_mm'] * 0.01)
+        df['ml_mm'] = (df['ml_mm'] - bregma[2]) * 0.01
+    return df
 
 
-def plot_brain_schematic(annot_section, structure_tree, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
+def plot_brain_schematic(annot_section, st, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
                          unilateral_target=False, transparent=True):
     """
     Function to plot brain schematics as colored plots
 
-    :param annot_section: 2d array from allensdk with brain section
-    :param structure_tree: structure tree data from allensdk
-    :param target_region_list: LIST of target brain regions to plot
+    :param annot_section: 2d array with brain section
+    :param structure_tree:
+    :param target_region_list: LIST of target brain regions to plot  # todo this also for abbr. not only names
     :param target_color_list: LIST of colors for target brain regions
     :param target_transparency: LIST of transparency values for target brain regions
     :param unilateral_target: BOOLEAN if target should only be plotted on one hemisphere -- TO BE IMPLEMENTED
     :param transparent: BOOLEAN for setting white pixels to transparent (e.g. plotting on black background)
     :return: annot_section in RGBA values on x-y coordintaes for plotting
     """
+    annot_section[annot_section==1] = 0  # set non brain values to 1
+
     if target_region_list:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
         target_color_list = target_len_check(target_region_list, target_color_list, "color")
         target_transparency = target_len_check(target_region_list, target_transparency, "transparency")
@@ -146,12 +184,15 @@ def plot_brain_schematic(annot_section, structure_tree, target_region_list=False
 
     # get the idx for fibre structures (gray) and ventricles)
     gray_idx = []
+    fiber_tracts_path = st[st['name']=='fiber tracts']['structure_id_path'].iloc[0]
+
     ventr_idx = []
+    ventr_tracts_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
     for item in np.unique(annot_section):
-        if (item > 0) & (item != 997):
-            if structure_tree.ancestors([item])[0][-2]['name'] == 'fiber tracts':
+        if (item > 0) & (item != 1):  # todo changed 997 to 1 here
+            if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(fiber_tracts_path):
                 gray_idx.append(item)
-            elif structure_tree.ancestors([item])[0][-2]['name'] == 'ventricular systems':
+            elif st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(ventr_tracts_path):
                 ventr_idx.append(item)
 
     # get indices for tgt_area as well, iterative stuff is likely quite slow...
@@ -159,11 +200,11 @@ def plot_brain_schematic(annot_section, structure_tree, target_region_list=False
         tgt_idx_list = {}
         for idx, target_region in enumerate(target_region_list):
             tgt_idx = []
+            tgt_path = st[st['name'] == target_region]['structure_id_path'].iloc[0]
             for item in np.unique(annot_section):
-                if (item > 0) & (item != 997):
-                    for st_level in structure_tree.ancestors([item])[0]:  # iterate over the levels and check if it contains the target brain structure
-                        if st_level['name'] == target_region:
-                            tgt_idx.append(item)
+                if (item > 0) & (item != 1):
+                    if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(tgt_path):
+                        tgt_idx.append(item)
             tgt_idx_list[idx] = tgt_idx
         dummy_list = []  # dummy list of all target idx for loop below
         for i in tgt_idx_list:

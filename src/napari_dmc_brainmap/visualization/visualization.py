@@ -12,7 +12,7 @@ from napari_dmc_brainmap.utils import split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import load_data
 from napari_dmc_brainmap.visualization.visualization_bar_plot import get_bar_plot_params, do_bar_plot
 from napari_dmc_brainmap.visualization.visualization_heatmap import get_heatmap_params, do_heatmap
-from napari_dmc_brainmap.visualization.visualization_heatmap import get_brain_section_params, do_brain_section_plot
+from napari_dmc_brainmap.visualization.visualization_brain_section import get_brain_section_params, do_brain_section_plot
 @magicgui(
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path: ',
@@ -316,5 +316,5 @@ class VisualizationWidget(QWidget):
         channels = header_widget.channels.value
         plotting_params = get_brain_section_params(brain_section_widget)
         df = load_data(input_path, animal_list, channels)
-        mpl_widget = do_brain_section_plot(df, animal_list, plotting_params, brain_section_widget, save_path)
+        mpl_widget = do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_section_widget, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
