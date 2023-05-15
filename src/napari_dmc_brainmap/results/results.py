@@ -164,7 +164,8 @@ def quantify_injection_side(input_path, seg_type, regi_chan):
     temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
                                          ["acronym_parent"].value_counts())
     temp_data = temp_data.reset_index()
-    temp_data = temp_data.rename(columns={"index": "acronym", "acronym_parent": "injection_volume"})
+    # temp_data = temp_data.rename(columns={"index": "acronym", "acronym_parent": "injection_volume"})
+    temp_data = temp_data.rename(columns={"acronym_parent": "acronym", "count": "injection_volume"})
     # missing_areas = pd.DataFrame(set(tgt_list).difference(temp_data['acronym'].to_list()),
     #                                 columns={'acronym'})
     # missing_areas['injection_volume'] = 0  # todo this crashes on windows if no missing areas? (if n=1, no missing areas anyhow)

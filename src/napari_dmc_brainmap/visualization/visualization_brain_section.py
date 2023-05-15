@@ -59,11 +59,13 @@ def get_rows_cols(section_list):
     return n_rows, n_cols
 
 
-def create_geno_cmap(animal_dict, plotting_params):
+def create_geno_cmap(animal_dict, plotting_params, df=False):
 
     geno_cmap = {}
-
-    group_ids = list(animal_dict.keys())
+    if df:
+        group_ids = list(df['channel'].unique())
+    else:
+        group_ids = list(animal_dict.keys())
     cmap_groups = plotting_params["cmap_groups"]
     num_groups = len(group_ids)
     num_colors = len(cmap_groups)
@@ -83,14 +85,18 @@ def create_geno_cmap(animal_dict, plotting_params):
 
     return geno_cmap
 
+
 def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_section_widget, save_path):
 
-    if plotting_params["groups"]:
+    if plotting_params["groups"] in ['genotype', 'group']:
         animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
         geno_cmap = create_geno_cmap(animal_dict, plotting_params)
+        single_color=False
+    elif plotting_params["groups"] == 'channel':
+        geno_cmap = create_geno_cmap([], plotting_params, df=df)
+        single_color = False
     else:
-        # todo check here geno map
-        pass
+        single_color=True
     # tgt_channel = plotting_params["tgt_channel"] # this not from params file todo option for more than one channel
     section_list = plotting_params["section_list"]  # in mm AP coordinates for coronal sections
     n_rows, n_cols = get_rows_cols(section_list)
@@ -116,7 +122,12 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
             static_ax[n_row, n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
                                             colors=['gainsboro'],
                                             linewidths=0.2)
-            sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot, hue=plotting_params["groups"], palette=geno_cmap)
+            if single_color:
+                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                color=plotting_params["cmap_groups"][0])
+            else:
+                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                hue=plotting_params["groups"], palette=geno_cmap)
             static_ax[n_row, n_col].title.set_text('bregma - ' + str(-(slice_idx - bregma[0]) * 0.01) + ' mm')
             static_ax[n_row, n_col].axis('off')
         elif len(section_list) == 2:
@@ -124,7 +135,12 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
             static_ax[n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
                                             colors=['gainsboro'],
                                             linewidths=0.2)
-            sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=df_to_plot, hue=plotting_params["groups"], palette=geno_cmap)
+            if single_color:
+                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                color=plotting_params["cmap_groups"][0])
+            else:
+                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                hue=plotting_params["groups"], palette=geno_cmap)
             static_ax[n_col].title.set_text('bregma - ' + str(-(slice_idx - bregma[0]) * 0.01) + ' mm')
             static_ax[n_col].axis('off')
         else:
@@ -132,7 +148,12 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
             static_ax.contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
                                             colors=['gainsboro'],
                                             linewidths=0.2)
-            sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=df_to_plot, hue=plotting_params["groups"], palette=geno_cmap)
+            if single_color:
+                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                color=plotting_params["cmap_groups"][0])
+            else:
+                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                hue=plotting_params["groups"], palette=geno_cmap)
             static_ax.title.set_text('bregma - ' + str(-(slice_idx - bregma[0]) * 0.01) + ' mm')
             static_ax.axis('off')
         if n_col < n_cols-1:

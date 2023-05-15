@@ -87,7 +87,7 @@ def do_stitching(input_path, filter_list, params_dict):
                       choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       tooltip='select the imaged channels, '
                               'to select multiple hold ctrl/shift'),
-    sharpy_bool=dict(widget_type='CheckBox', text='get images for sharpy-track', value=True,
+    sharpy_bool=dict(widget_type='CheckBox', text='get images for registration (sharpy-track)', value=True,
                      tooltip='downsample image to resolution in sharpy track (1140 x 800)'),
     sharpy_chan=dict(widget_type='Select', label='selected channels', value='green',
                      choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],

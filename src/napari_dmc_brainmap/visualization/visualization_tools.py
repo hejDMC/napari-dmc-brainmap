@@ -123,6 +123,7 @@ def load_data(input_path, animal_list, channels):
                 results_data_merged = pd.concat([results_data_merged, results_data])
         print("loaded data from " + animal_id)
         results_data_merged = clean_results_df(results_data_merged, st)
+        results_data_merged = results_data_merged.reset_index(drop=True)
     return results_data_merged
 
 def coord_mm_transform(df, to_coord = True):

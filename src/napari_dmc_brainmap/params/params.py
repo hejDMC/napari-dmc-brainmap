@@ -5,17 +5,18 @@ from magicgui import magicgui
 
 
 @magicgui(
-    # todo sate that only RGB images for now, think about different image formats
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                                 'folder containing segmentation results'),
     inj_side=dict(widget_type='ComboBox', label='injection side',
-                  choices=['','left', 'right', 'both'], value='',
+                  choices=['','left', 'right'], value='',
                   tooltip='select the injection hemisphere (if applicable)'),
     geno=dict(widget_type='LineEdit', label='genotype',
-              tooltip='enter the genotype of the animal (be CONSISTENT in your naming across animals)'),
-    # todo function to check for genos?
+              tooltip='enter (if applicable) the genotype of the animal (be CONSISTENT in your naming across animals)'),
+    group=dict(widget_type='LineEdit', label='experimental group',
+               tooltip='enter (if applicable) the experimental group of the animal '
+                      '(be CONSISTENT in your naming across animals)'),
     chans_imaged=dict(widget_type='Select', label='imaged channels', choices=['dapi', 'green', 'cy3', 'cy5'],
                       value=['green', 'cy3'],
                       tooltip='select all channels imaged, to select multiple hold ctrl/shift'),
@@ -25,6 +26,7 @@ def params_widget(
     input_path,  # posix path
     inj_side,
     geno,
+    group,
     chans_imaged
 ) -> None:
 
@@ -50,12 +52,14 @@ class ParamsWidget(QWidget):
         animal_id = get_animal_id(input_path)
         injection_side = params_widget.inj_side.value
         genotype = params_widget.geno.value
+        group = params_widget.group.value
         chans_imaged = params_widget.chans_imaged.value
         params_dict = {
             "general": {
                 "animal_id": animal_id,
                 "injection_side": injection_side,
                 "genotype": genotype,
+                "group": group,
                 "chans_imaged": chans_imaged
             }
         }

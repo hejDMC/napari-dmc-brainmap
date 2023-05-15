@@ -48,7 +48,7 @@ def header_widget(
                    tooltip='tick to save figure under directory and name'),
     save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
                         value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
-    hemisphere=dict(widget_type='ComboBox', label='injection side',
+    hemisphere=dict(widget_type='ComboBox', label='hemisphere',
                   choices=['left', 'right', 'both'], value='both',
                   tooltip="select hemisphere to visualize (relative to injection side)"),
     tgt_list=dict(widget_type='LineEdit', label='list of brain areas (ABA)',
@@ -136,7 +136,7 @@ def barplot_widget(
                    tooltip='tick to save figure under directory and name'),
     save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
                         value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
-    hemisphere=dict(widget_type='ComboBox', label='injection side',
+    hemisphere=dict(widget_type='ComboBox', label='hemisphere',
                   choices=['left', 'right', 'both'], value='both',
                   tooltip="select hemisphere to visualize (relative to injection side)"),
     tgt_list=dict(widget_type='LineEdit', label='list of brain areas (ABA)',
@@ -225,9 +225,10 @@ def heatmap_widget(
     section_list=dict(widget_type='LineEdit', label='list of sections',
                    value='-0.5,0.0,0.5,1.0,1.5', tooltip='enter a COMMA SEPERATED list of mm coordinates indicating'
                                                          'the brainsections you want to plot'),
-    groups=dict(widget_type='LineEdit', label='group/genotype?',
-                   value='', tooltip='if you want to plot multiple groups/genotype on the same section, state the identifier in '
-                                     'the params.json file (either group or genotype)'),
+    groups=dict(widget_type='ComboBox', label='channel/group/genotype?',
+                  choices=['', 'channel', 'group', 'genotype'], value='',
+                  tooltip="if you want to plot channel/group/genotype in different colors, select accordingly, "
+                          "otherwise leave empty"),
     cmap_groups=dict(widget_type='LineEdit', label='colors',
                    value='', tooltip='enter COMMA SEPERATED list of colors (or c:map), should have the same length as '
                                      'the groups/genotypes you want to plot'),
