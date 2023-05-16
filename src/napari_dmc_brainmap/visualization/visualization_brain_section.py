@@ -40,6 +40,8 @@ from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, du
 
 def get_brain_section_params(brainsec_widget):
     plotting_params = {
+        "plot_item": brainsec_widget.plot_item.value,
+        "projection_avg": brainsec_widget.projection_avg.value,
         "section_list": [float(i) for i in brainsec_widget.section_list.value.split(',')],
         "groups": brainsec_widget.groups.value,
         "cmap_groups": split_to_list(brainsec_widget.cmap_groups.value),
@@ -90,8 +92,9 @@ def create_geno_cmap(animal_dict, plotting_params, df=pd.DataFrame()):
 
     return geno_cmap
 
+def do_brain_section_plot_projections(input_path, df, animal_list, plotting_params, brain_section_widget, save_path):
 
-def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_section_widget, save_path):
+def do_brain_section_plot_cells(input_path, df, animal_list, plotting_params, brain_section_widget, save_path):
 
     if plotting_params["groups"] in ['genotype', 'group']:
         animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])

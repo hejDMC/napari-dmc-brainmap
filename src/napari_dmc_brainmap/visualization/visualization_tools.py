@@ -71,6 +71,21 @@ def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
 
     return tgt_data_to_plot
 
+def get_ipsi_contra(df):
+    '''
+    Function to add a column specifying if cells if ipsi or contralateral to injection side
+    ML_location values of <0 are on the 'left' hemisphere, >0 are on the 'right hemisphere
+    :param df: dataframe with results for animal, not the merged across animals
+    :return:
+    '''
+
+    df['ipsi_contra'] = ['ipsi'] * len(df)  # add a column defaulting to 'ipsi'
+    # change values to contra with respect to the location of the injection side
+    if df['injection_side'][0] == 'left':
+        df.loc[(df['ml_mm'] < 0), 'ipsi_contra'] = 'contra'
+    elif df['injection_side'][0] == 'right':
+        df.loc[(df['ml_mm'] > 0), 'ipsi_contra'] = 'contra'
+    return df
 
 def load_data(input_path, animal_list, channels):
     st = dummy_load_allen_structure_tree()
@@ -85,6 +100,7 @@ def load_data(input_path, animal_list, channels):
 
             if results_file.exists():
                 results_data = pd.read_csv(results_file)  # load the data
+                results_data['ml_mm'] *= (-1)  # so that negative values are left hemisphere
                 results_data['sphinx_id'] -= 1  # correct for indices starting at 1
                 results_data['animal_id'] = [animal_id] * len(
                     results_data)  # add the animal_id as a column for later identification
@@ -116,6 +132,7 @@ def load_data(input_path, animal_list, channels):
                     group = 0
 
                 results_data['injection_side'] = [injection_side] * len(results_data)
+                results_data = get_ipsi_contra(results_data)
                 results_data['genotype'] = [genotype] * len(results_data)
                 results_data['group'] = [group] * len(results_data)
                 # add if the location of a cell is ipsi or contralateral to the injection side

@@ -106,10 +106,10 @@ def do_bar_plot(df, plotting_params, animal_list, tgt_list, barplot_widget, save
         sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
                       palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
                       orient=plot_orient)
-    else:
-        sns.swarmplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot,
-                      palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
-                      orient=plot_orient)
+    # else:
+    #     sns.swarmplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot,
+    #                   palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
+    #                   orient=plot_orient)
     if plot_orient == 'v':
         static_ax.set_xlabel(plotting_params["xlabel"][0], fontsize=plotting_params["xlabel"][1])
         static_ax.set_ylabel(plotting_params["ylabel"][0], fontsize=plotting_params["ylabel"][1])
@@ -128,8 +128,8 @@ def do_bar_plot(df, plotting_params, animal_list, tgt_list, barplot_widget, save
         frame.set_facecolor((0, 0, 1, 0))
         for text in leg.get_texts():
             text.set_color(plotting_params["color"])
-    if plotting_params["scatter_legend_hide"]:  # remove legend from scatter plot
-        static_ax.legend_.remove()
+        if plotting_params["scatter_legend_hide"]:  # remove legend from scatter plot
+            static_ax.legend_.remove()
     static_ax.spines['bottom'].set_color(plotting_params["color"])
     static_ax.spines['left'].set_color(plotting_params["color"])
     static_ax.xaxis.label.set_color(plotting_params["color"])

@@ -12,7 +12,8 @@ from napari_dmc_brainmap.utils import split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import load_data
 from napari_dmc_brainmap.visualization.visualization_bar_plot import get_bar_plot_params, do_bar_plot
 from napari_dmc_brainmap.visualization.visualization_heatmap import get_heatmap_params, do_heatmap
-from napari_dmc_brainmap.visualization.visualization_brain_section import get_brain_section_params, do_brain_section_plot
+from napari_dmc_brainmap.visualization.visualization_brain_section import get_brain_section_params, \
+    do_brain_section_plot_cells, do_brain_section_plot_projections
 @magicgui(
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path: ',
@@ -49,7 +50,7 @@ def header_widget(
     save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
                         value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
     hemisphere=dict(widget_type='ComboBox', label='hemisphere',
-                  choices=['left', 'right', 'both'], value='both',
+                  choices=['ipsi', 'contra', 'both'], value='both',
                   tooltip="select hemisphere to visualize (relative to injection side)"),
     tgt_list=dict(widget_type='LineEdit', label='list of brain areas (ABA)',
                         value='area1,area2', tooltip='enter the COMMA SEPERATED list of names of areas (ABA nomenclature)'
@@ -137,7 +138,7 @@ def barplot_widget(
     save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
                         value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
     hemisphere=dict(widget_type='ComboBox', label='hemisphere',
-                  choices=['left', 'right', 'both'], value='both',
+                  choices=['ipsi', 'contra', 'both'], value='both',
                   tooltip="select hemisphere to visualize (relative to injection side)"),
     tgt_list=dict(widget_type='LineEdit', label='list of brain areas (ABA)',
                         value='area1,area2', tooltip='enter the COMMA SEPERATED list of names of areas (ABA nomenclature)'
@@ -220,6 +221,11 @@ def heatmap_widget(
                   tooltip='tick to save figure under directory and name'),
     save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
                    value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
+    plot_item=dict(widget_type='ComboBox', label='item to plot',
+                  choices=['cells', 'injection side', 'projections'], value='cells',
+                  tooltip="select item to plot cells/injection side/projection density"),
+    projection_avg=dict(widget_type='CheckBox', label='averaging projection density?', value=True,
+                  tooltip='tick to plot projection density as average for brain region in bin'),
     plot_size=dict(widget_type='LineEdit', label='enter plot size',
                             value='8,6', tooltip='enter the COMMA SEPERATED size of the plot'),
     section_list=dict(widget_type='LineEdit', label='list of sections',
@@ -242,6 +248,8 @@ def brain_section_widget(
     viewer: Viewer,
     save_fig,
     save_name,
+    plot_item,
+    projection_avg,
     plot_size,
     section_list,
     groups,
@@ -316,6 +324,12 @@ class VisualizationWidget(QWidget):
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_brain_section_params(brain_section_widget)
-        df = load_data(input_path, animal_list, channels)
-        mpl_widget = do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_section_widget, save_path)
+        plot_item = brain_section_widget.plot_item.value
+        if plot_item == 'cells':
+            df = load_data(input_path, animal_list, channels)
+            mpl_widget = do_brain_section_plot_cells(input_path, df, animal_list, plotting_params, brain_section_widget, save_path)
+        elif plot_item == 'projections':
+            df
+        else:
+            print('no implemented')
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
