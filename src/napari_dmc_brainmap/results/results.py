@@ -65,7 +65,7 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
             else:
                 coords = np.concatenate((coords, curr_coords), axis=0)
 
-    elif seg_type == 'cells':
+    elif seg_type == 'cells' or seg_type == 'projections':
         coords = np.stack([x_scaled, y_scaled], axis=1)
     # todo areas
     else:
@@ -103,7 +103,7 @@ def create_results_file(input_path, seg_type, channels, regi_chan):
         fn = results_dir.joinpath(animal_id + '_injection.csv')
         data.to_csv(fn)
         print("done! data saved to: " + str(fn))
-    elif seg_type == 'cells':
+    elif seg_type == 'cells' or seg_type == 'projections':
         for chan in channels:
             data = pd.DataFrame()
             segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type)
@@ -113,7 +113,7 @@ def create_results_file(input_path, seg_type, channels, regi_chan):
                                                         seg_im_suffix, regi_data,
                                                         regi_dir, regi_suffix)
                 data = pd.concat((data, section_data))
-            fn = results_dir.joinpath(animal_id + '_cells.csv')
+            fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
             data.to_csv(fn)
             print("done! data saved to: " + str(fn))
 
@@ -193,7 +193,7 @@ def quantify_injection_side(input_path, seg_type, regi_chan):
                   choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], value='green',
                   tooltip='select the channel you registered to the brain atlas'),
     seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                  choices=['cells', 'injection_side'], value='cells',
+                  choices=['cells', 'injection_side', 'projections'], value='cells',
                   tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
     channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
                   choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],

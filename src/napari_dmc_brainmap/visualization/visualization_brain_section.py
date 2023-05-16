@@ -59,18 +59,23 @@ def get_rows_cols(section_list):
     return n_rows, n_cols
 
 
-def create_geno_cmap(animal_dict, plotting_params, df=False):
+def create_geno_cmap(animal_dict, plotting_params, df=pd.DataFrame()):
 
     geno_cmap = {}
-    if df:
+    if not df.empty:
         group_ids = list(df['channel'].unique())
     else:
         group_ids = list(animal_dict.keys())
     cmap_groups = plotting_params["cmap_groups"]
     num_groups = len(group_ids)
-    num_colors = len(cmap_groups)
+    if cmap_groups[0]:
+        num_colors = len(cmap_groups)
+    else:
+        num_colors = 0
+        cmap_groups = []
+    print(num_colors)
     if num_groups > num_colors:  # more groups than colors
-        print(str(len(group_ids)) + " groups provided, but only " + str(len(cmap_groups)) +
+        print(str(num_groups) + " groups provided, but only " + str(num_colors) +
               " cmap groups, adding random colors")
         diff = num_groups - num_colors
         for d in range(diff):
@@ -117,6 +122,12 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
         annot_section = annot[slice_idx, :, :].copy()
         annot_section_plt = plot_brain_schematic(annot_section, st)  # todo fix this one
         df_to_plot = df[(df['ap_mm'] >= target_ap[0]) & (df['ap_mm'] <= target_ap[1])]
+
+        if not plotting_params["cmap_groups"][0]:
+            clr = random.choice(list(mcolors.CSS4_COLORS.keys()))
+        else:
+            clr = plotting_params["cmap_groups"][0]
+
         if len(section_list) > 2:
             im = static_ax[n_row, n_col].imshow(annot_section_plt)
             static_ax[n_row, n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
@@ -124,7 +135,7 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
                                             linewidths=0.2)
             if single_color:
                 sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
-                                color=plotting_params["cmap_groups"][0])
+                                color=clr)
             else:
                 sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
                                 hue=plotting_params["groups"], palette=geno_cmap)
@@ -136,10 +147,10 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
                                             colors=['gainsboro'],
                                             linewidths=0.2)
             if single_color:
-                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
-                                color=plotting_params["cmap_groups"][0])
+                sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                                color=clr)
             else:
-                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
                                 hue=plotting_params["groups"], palette=geno_cmap)
             static_ax[n_col].title.set_text('bregma - ' + str(-(slice_idx - bregma[0]) * 0.01) + ' mm')
             static_ax[n_col].axis('off')
@@ -149,10 +160,10 @@ def do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_se
                                             colors=['gainsboro'],
                                             linewidths=0.2)
             if single_color:
-                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
-                                color=plotting_params["cmap_groups"][0])
+                sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=df_to_plot,
+                                color=clr)
             else:
-                sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=df_to_plot,
+                sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=df_to_plot,
                                 hue=plotting_params["groups"], palette=geno_cmap)
             static_ax.title.set_text('bregma - ' + str(-(slice_idx - bregma[0]) * 0.01) + ' mm')
             static_ax.axis('off')
