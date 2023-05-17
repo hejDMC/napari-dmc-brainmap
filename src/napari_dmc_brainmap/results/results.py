@@ -99,7 +99,7 @@ def create_results_file(input_path, seg_type, channels, regi_chan):
                                                     regi_data,
                                                     regi_dir, regi_suffix)
             data = pd.concat((data, section_data))
-        fn = results_dir.joinpath(animal_id + '_injection.csv')
+        fn = results_dir.joinpath(animal_id + '_injection_side.csv')
         data.to_csv(fn)
         print("done! data saved to: " + str(fn))
     # elif seg_type == 'cells' or seg_type == 'projections':

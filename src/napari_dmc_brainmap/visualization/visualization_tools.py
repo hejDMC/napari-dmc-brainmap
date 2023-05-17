@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import json
 import matplotlib.colors as mcolors
+from natsort import natsorted
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
 
@@ -93,6 +94,9 @@ def load_data(input_path, animal_list, channels, data_type='cells'):
     results_data_merged = pd.DataFrame()  # initialize merged dataframe
     for animal_id in animal_list:
         # for animal_idx, animal_id in enumerate(animal_list):
+        if data_type == "optic_fiber" or data_type == "neuropixels_probe":
+            seg_super_dir = get_info(input_path.joinpath(animal_id), 'results', seg_type=data_type, only_dir=True)
+            channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
         for channel in channels:
             results_dir = get_info(input_path.joinpath(animal_id), 'results', seg_type=data_type, channel=channel,
                                     only_dir=True)

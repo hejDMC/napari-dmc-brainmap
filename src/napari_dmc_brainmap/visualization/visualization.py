@@ -221,35 +221,43 @@ def heatmap_widget(
                   tooltip='tick to save figure under directory and name'),
     save_name=dict(widget_type='LineEdit', label='enter name of figure to save',
                    value='test.svg', tooltip='enter name of figure (incl. extension (.svg/.png etc.)'),
-    plot_item=dict(widget_type='ComboBox', label='item to plot',
-                  choices=['cells', 'injection side', 'projections'], value='cells',
-                  tooltip="select item to plot cells/injection side/projection density"),
-    #projection_avg=dict(widget_type='CheckBox', label='averaging projection density?', value=True,
-    #              tooltip='tick to plot projection density as average for brain region in bin'),
+    plot_item=dict(widget_type='Select', label='item to plot',
+                      choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'],
+                      tooltip='select items to plot cells/injection side/projection density, hold ctrl/shift to select multiple'),
     plot_size=dict(widget_type='LineEdit', label='enter plot size',
                             value='8,6', tooltip='enter the COMMA SEPERATED size of the plot'),
     section_list=dict(widget_type='LineEdit', label='list of sections',
                    value='-0.5,0.0,0.5,1.0,1.5', tooltip='enter a COMMA SEPERATED list of mm coordinates '
                                                          '(relative to bregma)indicating '
                                                          'the brain sections you want to plot'),
-    groups=dict(widget_type='ComboBox', label='channel/group/genotype?',
+    section_range=dict(widget_type='LineEdit', label='range around section', value='0.05',
+                       tooltip='enter the range around the section to include data from, set to zero if only include '
+                               'data from that particular coordinate, otherwise this value will be taken plus/minus to '
+                               'include more data'),
+    groups=dict(widget_type='ComboBox', label='channel/group/genotype (cell plot)?',
                   choices=['', 'channel', 'group', 'genotype'], value='',
                   tooltip="if you want to plot channel/group/genotype in different colors, select accordingly, "
                           "otherwise leave empty"),
-    cmap_groups=dict(widget_type='LineEdit', label='colors',
+    cmap_groups=dict(widget_type='LineEdit', label='colors (cell plot)',
                    value='', tooltip='enter COMMA SEPERATED list of colors (or c:map), should have the same length as '
                                      'the groups/genotypes you want to plot'),
-    section_range=dict(widget_type='LineEdit', label='range around section', value='0.05',
-                       tooltip='enter the range around the section to include cells from, set to zero if only include '
-                               'cells on that particular coordinate, otherwise this value will be taken plus/minus to '
-                               'include cells'),
+
     bin_width=dict(widget_type='SpinBox', label='bin_width (projection density)', value=5, min=1, max=800,
                        tooltip='bin width for visualization of axonal density'),
     vmax=dict(widget_type='LineEdit', label='vmax (projection density)', value='2000',
                        tooltip='max value for colorbar for visualizing projection densities '
                                '(depends on actual density and bin_width)'),
-    cmap_projection=dict(widget_type='LineEdit', label='colormap for visualizing projections',
+    cmap_projection=dict(widget_type='LineEdit', label='colormap (projection density)',
                    value='Blues', tooltip='enter a colormap for visualizing projections (e.g. Reds, Blues etc.)'),
+
+    color_inj=dict(widget_type='LineEdit', label='colors (injection side)',
+                   value='Blue,Yellow', tooltip='enter a COMMA SEPERATED list for colors to use for the injection side'),
+
+    color_optic=dict(widget_type='LineEdit', label='colors (optic fiber)',
+                       value='Green,Pink', tooltip='enter a COMMA SEPERATED list for colors to use for the optic fiber(s)'),
+
+    color_npx=dict(widget_type='LineEdit', label='colors (neuropixels)',
+                   value='Red,Brown', tooltip='enter a COMMA SEPERATED list for colors to use for the neuropixels probes(s)'),
     call_button=False
 )
 def brain_section_widget(
@@ -257,15 +265,18 @@ def brain_section_widget(
     save_fig,
     save_name,
     plot_item,
-    # projection_avg,
     plot_size,
     section_list,
+    section_range,
     groups,
     cmap_groups,
-    section_range,
     bin_width,
     vmax,
-    cmap_projection
+    cmap_projection,
+    color_inj,
+    color_optic,
+    color_npx
+
 ) -> None:
 
     return brain_section_widget
@@ -336,7 +347,10 @@ class VisualizationWidget(QWidget):
         channels = header_widget.channels.value
         plotting_params = get_brain_section_params(brain_section_widget)
         plot_item = brain_section_widget.plot_item.value
-        df = load_data(input_path, animal_list, channels, data_type=plot_item)
-        mpl_widget = do_brain_section_plot(input_path, df, animal_list, plotting_params, brain_section_widget,
+        data_dict = {}
+        for item in plot_item:
+            data_dict[item] = load_data(input_path, animal_list, channels, data_type=item)
+
+        mpl_widget = do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, brain_section_widget,
                                                      save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
