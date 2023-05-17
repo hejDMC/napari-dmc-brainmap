@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from matplotlib import path
+from natsort import natsorted
 from sklearn.preprocessing import minmax_scale
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
@@ -65,11 +66,9 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
             else:
                 coords = np.concatenate((coords, curr_coords), axis=0)
 
-    elif seg_type == 'cells' or seg_type == 'projections':
-        coords = np.stack([x_scaled, y_scaled], axis=1)
-    # todo areas
     else:
-        print('invalid segmentation type')
+        coords = np.stack([x_scaled, y_scaled], axis=1)
+
     slice_idx = list(regi_data['imgName'].values()).index(curr_im + regi_suffix)
     s.setImgFolder(regi_dir)
     # set which slice in there
@@ -103,7 +102,11 @@ def create_results_file(input_path, seg_type, channels, regi_chan):
         fn = results_dir.joinpath(animal_id + '_injection.csv')
         data.to_csv(fn)
         print("done! data saved to: " + str(fn))
-    elif seg_type == 'cells' or seg_type == 'projections':
+    # elif seg_type == 'cells' or seg_type == 'projections':
+    else:
+        if seg_type == "optic_fiber" or seg_type == "neuropixels_probe":
+            seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
+            channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
         for chan in channels:
             data = pd.DataFrame()
             segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type)
@@ -193,7 +196,7 @@ def quantify_injection_side(input_path, seg_type, regi_chan):
                   choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], value='green',
                   tooltip='select the channel you registered to the brain atlas'),
     seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                  choices=['cells', 'injection_side', 'projections'], value='cells',
+                  choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'], value='cells',
                   tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
     channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
                   choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],

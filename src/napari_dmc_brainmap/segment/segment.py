@@ -208,11 +208,8 @@ class SegmentWidget(QWidget):
             # todo keep colors constant
             for i in range(n_probes):
                 p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
-                if n_probes > 1:
-                    p_name = seg_type + '_' +str(i)
-                else:
-                    p_name = seg_type
-                self.viewer.add_points(size=20, name=p_name, face_color=p_color)
+                p_id = seg_type + '_' + str(i)
+                self.viewer.add_points(size=20, name=p_id, face_color=p_color)
 
     def _save_data(self, input_path, channels):
         # points data in [y, x] format
@@ -241,15 +238,12 @@ class SegmentWidget(QWidget):
                     coords.to_csv(save_name)
         else:
             for i in range(self.save_dict['n_probes']):
-                if self.save_dict['n_probes'] > 1:
-                    p_name = seg_type_save + '_' +str(i)
-                else:
-                    p_name = seg_type_save
-                if len(self.viewer.layers[p_name].data) > 0:
-                    segment_dir = get_info(input_path, 'segmentation', seg_type=seg_type_save, create_dir=True,
-                                             only_dir=True)
-                    coords = pd.DataFrame(self.viewer.layers[p_name].data, columns=['Position Y', 'Position X'])
-                    save_name = segment_dir.joinpath(im_name_str + '_' + p_name + '.csv')
+                p_id = seg_type_save + '_' + str(i)
+                if len(self.viewer.layers[p_id].data) > 0:
+                    segment_dir = get_info(input_path, 'segmentation', channel=p_id, seg_type=seg_type_save,
+                                           create_dir=True, only_dir=True)
+                    coords = pd.DataFrame(self.viewer.layers[p_id].data, columns=['Position Y', 'Position X'])
+                    save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
                     coords.to_csv(save_name)
 
 
