@@ -245,11 +245,12 @@ class SegmentWidget(QWidget):
                     p_name = seg_type_save + '_' +str(i)
                 else:
                     p_name = seg_type_save
-                segment_dir = get_info(input_path, 'segmentation', seg_type=seg_type_save, create_dir=True,
-                                         only_dir=True)
-                coords = pd.DataFrame(self.viewer.layers[p_name].data, columns=['Position Y', 'Position X'])
-                save_name = segment_dir.joinpath(im_name_str + '_' + p_name + '.csv')
-                coords.to_csv(save_name)
+                if len(self.viewer.layers[p_name].data) > 0:
+                    segment_dir = get_info(input_path, 'segmentation', seg_type=seg_type_save, create_dir=True,
+                                             only_dir=True)
+                    coords = pd.DataFrame(self.viewer.layers[p_name].data, columns=['Position Y', 'Position X'])
+                    save_name = segment_dir.joinpath(im_name_str + '_' + p_name + '.csv')
+                    coords.to_csv(save_name)
 
 
 
