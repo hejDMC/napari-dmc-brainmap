@@ -218,6 +218,6 @@ def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_
 
     static_ax[0].set_ylabel(plotting_params["ylabel"][0], fontsize=plotting_params["ylabel"][1])
     if plotting_params["save_fig"]:
-        static_ax.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
+        mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
     return mpl_widget
 

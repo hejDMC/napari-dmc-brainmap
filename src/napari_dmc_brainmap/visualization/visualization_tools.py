@@ -87,16 +87,16 @@ def get_ipsi_contra(df):
         df.loc[(df['ml_mm'] > 0), 'ipsi_contra'] = 'contra'
     return df
 
-def load_data(input_path, animal_list, channels):
+def load_data(input_path, animal_list, channels, data_type='cells'):
     st = dummy_load_allen_structure_tree()
     #  loop over animal_ids
     results_data_merged = pd.DataFrame()  # initialize merged dataframe
     for animal_id in animal_list:
         # for animal_idx, animal_id in enumerate(animal_list):
         for channel in channels:
-            results_dir = get_info(input_path.joinpath(animal_id), 'results', seg_type='cells', channel=channel,
+            results_dir = get_info(input_path.joinpath(animal_id), 'results', seg_type=data_type, channel=channel,
                                     only_dir=True)
-            results_file = results_dir.joinpath(animal_id + '_cells.csv')
+            results_file = results_dir.joinpath(animal_id + '_' + data_type + '.csv')
 
             if results_file.exists():
                 results_data = pd.read_csv(results_file)  # load the data

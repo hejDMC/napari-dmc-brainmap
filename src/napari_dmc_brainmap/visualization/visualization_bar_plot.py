@@ -138,6 +138,6 @@ def do_bar_plot(df, plotting_params, animal_list, tgt_list, barplot_widget, save
     if plotting_params["rotate_xticks"]:  # rotate x-ticks
         static_ax.set_xticklabels(static_ax.get_xticklabels(), rotation=plotting_params["rotate_xticks"])
     if plotting_params["save_fig"]:
-        static_ax.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
+        mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
     return mpl_widget
 
