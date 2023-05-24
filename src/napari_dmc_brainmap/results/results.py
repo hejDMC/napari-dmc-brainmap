@@ -9,6 +9,7 @@ from natsort import natsorted
 from sklearn.preprocessing import minmax_scale
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
+from napari_dmc_brainmap.visualization.visualization_tools import dummy_load_allen_structure_tree
 import json
 
 
@@ -80,118 +81,95 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
 
 
 @thread_worker
-def create_results_file(input_path, seg_type, channels, regi_chan):
+def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan):
 
 
     animal_id = get_animal_id(input_path)
-    seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
     regi_dir, regi_im_list, regi_suffix = get_info(input_path, 'sharpy_track', channel=regi_chan)
     with open(regi_dir.joinpath('registration.json')) as fn:
         regi_data = json.load(fn)
 
     s = sliceHandle(regi_dir.joinpath('registration.json'))
-    if seg_type == 'injection_side':
+    if seg_type == "optic_fiber" or seg_type == "neuropixels_probe":
+        seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
+        channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
+
+    for chan in channels:
         data = pd.DataFrame()
-        segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', seg_type=seg_type)
-        results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
-        for im in segment_list:
-            section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir, seg_im_suffix,
-                                                    regi_data,
-                                                    regi_dir, regi_suffix)
-            data = pd.concat((data, section_data))
-        fn = results_dir.joinpath(animal_id + '_injection_side.csv')
-        data.to_csv(fn)
-        print("done! data saved to: " + str(fn))
-    # elif seg_type == 'cells' or seg_type == 'projections':
-    else:
-        if seg_type == "optic_fiber" or seg_type == "neuropixels_probe":
-            seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
-            channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
-        for chan in channels:
-            data = pd.DataFrame()
-            segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type)
+        if seg_folder == 'rgb':
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, seg_folder)
+        else:
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, seg_folder, channel=chan)
+        segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type)
+        if len(segment_list) > 0:
             results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
             for im in segment_list:
                 section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
-                                                        seg_im_suffix, regi_data,
-                                                        regi_dir, regi_suffix)
+                                                            seg_im_suffix, regi_data,
+                                                            regi_dir, regi_suffix)
                 data = pd.concat((data, section_data))
             fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
             data.to_csv(fn)
             print("done! data saved to: " + str(fn))
+        else:
+            print("No segmentation images found in " + str(segment_dir))
 
 @thread_worker
-def quantify_injection_side(input_path, seg_type, regi_chan):
+def quantify_injection_side(input_path, seg_type, channels):
     #todo: specify level
-    if seg_type == 'cells':
+    if not seg_type == 'injection_side':
         print("not implemented! please, select 'injection_side' as segmentation type")
         return
-    regi_dir, regi_im_list, regi_suffix = get_info(input_path, 'sharpy_track', channel=regi_chan)
-    s = sliceHandle(regi_dir.joinpath('registration.json'))
-    st = s.df_tree
+
+    st = dummy_load_allen_structure_tree()
     animal_id = get_animal_id(input_path)
-    results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
-    results_fn = results_dir.joinpath(animal_id + '_injection.csv')  # todo fix this to be seg_type name
-    if results_fn.exists():
-        results_data = pd.read_csv(results_fn)  # load the data
-        results_data['sphinx_id'] -= 1  # correct for matlab indices starting at 1
-        results_data['animal_id'] = [animal_id] * len(
-                results_data)  # add the animal_id as a column for later identification
-        # add the injection hemisphere stored in params.json file
-        params_file = input_path.joinpath('params.json')  # directory of params.json file   # todo this as function
-        with open(params_file) as fn:  # load the file
-            params_data = json.load(fn)
-        injection_side = params_data['general']['injection_side']  # add the injection_side as a column
-        results_data['injection_side'] = [injection_side] * len(results_data)
-        # add if the location of a cell is ipsi or contralateral to the injection side
-        # injection_data = get_ipsi_contra(injection_data)
-        # read the genotype
-        genotype = params_data['general']['genotype']
-        # if geno != genotype:
-        #     print("WARNING: genotype doesn't match for " + animal_id)
-        # and add column
-        results_data['genotype'] = [genotype] * len(results_data)
-        # injection_data_merged = pd.concat([injection_data_merged, injection_data])
-    print("loaded " + animal_id)
-    results_data = clean_results_df(results_data, st)
-    # step 1: get the absolute pixel count on area level (not layers)
-    # add parent acronym to the injection data
-    acronym_parent = [split_strings_layers(s)[0] for s in results_data['acronym']]
-    results_data['acronym_parent'] = acronym_parent
+    for chan in channels:
+        results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
+        results_fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')  # todo fix this to be seg_type name
+        if results_fn.exists():
+            results_data = pd.read_csv(results_fn)  # load the data
+            results_data['sphinx_id'] -= 1  # correct for matlab indices starting at 1
+            results_data['animal_id'] = [animal_id] * len(
+                    results_data)  # add the animal_id as a column for later identification
+            # add the injection hemisphere stored in params.json file
+            params_file = input_path.joinpath('params.json')  # directory of params.json file   # todo this as function
+            with open(params_file) as fn:  # load the file
+                params_data = json.load(fn)
 
-    # get list of all areas with cells (=tgt_list)
-    tgt_list = results_data['acronym_parent'].unique().tolist()
+        results_data = clean_results_df(results_data, st)
+        # step 1: get the absolute pixel count on area level (not layers)
+        # add parent acronym to the injection data
+        acronym_parent = [split_strings_layers(s)[0] for s in results_data['acronym']]
+        results_data['acronym_parent'] = acronym_parent
+        # count pixels (injection side) for each cell, add 0 for empty regions
+        quant_df = pd.DataFrame()
+        temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
+                                             ["acronym_parent"].value_counts())
+        temp_data = temp_data.reset_index()
 
-    # count pixels (injection side) for each cell, add 0 for empty regions
-    quant_df = pd.DataFrame()
-    temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
-                                         ["acronym_parent"].value_counts())
-    temp_data = temp_data.reset_index()
-    # temp_data = temp_data.rename(columns={"index": "acronym", "acronym_parent": "injection_volume"})
-    temp_data = temp_data.rename(columns={"acronym_parent": "acronym", "count": "injection_volume"})
-    # missing_areas = pd.DataFrame(set(tgt_list).difference(temp_data['acronym'].to_list()),
-    #                                 columns={'acronym'})
-    # missing_areas['injection_volume'] = 0  # todo this crashes on windows if no missing areas? (if n=1, no missing areas anyhow)
-    # temp_data = pd.concat((temp_data, missing_areas), axis=0)
-    # temp_data = temp_data.reset_index(drop=True)
-    temp_data['injection_distribution'] = temp_data['injection_volume'] / temp_data[
-            'injection_volume'].sum()
+        temp_data = temp_data.rename(columns={"acronym_parent": "acronym", "count": "injection_volume"})
 
-    temp_data['animal_id'] = animal_id
-    quant_df = pd.concat((quant_df, temp_data), axis=0)
+        temp_data['injection_distribution'] = temp_data['injection_volume'] / temp_data[
+                'injection_volume'].sum()
 
-    quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
-                                    index='animal_id')
+        temp_data['animal_id'] = animal_id
+        quant_df = pd.concat((quant_df, temp_data), axis=0)
 
-    save_fn = results_dir.joinpath('quantification_injection_side.csv')
-    quant_df_pivot.to_csv(save_fn)
-    print(quant_df_pivot)
+        quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
+                                        index='animal_id')
+
+        save_fn = results_dir.joinpath('quantification_injection_side.csv')
+        quant_df_pivot.to_csv(save_fn)
+        print(quant_df_pivot)
 
 @magicgui(
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                             'folder containing segmentation results'),
+    seg_folder=dict(widget_type='LineEdit', label='folder name of segmentation images: ', value='rgb',
+                        tooltip='name of folder containing the segmentation images, needs to be in same folder as '
+                                'folder containing the segmentation results  (i.e. animal_id folder)'),
     regi_chan=dict(widget_type='ComboBox', label='registration channel',
                   choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], value='green',
                   tooltip='select the channel you registered to the brain atlas'),
@@ -206,6 +184,7 @@ def quantify_injection_side(input_path, seg_type, regi_chan):
 )
 def results_widget(
         input_path,
+        seg_folder,
         regi_chan,
         seg_type,
         channels
@@ -229,17 +208,18 @@ class ResultsWidget(QWidget):
 
     def _create_results_file(self):
         input_path = results_widget.input_path.value
+        seg_folder = results_widget.seg_folder.value
         regi_chan = results_widget.regi_chan.value
         seg_type = results_widget.seg_type.value
         channels = results_widget.channels.value
-        worker_results_file = create_results_file(input_path, seg_type, channels, regi_chan)
+        worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan)
         worker_results_file.start()
 
 
     def _quantify_injection_side(self):
         input_path = results_widget.input_path.value
-        regi_chan = results_widget.regi_chan.value
+        channels = results_widget.channels.value
         seg_type = results_widget.seg_type.value
-        worker_quantification = quantify_injection_side(input_path, seg_type, regi_chan)
+        worker_quantification = quantify_injection_side(input_path, seg_type, channels)
         worker_quantification.start()
 

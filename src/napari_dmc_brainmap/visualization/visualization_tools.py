@@ -16,6 +16,7 @@ def dummy_load_allen_annot():
     s = sliceHandle(load_annot=True)
     annot = s.annot  # todo not sure this works
     return annot
+
 def get_bregma():
     s = sliceHandle()
     bregma = s.bregma

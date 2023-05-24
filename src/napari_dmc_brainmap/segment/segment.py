@@ -25,6 +25,19 @@ def cmap_cells():
     }
     return cmap
 
+def cmap_injection():
+    # return default colormap for channel and color of cells
+    cmap = {
+        'dapi': 'gold',
+        'green': 'purple',
+        'n3': 'navy',
+        'cy3': 'darkorange',
+        'cy5': 'cornflowerblue'
+    }
+    return cmap
+
+
+
 def cmap_display():
     cmap = {
         'dapi': 'blue',
@@ -198,8 +211,11 @@ class SegmentWidget(QWidget):
 
     def _create_seg_objects(self, seg_type, channels, n_probes):
         if seg_type == 'injection_side':
-            if 'injection' not in self.viewer.layers:
-                self.viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
+            cmap_dict = cmap_injection()
+            for chan in channels:
+                self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
+            # if 'injection' not in self.viewer.layers:
+            #     self.viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
         elif seg_type == 'cells':  # todo presegment for cells
             cmap_dict = cmap_cells()
             for chan in channels:
@@ -218,33 +234,32 @@ class SegmentWidget(QWidget):
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
         im_name_str = path_to_im.with_suffix('').parts[-1]
-        if seg_type_save == 'injection_side':
-            if len(self.viewer.layers['injection'].data) > 0:
-                segment_dir = get_info(input_path, 'segmentation', seg_type=seg_type_save, create_dir=True, only_dir=True)
-                inj_side = pd.DataFrame()
-                for i in range(len(self.viewer.layers['injection'].data)):
-                    inj_data_temp = pd.DataFrame(self.viewer.layers['injection'].data[i], columns=['Position Y', 'Position X'])
-                    inj_data_temp['idx_shape'] = [i] * len(inj_data_temp)
-                    inj_side = pd.concat((inj_side, inj_data_temp))
-                save_name_inj = segment_dir.joinpath(im_name_str + '_injection_side.csv')
-                inj_side.to_csv(save_name_inj)
-        elif seg_type_save == 'cells':
-            for chan in channels:
-                if len(self.viewer.layers[chan].data) > 0:
-                    segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save, create_dir=True,
-                                         only_dir=True)
-                    coords = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
-                    save_name = segment_dir.joinpath(im_name_str + '_cells.csv')
-                    coords.to_csv(save_name)
-        else:
-            for i in range(self.save_dict['n_probes']):
-                p_id = seg_type_save + '_' + str(i)
-                if len(self.viewer.layers[p_id].data) > 0:
-                    segment_dir = get_info(input_path, 'segmentation', channel=p_id, seg_type=seg_type_save,
-                                           create_dir=True, only_dir=True)
-                    coords = pd.DataFrame(self.viewer.layers[p_id].data, columns=['Position Y', 'Position X'])
-                    save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
-                    coords.to_csv(save_name)
+        if seg_type_save not in ['cells', 'injection_side']:
+            channels = [seg_type_save + '_' + str(i) for i in range(self.save_dict['n_probes'])]
+        for chan in channels:
+            if len(self.viewer.layers[chan].data) > 0:
+                segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
+                                        create_dir=True,
+                                        only_dir=True)
+                if seg_type_save == 'injection_side':
+                    data = pd.DataFrame()
+                    for i in range(len(self.viewer.layers[chan].data)):
+                        data_temp = pd.DataFrame(self.viewer.layers[chan].data[i], columns=['Position Y', 'Position X'])
+                        data_temp['idx_shape'] = [i] * len(data_temp)
+                        data = pd.concat((data, data_temp))
+                else:
+                    data = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
+                save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
+                data.to_csv(save_name)
+        # else:
+        #     for i in range(self.save_dict['n_probes']):
+        #         p_id = seg_type_save + '_' + str(i)
+        #         if len(self.viewer.layers[p_id].data) > 0:
+        #             segment_dir = get_info(input_path, 'segmentation', channel=p_id, seg_type=seg_type_save,
+        #                                    create_dir=True, only_dir=True)
+        #             coords = pd.DataFrame(self.viewer.layers[p_id].data, columns=['Position Y', 'Position X'])
+        #             save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
+        #             coords.to_csv(save_name)
 
 
 
