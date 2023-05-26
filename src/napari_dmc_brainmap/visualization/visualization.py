@@ -2,7 +2,7 @@ from napari import Viewer
 
 
 from superqt import QCollapsible
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QScrollArea
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
 
 

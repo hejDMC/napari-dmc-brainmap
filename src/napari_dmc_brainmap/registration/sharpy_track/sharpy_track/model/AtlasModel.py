@@ -27,7 +27,7 @@ class AtlasModel():
     
     def loadStructureTree(self):
         self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
-        self.bregma = [540,0,570]
+        self.bregma = [540, 0, 570]
 
     def calculateImageGrid(self):
         dv = np.arange(800)

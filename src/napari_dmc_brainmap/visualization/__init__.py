@@ -1,2 +1,1 @@
 from .visualization import VisualizationWidget
-from .probe_visualizer import ProbeVisualizerWidget

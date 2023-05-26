@@ -64,4 +64,4 @@ contributions:
       display_name: Visualize data
 
     - command: napari-dmc-brainmap.ProbeVisualizerWidget
-      display_name: Run ProbeVisualizer
+      display_name: Estimate and visualize neuropixels probe tract

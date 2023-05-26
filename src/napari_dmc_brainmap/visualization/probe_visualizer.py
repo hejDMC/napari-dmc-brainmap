@@ -1,1 +1,0 @@
-from napari import Viewer
