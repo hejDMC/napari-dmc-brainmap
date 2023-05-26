@@ -43,7 +43,7 @@ def find_common_suffix(image_list, folder='unknown'):
         common_suffix = image_list[0][-i + 1:]
         # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
     elif len(image_list) == 1:
-        print('only one image in ' + folder + ' folder: ' + image_list[0])
+        print('only one file in ' + folder + ' folder: ' + image_list[0])
         common_suffix = input("please, manually enter suffix: ")
     else:
         common_suffix = []

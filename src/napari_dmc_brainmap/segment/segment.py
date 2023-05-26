@@ -2,6 +2,7 @@ from napari import Viewer
 from natsort import natsorted
 import cv2
 from napari_dmc_brainmap.utils import get_info
+from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
 import pandas as pd
@@ -58,7 +59,7 @@ def default_save_dict():
     }
     return save_dict
 
-def get_path_to_im(input_path, image_idx, single_channel=False, chan=False):
+def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_seg=False):
     if single_channel:
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=chan)
     else:
@@ -66,10 +67,12 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False):
     im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
         image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
     path_to_im = seg_im_dir.joinpath(im)
-    return path_to_im
+    if pre_seg:
+        return im
+    else:
+        return path_to_im
 
 @magicgui(
-    # todo sate that only RGB images for now, think about different image formats
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
@@ -78,7 +81,7 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False):
                              tooltip='tick to use single channel images (not RGB), one can still select '
                                      'multiple channels'),
     seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                    choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe'], value='cells',  # todo option for more than one probe
+                    choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe'], value='cells',
                     tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
                             'IMPORTANT: before switching between types, load next image, delete all image layers'
                             'and reload image of interest!'),
@@ -120,6 +123,29 @@ def segment_widget(
 
     return segment_widget
 
+@magicgui(
+    layout='vertical',
+    load_bool=dict(widget_type='CheckBox', label='load pre-segmented data', value=False,
+                  tooltip='tick to load pre-segmented data for manual curation'),
+    pre_seg_folder=dict(widget_type='LineEdit', label='folder name with pre-segmented data', value='segmentation',
+                     tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called'
+                             '*segmentation* (default), manual curation will override existing data. '
+                             'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
+                             '*Position Y* for coordinates'),
+    seg_type=dict(widget_type='ComboBox', label='segmentation type',
+                    choices=['cells'], value='cells',
+                    tooltip='select segmentation type to load'),  # todo other than cells?
+    call_button=False
+)
+def load_preseg_widget(
+    viewer: Viewer,
+    load_bool,
+    pre_seg_folder,
+    seg_type
+) -> None:
+
+    return load_preseg_widget
+
 
 
 class SegmentWidget(QWidget):
@@ -129,10 +155,16 @@ class SegmentWidget(QWidget):
         self.setLayout(QVBoxLayout())
         segment = segment_widget
         self.save_dict = default_save_dict()
+
+        self._collapse_preseg = QCollapsible('Load pre-segmented data: expand for more', self)
+        preseg = load_preseg_widget
+        self._collapse_preseg.addWidget(preseg.native)
+
         btn = QPushButton("save data and load next image")
         btn.clicked.connect(self._save_and_load)
 
         self.layout().addWidget(segment.native)
+        self.layout().addWidget(self._collapse_preseg)
         self.layout().addWidget(btn)
 
     def _update_save_dict(self, image_idx, seg_type, n_probes):
@@ -183,7 +215,7 @@ class SegmentWidget(QWidget):
         else:
             path_to_im = get_path_to_im(input_path, image_idx)
             self._load_rgb(path_to_im, channels, contrast_dict)
-        self._create_seg_objects(seg_type, channels, n_probes)
+        self._create_seg_objects(input_path, seg_type, channels, n_probes, image_idx)
 
         show_info("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
@@ -209,17 +241,45 @@ class SegmentWidget(QWidget):
         self.viewer.add_image(im_loaded, name=chan + ' channel', colormap=cmap_disp[chan], opacity=0.5)
         self.viewer.layers[chan + ' channel'].contrast_limits = contrast_dict[chan]
 
-    def _create_seg_objects(self, seg_type, channels, n_probes):
+    def _load_preseg_object(self, input_path, chan, image_idx):
+
+        pre_seg_folder = load_preseg_widget.pre_seg_folder.value
+        pre_seg_type = load_preseg_widget.seg_type.value
+        pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=pre_seg_type, channel=chan)
+        im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
+        print(im_name)
+        print(pre_seg_list)
+        fn_to_load = [d for d in pre_seg_list if d.startswith(im_name.split('.')[0])]
+        print(fn_to_load)
+        if fn_to_load:
+            df = pd.read_csv(pre_seg_dir.joinpath(fn_to_load[0]))  # load dataframe
+            print(df)
+            try:
+                pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
+            except KeyError:
+                print("csv file missing columns (Position Y/X), no pre-segmented data loaded")
+                pre_seg_data = []
+        else:
+            pre_seg_data = []
+
+        return pre_seg_data
+
+
+    def _create_seg_objects(self, input_path, seg_type, channels, n_probes, image_idx):
         if seg_type == 'injection_side':
             cmap_dict = cmap_injection()
             for chan in channels:
                 self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
-            # if 'injection' not in self.viewer.layers:
-            #     self.viewer.add_shapes(name='injection', face_color='purple', opacity=0.4)
-        elif seg_type == 'cells':  # todo presegment for cells
+        elif seg_type == 'cells':
             cmap_dict = cmap_cells()
-            for chan in channels:
-                self.viewer.add_points(size=5, name=chan, face_color=cmap_dict[chan])
+            if load_preseg_widget.load_bool.value:  # loading presegmented cells
+                for chan in channels:
+                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx)
+                    print(pre_seg_data)
+                    self.viewer.add_points(pre_seg_data, size=5, name=chan, face_color=cmap_dict[chan])
+            else:
+                for chan in channels:
+                    self.viewer.add_points(size=5, name=chan, face_color=cmap_dict[chan])
         else:
             # todo keep colors constant
             for i in range(n_probes):
@@ -237,20 +297,23 @@ class SegmentWidget(QWidget):
         if seg_type_save not in ['cells', 'injection_side']:
             channels = [seg_type_save + '_' + str(i) for i in range(self.save_dict['n_probes'])]
         for chan in channels:
-            if len(self.viewer.layers[chan].data) > 0:
-                segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
-                                        create_dir=True,
-                                        only_dir=True)
-                if seg_type_save == 'injection_side':
-                    data = pd.DataFrame()
-                    for i in range(len(self.viewer.layers[chan].data)):
-                        data_temp = pd.DataFrame(self.viewer.layers[chan].data[i], columns=['Position Y', 'Position X'])
-                        data_temp['idx_shape'] = [i] * len(data_temp)
-                        data = pd.concat((data, data_temp))
-                else:
-                    data = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
-                save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
-                data.to_csv(save_name)
+            try:
+                if len(self.viewer.layers[chan].data) > 0:
+                    segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
+                                            create_dir=True,
+                                            only_dir=True)
+                    if seg_type_save == 'injection_side':
+                        data = pd.DataFrame()
+                        for i in range(len(self.viewer.layers[chan].data)):
+                            data_temp = pd.DataFrame(self.viewer.layers[chan].data[i], columns=['Position Y', 'Position X'])
+                            data_temp['idx_shape'] = [i] * len(data_temp)
+                            data = pd.concat((data, data_temp))
+                    else:
+                        data = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
+                    save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
+                    data.to_csv(save_name)
+            except KeyError:
+                pass
         # else:
         #     for i in range(self.save_dict['n_probes']):
         #         p_id = seg_type_save + '_' + str(i)

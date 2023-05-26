@@ -34,6 +34,10 @@ contributions:
       python_name: napari_dmc_brainmap.visualization:VisualizationWidget
       title: Make widget to visualize data
 
+    - id: napari-dmc-brainmap.ProbeVisualizerWidget
+      python_name: napari_dmc_brainmap.probe_visualizer:ProbeVisualizerWidget
+      title: Make widget to run visualize Neuropixels probe
+
   widgets:
     - command: napari-dmc-brainmap.ParamsWidget
       display_name: Create params file (general info)
@@ -58,3 +62,6 @@ contributions:
 
     - command: napari-dmc-brainmap.VisualizationWidget
       display_name: Visualize data
+
+    - command: napari-dmc-brainmap.ProbeVisualizerWidget
+      display_name: Run ProbeVisualizer

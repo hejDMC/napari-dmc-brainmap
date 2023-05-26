@@ -1,13 +1,11 @@
 from napari import Viewer
-import json
+
 
 from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QScrollArea
 from magicgui import magicgui
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.figure import Figure
 
-import pandas as pd
+
 from napari_dmc_brainmap.utils import split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import load_data
 from napari_dmc_brainmap.visualization.visualization_bar_plot import get_bar_plot_params, do_bar_plot
