@@ -1,7 +1,37 @@
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
+from napari.qt.threading import thread_worker
 
+import numpy as np
+import pandas as pd
+from skspatial.objects import Line, Points # scikit-spatial package: https://scikit-spatial.readthedocs.io/en/stable/
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
+from napari_dmc_brainmap.probe_visualizer.probe_visualizer_tools import get_primary_axis, get_voxelized_coord
+from napari_dmc_brainmap.utils import get_info
+
+
+def get_linefit3d(probe_df):
+
+    points = Points(probe_df[['zpixel', 'ypixel', 'xpixel']].values)  # AP, DV,  ML
+    line = Line.best_fit(points)  # fit 3D line
+
+    linefit = pd.DataFrame()
+    linefit['point'] = line.point  # add point coordinates to dataframe
+    linefit['direction'] = line.direction  # add direction vector coordinates to dataframe
+
+    ax_primary = get_primary_axis(line.direction)  # get primary axis
+    voxel_line = np.array(get_voxelized_coord(ax_primary, line)).T  # voxelize
+    linevox = pd.DataFrame(voxel_line, columns=['zpixel', 'ypixel', 'xpixel'])  # add to dataframe
+
+    return linefit, linevox
+
+
+@thread_worker
+def calculate_probe_tract(input_path):
+    # get number of probes
+    results_dir = get_info(input_path, 'results', seg_type='neuropixels_probe', only_dir=True)
+    probes_list = [p.parts[-1] for p in results_dir.iterdir() if p.is_dir()]
+    for probe in probes_list:
 
 @magicgui(
     layout='vertical',
