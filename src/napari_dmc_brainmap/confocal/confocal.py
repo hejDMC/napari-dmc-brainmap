@@ -23,12 +23,16 @@ def create_tifs(input_path, chan_label_map):
         im_fn = input_path.joinpath('confocal', im + '.czi')
         reader = CziReader(im_fn)
         channels = reader.channel_names
+        num_chan = len(channels)
         num_z = reader.mosaic_data.shape[3]  # shape: [1, 1, channel, z, x, y, 1]
         img = np.squeeze(reader.mosaic_data)
         for i, chan in enumerate(channels):
             chan_new = [c for c in chan_label_map if chan_label_map[c] == chan][0]
             stitched_dir = get_info(input_path, 'stitched', channel=chan_new, create_dir=True, only_dir=True)
-            curr_img = img[i, :, :, :]
+            if num_chan > 1:
+                curr_img = img[i, :, :, :]
+            else:
+                curr_img = img
             if num_z > 1:
                 # do max intensity projection
                 curr_img = np.max(curr_img, axis=0)
