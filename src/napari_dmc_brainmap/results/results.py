@@ -143,10 +143,12 @@ def quantify_injection_side(input_path, seg_type, channels):
         results_data['acronym_parent'] = acronym_parent
         # count pixels (injection side) for each cell, add 0 for empty regions
         quant_df = pd.DataFrame()
+        print(results_data)
         temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
                                              ["acronym_parent"].value_counts())
+        print(temp_data)
         temp_data = temp_data.reset_index()
-
+        print(temp_data)
         temp_data = temp_data.rename(columns={"acronym_parent": "acronym", "count": "injection_volume"})
 
         temp_data['injection_distribution'] = temp_data['injection_volume'] / temp_data[
@@ -222,4 +224,3 @@ class ResultsWidget(QWidget):
         seg_type = results_widget.seg_type.value
         worker_quantification = quantify_injection_side(input_path, seg_type, channels)
         worker_quantification.start()
-
