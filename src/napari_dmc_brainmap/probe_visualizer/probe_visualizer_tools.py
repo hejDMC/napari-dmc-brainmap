@@ -112,7 +112,8 @@ def check_probe_insert(probe_insert, linefit, surface_vox):
 
     return probe_insert, direction_unit
 
-def save_probe_tract_fig(input_path, probe_tract):
+
+def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
 
 
     animal_id = get_animal_id(input_path)
@@ -165,7 +166,7 @@ def save_probe_tract_fig(input_path, probe_tract):
     colors = distinctipy.get_colors(len(region_unique))
     reg_color_dict = dict(zip(region_unique, colors))
 
-    region_split = np.split(probe_tract['SphinxID'].values, np.where(np.diff(df['SphinxID'].values))[0] + 1)
+    region_split = np.split(probe_tract['SphinxID'].values, np.where(np.diff(probe_tract['SphinxID'].values))[0] + 1)
 
     chan_row_n = 0
     for r in region_split:
@@ -210,7 +211,6 @@ def save_probe_tract_fig(input_path, probe_tract):
     fig.suptitle('Animal: ' + animal_id, fontsize=15)
     plt.tight_layout()
     plt.subplots_adjust(top=0.96)
-    results_dir = get_info(input_path, 'results', seg_type='neuropixels_probe', channel=probe_id, only_dir=True)
-    save_fn = results_dir.joinpath(animal_id)  # todo here name
+    save_fn = save_path.joinpath(animal_id, probe + '.svg')
     fig.savefig(save_fn, dpi=400)
 

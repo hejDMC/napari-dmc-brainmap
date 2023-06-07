@@ -8,11 +8,19 @@ import json
 from skspatial.objects import Line, Points # scikit-spatial package: https://scikit-spatial.readthedocs.io/en/stable/
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from napari_dmc_brainmap.probe_visualizer.probe_visualizer_tools import get_primary_axis, get_voxelized_coord, \
-    get_certainty_list, check_probe_insert
-from napari_dmc_brainmap.visualization.visualization_tools import dummy_load_allen_annot
+    get_certainty_list, check_probe_insert, save_probe_tract_fig
+from napari_dmc_brainmap.visualization.visualization_tools import dummy_load_allen_annot, dummy_load_allen_structure_tree
 from napari_dmc_brainmap.utils import get_info
 
-def load_probe_data
+
+def load_probe_data(results_dir, probe):
+
+    data_dir = results_dir.joinpath(probe)
+    data_fn = list(data_dir.glob('*csv'))[0]
+    probe_df = pd.read_csv(data_fn)
+
+    return probe_df
+
 
 def get_linefit3d(probe_df):
 
@@ -23,13 +31,14 @@ def get_linefit3d(probe_df):
     linefit['point'] = line.point  # add point coordinates to dataframe
     linefit['direction'] = line.direction  # add direction vector coordinates to dataframe
 
-    ax_primary = get_primary_axis(line.direction)  # get primary axis
+    # ax_primary = get_primary_axis(line.direction)  # get primary axis  todo:function doesn't work?
+    ax_primary = 1  # 0:AP, 1:DV, 2:ML
     voxel_line = np.array(get_voxelized_coord(ax_primary, line)).T  # voxelize
-    linevox = pd.DataFrame(voxel_line, columns=['zpixel', 'ypixel', 'xpixel'])  # add to dataframe
+    linevox = pd.DataFrame(voxel_line, columns=['xpixel', 'ypixel', 'zpixel'])  # add to dataframe  # todo here I swapped z and x
 
-    return linefit, linevox
+    return linefit, linevox, ax_primary
 
-def get_probe_tract(input_path, probe_insert, linefit, linevox):
+def get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox):
     # find brain surface
     annot = dummy_load_allen_annot()
     sphinxID_list = annot[linevox['zpixel'], linevox['ypixel'], linevox['xpixel']]
@@ -57,13 +66,13 @@ def get_probe_tract(input_path, probe_insert, linefit, linevox):
 
     probe_tract['SphinxID'] = annot[probe_tract['Voxel_AP'], probe_tract['Voxel_DV'], probe_tract['Voxel_ML']]
     # read df_tree
-    df_tree = pd.read_csv('probe_vis/probe_vis/atlas/structure_tree_safe_2017.csv')
+    df_tree = dummy_load_allen_structure_tree()
     probe_tract['Acronym'] = df_tree.iloc[probe_tract['SphinxID'] - 1, :]['acronym'].values
     probe_tract['Name'] = df_tree.iloc[probe_tract['SphinxID'] - 1, :]['name'].values
 
     certainty_list = get_certainty_list(probe_tract, annot)
     probe_tract['Certainty'] = certainty_list
-
+    # save_probe_tract_fig(input_path, probe, save_path, probe_tract)
     return probe_tract
     # df_out.to_csv('step4_output_probetrack.csv')  # save probe information csv
 
@@ -74,19 +83,22 @@ def calculate_probe_tract(input_path, save_path, probe_insert):
     probes_list = [p.parts[-1] for p in results_dir.iterdir() if p.is_dir()]
     probes_dict = {}
     for probe in probes_list:
+        probe_df = load_probe_data(results_dir, probe)
+        linefit, linevox, ax_primary = get_linefit3d(probe_df)
+        # if len(probe) == 800:
+        #     ax_primary = 'DV'
+        # elif len(probe) == 1320:
+        #     ax_primary = 'AP'
+        # else:
+        #     ax_primary = 'ML'
+        # 0: AP, 1: DV, 2: ML
+        probe_tract = get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox)
+        probes_dict[probe] = {'axis': ax_primary}
+        probes_dict[probe]['Voxel'] = probe_tract.to_numpy().tolist()
 
-        n = 1
-        if len(probe) == 800:
-            ax_primary = 'DV'
-        elif len(probe) == 1320:
-            ax_primary = 'AP'
-        else:
-            ax_primary = 'ML'
-        probes_dict['probe_' + str(n)] = {'axis': ax_primary}  # todo names
-        probes_dict['probe_' + str(n)]['Voxel'] = probe.to_numpy().tolist()
-        n += 1
 
-    with open('step6_output_multipleprobes.json', 'w') as f:
+    save_fn = save_path.joinpath('neuropixels_probes_data.json')
+    with open(save_fn, 'w') as f:
         json.dump(probes_dict, f)  # write multiple voxelized probes, file can be opened in probe visualizer
 
 @magicgui(
@@ -99,6 +111,9 @@ def calculate_probe_tract(input_path, save_path, probe_insert):
                    tooltip='select a folder for saving plots, default will save in *input path*'),
     probe_insert=dict(widget_type='LineEdit', label='insertion depth of probe (um)', value='4000',
                     tooltip='specifiy the depth of neuropixels probe in brain in um'),
+    # ax_primary=dict(widget_type='ComboBox', label='insertion axis',
+    #               choices=['AP', 'DV', 'ML'], value='DV',
+    #               tooltip=""),
     call_button=False
 )
 def probe_visualizer(
