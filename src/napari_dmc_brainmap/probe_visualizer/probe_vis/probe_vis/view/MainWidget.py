@@ -181,7 +181,7 @@ class MainWidget():
         self.probeColor = np.rint(np.array(dc.get_colors(number_of_probes)) * 255) # distinctipy
         
         for p in range(len(probeV.probe_axis)):
-            probeCB = QCheckBox("Probe_"+str(p+1))
+            probeCB = QCheckBox("neuropixels_probe"+str(p))
             # size policy, minimum expanding
             probeCB.setSizePolicy(QSizePolicy(QSizePolicy.Maximum,QSizePolicy.Maximum)) # shrinking
             # style probe check button

@@ -5,6 +5,7 @@ from napari.qt.threading import thread_worker
 import numpy as np
 import pandas as pd
 import json
+from natsort import natsorted
 from skspatial.objects import Line, Points # scikit-spatial package: https://scikit-spatial.readthedocs.io/en/stable/
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from napari_dmc_brainmap.probe_visualizer.probe_visualizer_tools import get_primary_axis, get_voxelized_coord, \
@@ -31,8 +32,8 @@ def get_linefit3d(probe_df):
     linefit['point'] = line.point  # add point coordinates to dataframe
     linefit['direction'] = line.direction  # add direction vector coordinates to dataframe
 
-    # ax_primary = get_primary_axis(line.direction)  # get primary axis  todo:function doesn't work?
-    ax_primary = 1  # 0:AP, 1:DV, 2:ML
+    ax_primary = get_primary_axis(line.direction)  # get primary axis
+
     voxel_line = np.array(get_voxelized_coord(ax_primary, line)).T  # voxelize
     linevox = pd.DataFrame(voxel_line, columns=['xpixel', 'ypixel', 'zpixel'])  # add to dataframe  # todo here I swapped z and x
 
@@ -80,27 +81,34 @@ def get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox
 def calculate_probe_tract(input_path, save_path, probe_insert):
     # get number of probes
     results_dir = get_info(input_path, 'results', seg_type='neuropixels_probe', only_dir=True)
-    probes_list = [p.parts[-1] for p in results_dir.iterdir() if p.is_dir()]
+    probes_list = natsorted([p.parts[-1] for p in results_dir.iterdir() if p.is_dir()])
     probes_dict = {}
+    ax_map = {0: 'AP', 1: 'DV', 2: 'ML'}
+    # if len(probe_insert) != len(probes_list):
+    #     print("WARNING, different number of probes and probe insert lengths detected!")
+    #     diff = len(probe_insert) - len(probes_list)
+    #     if diff < 0:
+    #         for d in range(diff):
+    #             probe_insert.append(4000)
+    print("calculating probe tract for...")
     for probe in probes_list:
+        print("... " + probe)
         probe_df = load_probe_data(results_dir, probe)
         linefit, linevox, ax_primary = get_linefit3d(probe_df)
-        # if len(probe) == 800:
-        #     ax_primary = 'DV'
-        # elif len(probe) == 1320:
-        #     ax_primary = 'AP'
-        # else:
-        #     ax_primary = 'ML'
-        # 0: AP, 1: DV, 2: ML
+
         probe_tract = get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox)
-        probes_dict[probe] = {'axis': ax_primary}
-        probes_dict[probe]['Voxel'] = probe_tract.to_numpy().tolist()
+        # save probe tract data
+        save_fn = save_path.joinpath(probe + '_data.csv')
+        probe_tract.to_csv(save_fn)
+        probes_dict[probe] = {'axis': ax_map[ax_primary]}
+        probes_dict[probe]['Voxel'] = probe_tract[['Voxel_AP', 'Voxel_DV', 'Voxel_ML']].to_numpy().tolist()
+
 
 
     save_fn = save_path.joinpath('neuropixels_probes_data.json')
     with open(save_fn, 'w') as f:
         json.dump(probes_dict, f)  # write multiple voxelized probes, file can be opened in probe visualizer
-
+    print("DONE!")
 @magicgui(
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
@@ -151,7 +159,7 @@ class ProbeVisualizerWidget(QWidget):
             save_path = input_path
         else:
             save_path = probe_visualizer.save_path.value
-        probe_insert = int(probe_visualizer.probe_insert.value)
+        probe_insert = int(probe_visualizer.probe_insert.value)  # [int(i) for i in probe_visualizer.probe_insert.value.split(',')]
         pt_worker = calculate_probe_tract(input_path, save_path, probe_insert)
         pt_worker.start()
 
