@@ -7,36 +7,10 @@ import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
-from napari_dmc_brainmap.utils import split_to_list, split_strings_layers, load_group_dict
+from napari_dmc_brainmap.utils import split_to_list, load_group_dict
 from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, dummy_load_allen_structure_tree, \
     dummy_load_allen_annot, plot_brain_schematic, coord_mm_transform
 
-# results_data_merged = coord_mm_transform(results_data_merged)
-#
-# results_dir = '/home/felix/Academia/DMC-lab/Projects/Dopamine/Analyses/Anatomy/results/plots_orb-manuscript/'  # to store figs
-# section_list = [2.5, 2.0, 1.5, 1.0]  # in mm AP coordinates for coronal sections relative to bregma -- [ORB, AUD]
-# # target_list = ['Orbital area', 'Prelimbic area', 'Infralimbic area', 'Anterior cingulate area', 'Secondary motor area', 'Agranular insular area']
-# # target_colors = ['green', 'blue', 'yellow', 'pink', 'brown', 'orange']
-# target_list = ['Orbital area, lateral part', 'Orbital area, ventrolateral part', 'Orbital area, medial part',
-#                'Prelimbic area', 'Infralimbic area',
-#                'Anterior cingulate area, dorsal part', 'Anterior cingulate area, ventral part',
-#                'Agranular insular area, dorsal part', 'Agranular insular area, ventral part',
-#                'Secondary motor area']
-# target_colors = ['darkgreen', 'green', 'lightgreen',
-#                  'navy', 'royalblue',
-#                  'darkorchid', 'plum',
-#                  'olive', 'yellowgreen',
-#                  'indigo']
-# target_transparency = [100] * len(target_list)
-# for section in section_list:
-#     slice_idx = int(-(section / 0.01 - bregma[0]))
-#     annot_section = annot[slice_idx, :, 570:].copy()
-#     annot_section_plt = plot_brain_schematic(annot_section, st, target_list, target_colors, target_transparency)
-#     fig, ax = plt.subplots(figsize=(10, 6))  # len(section_list), figsize=(18,5))
-#     im = ax.imshow(annot_section_plt)
-#     ax.contour(annot[slice_idx, :, 570:], levels=np.unique(annot[slice_idx, :, 570:]), colors=['gainsboro'],
-#                linewidths=0.2)
-#     ax.axis('off')
 
 def get_brain_section_params(brainsec_widget):
     plotting_params = {
@@ -50,7 +24,7 @@ def get_brain_section_params(brainsec_widget):
         "cmap_projection": brainsec_widget.cmap_projection.value,
         "color_inj": [str(i) for i in brainsec_widget.color_inj.value.split(',')],
         "color_optic": [str(i) for i in brainsec_widget.color_optic.value.split(',')],
-        "color_npx": [str(i) for i in brainsec_widget.color_optic.value.split(',')],
+        "color_npx": [str(i) for i in brainsec_widget.color_npx.value.split(',')],
         "save_name": brainsec_widget.save_name.value,
         "save_fig": brainsec_widget.save_fig.value,
     }
@@ -80,21 +54,19 @@ def create_geno_cmap(animal_dict, plotting_params, df=pd.DataFrame()):
     else:
         num_colors = 0
         cmap_groups = []
-    print(num_colors)
     if num_groups > num_colors:  # more groups than colors
-        print(str(num_groups) + " groups provided, but only " + str(num_colors) +
-              " cmap groups, adding random colors")
+        print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
+              " cmap groups --> adding random colors")
         diff = num_groups - num_colors
         for d in range(diff):
-            cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))  # todo this doesn't work yet
+            cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
     elif num_groups < num_colors:  # less groups than colors
-        print(str(len(group_ids)) + " groups provided, but  " + str(len(cmap_groups)) +
-              " cmap groups, dropping colors")
+        print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
+              " cmap groups --> dropping colors")
         diff = num_colors - num_groups
         cmap_groups = cmap_groups[:-diff]
     for g, c in zip(group_ids, cmap_groups):
         geno_cmap[g] = c
-
     return geno_cmap
 
 def create_color_dict(input_path, animal_list, data_dict, plotting_params):
@@ -303,6 +275,8 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
                         sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=plot_dict[item],
                                         hue='channel', palette=color_dict[item]["geno_cmap"], s=20)
 
+                        print(plot_dict)
+                        print(color_dict)
                         for i, c in enumerate(plot_dict[item]['channel'].unique()):
                             sns.regplot(ax=static_ax, x='ml_mm', y='dv_mm',
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],

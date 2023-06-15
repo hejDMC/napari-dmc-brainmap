@@ -315,7 +315,10 @@ class VisualizationWidget(QWidget):
 
     def _do_bar_plot(self):
         input_path = header_widget.input_path.value
-        save_path = header_widget.save_path.value
+        if str(header_widget.save_path.value) == '.':
+            save_path = input_path
+        else:
+            save_path = header_widget.save_path.value
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_bar_plot_params(barplot_widget)
@@ -328,7 +331,10 @@ class VisualizationWidget(QWidget):
 
     def _do_heatmap(self):
         input_path = header_widget.input_path.value
-        save_path = header_widget.save_path.value
+        if str(header_widget.save_path.value) == '.':
+            save_path = input_path
+        else:
+            save_path = header_widget.save_path.value
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_heatmap_params(heatmap_widget)
@@ -340,7 +346,10 @@ class VisualizationWidget(QWidget):
 
     def _do_brain_section_plot(self):
         input_path = header_widget.input_path.value
-        save_path = header_widget.save_path.value
+        if str(header_widget.save_path.value) == '.':
+            save_path = input_path
+        else:
+            save_path = header_widget.save_path.value
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_brain_section_params(brain_section_widget)
@@ -352,3 +361,4 @@ class VisualizationWidget(QWidget):
         mpl_widget = do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, brain_section_widget,
                                                      save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
+

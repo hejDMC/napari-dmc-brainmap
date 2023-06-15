@@ -123,17 +123,17 @@ def load_data(input_path, animal_list, channels, data_type='cells'):
                 try:
                     genotype = params_data['general']['genotype']
                 except KeyError:
-                    print("warning, no genotype specified for " + animal_id +
-                          " this could lead to problems down the line, "
-                          "use the create params.json function to enter genotype")
+                    # print("warning, no genotype specified for " + animal_id +
+                    #       " this could lead to problems down the line, "
+                    #       "use the create params.json function to enter genotype")
                     genotype = 0
                 try:
                     group = params_data['general']['group']
                 except KeyError:
-                    print(
-                        "warning, no experimental group specified for " + animal_id +
-                        " this could lead to problems down the line, "
-                        "use the create params.json function to enter experimental group")
+                    # print(
+                    #     "warning, no experimental group specified for " + animal_id +
+                    #     " this could lead to problems down the line, "
+                    #     "use the create params.json function to enter experimental group")
                     group = 0
 
                 results_data['injection_side'] = [injection_side] * len(results_data)
@@ -155,12 +155,10 @@ def coord_mm_transform(df, to_coord = True):
     """
     bregma = get_bregma()
     if to_coord:
-        print("Transforming mm TO coordinates...")
         df['ap_mm'] = -(df['ap_mm'] / 0.01 - bregma[0]).astype(int)
         df['dv_mm'] = -(df['dv_mm'] / 0.01).astype(int)
         df['ml_mm'] = (df['ml_mm'] / 0.01 + bregma[2]).astype(int)
     elif not to_coord:
-        print("Transforming coordinates TO mm...")
         df['ap_mm'] = (-df['ap_mm'] + bregma[0])*0.01
         df['dv_mm'] = -(df['dv_mm'] * 0.01)
         df['ml_mm'] = (df['ml_mm'] - bregma[2]) * 0.01
@@ -181,7 +179,7 @@ def plot_brain_schematic(annot_section, st, target_region_list=False, target_col
     :param transparent: BOOLEAN for setting white pixels to transparent (e.g. plotting on black background)
     :return: annot_section in RGBA values on x-y coordintaes for plotting
     """
-    annot_section[annot_section==1] = 0  # set non brain values to 1
+    annot_section[annot_section == 1] = 0  # set non brain values to 1
 
     if target_region_list:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
         target_color_list = target_len_check(target_region_list, target_color_list, "color")
@@ -207,7 +205,7 @@ def plot_brain_schematic(annot_section, st, target_region_list=False, target_col
 
     # get the idx for fibre structures (gray) and ventricles)
     gray_idx = []
-    fiber_tracts_path = st[st['name']=='fiber tracts']['structure_id_path'].iloc[0]
+    fiber_tracts_path = st[st['name'] == 'fiber tracts']['structure_id_path'].iloc[0]
 
     ventr_idx = []
     ventr_tracts_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
