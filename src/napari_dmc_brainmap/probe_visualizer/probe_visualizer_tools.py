@@ -211,6 +211,6 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
     fig.suptitle('Animal: ' + animal_id, fontsize=15)
     plt.tight_layout()
     plt.subplots_adjust(top=0.96)
-    save_fn = save_path.joinpath(animal_id, probe + '.svg')
+    save_fn = save_path.joinpath(probe + '.svg')
     fig.savefig(save_fn, dpi=400)
 

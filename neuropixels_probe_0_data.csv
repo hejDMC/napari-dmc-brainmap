@@ -1,0 +1,193 @@
+,Channel_L,Channel_R,Distance_To_Tip(um),Inside_Brain,Voxel_AP,Voxel_DV,Voxel_ML,SphinxID,Acronym,Name,Certainty
+0,1,2,185,True,752,445,448,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9795918367346939
+1,3,4,205,True,752,445,446,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9970845481049563
+2,5,6,225,True,752,444,445,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9912536443148688
+3,7,8,245,True,752,443,443,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9912536443148688
+4,9,10,265,True,752,442,441,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9941690962099126
+5,11,12,285,True,752,441,439,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9970845481049563
+6,13,14,305,True,752,440,437,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,1.0
+7,15,16,325,True,751,440,436,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,1.0
+8,17,18,345,True,751,439,434,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,1.0
+9,19,20,365,True,751,438,432,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9970845481049563
+10,21,22,385,True,751,437,430,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.9591836734693877
+11,23,24,405,True,751,436,428,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.8833819241982507
+12,25,26,425,True,751,435,426,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.7580174927113703
+13,27,28,445,True,751,435,425,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.7142857142857143
+14,29,30,465,True,751,434,423,649,VPLpc,Ventral posterolateral nucleus of the thalamus parvicellular part,0.5481049562682215
+15,31,32,485,True,750,433,421,650,VPM,Ventral posteromedial nucleus of the thalamus,0.7667638483965015
+16,33,34,505,True,750,432,419,650,VPM,Ventral posteromedial nucleus of the thalamus,0.9008746355685131
+17,35,36,525,True,750,431,417,650,VPM,Ventral posteromedial nucleus of the thalamus,0.9795918367346939
+18,37,38,545,True,750,430,416,650,VPM,Ventral posteromedial nucleus of the thalamus,0.9970845481049563
+19,39,40,565,True,750,430,414,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+20,41,42,585,True,750,429,412,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+21,43,44,605,True,750,428,410,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+22,45,46,625,True,750,427,408,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+23,47,48,645,True,749,426,406,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+24,49,50,665,True,749,425,405,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+25,51,52,685,True,749,425,403,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+26,53,54,705,True,749,424,401,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+27,55,56,725,True,749,423,399,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+28,57,58,745,True,749,422,397,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+29,59,60,765,True,749,421,396,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+30,61,62,785,True,748,420,394,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+31,63,64,805,True,748,420,392,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+32,65,66,825,True,748,419,390,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+33,67,68,845,True,748,418,388,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+34,69,70,865,True,748,417,387,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+35,71,72,885,True,748,416,385,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+36,73,74,905,True,748,415,383,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+37,75,76,925,True,748,415,381,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+38,77,78,945,True,747,414,379,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+39,79,80,965,True,747,413,377,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+40,81,82,985,True,747,412,376,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+41,83,84,1005,True,747,411,374,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+42,85,86,1025,True,747,410,372,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+43,87,88,1045,True,747,410,370,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+44,89,90,1065,True,747,409,368,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+45,91,92,1085,True,747,408,367,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+46,93,94,1105,True,746,407,365,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+47,95,96,1125,True,746,406,363,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+48,97,98,1145,True,746,405,361,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+49,99,100,1165,True,746,405,359,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+50,101,102,1185,True,746,404,357,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+51,103,104,1205,True,746,403,356,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+52,105,106,1225,True,746,402,354,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+53,107,108,1245,True,746,401,352,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+54,109,110,1265,True,745,401,350,650,VPM,Ventral posteromedial nucleus of the thalamus,1.0
+55,111,112,1285,True,745,400,348,650,VPM,Ventral posteromedial nucleus of the thalamus,0.9970845481049563
+56,113,114,1305,True,745,399,347,650,VPM,Ventral posteromedial nucleus of the thalamus,0.9970845481049563
+57,115,116,1325,True,745,398,345,650,VPM,Ventral posteromedial nucleus of the thalamus,0.9650145772594753
+58,117,118,1345,True,745,397,343,650,VPM,Ventral posteromedial nucleus of the thalamus,0.8571428571428571
+59,119,120,1365,True,745,396,341,650,VPM,Ventral posteromedial nucleus of the thalamus,0.6880466472303207
+60,121,122,1385,True,745,396,339,648,VPL,Ventral posterolateral nucleus of the thalamus,0.5918367346938775
+61,123,124,1405,True,745,395,338,648,VPL,Ventral posterolateral nucleus of the thalamus,0.6355685131195336
+62,125,126,1425,True,744,394,336,648,VPL,Ventral posterolateral nucleus of the thalamus,0.6676384839650146
+63,127,128,1445,True,744,393,334,648,VPL,Ventral posterolateral nucleus of the thalamus,0.49271137026239065
+64,129,130,1465,True,744,392,332,1218,ar,auditory radiation,0.7026239067055393
+65,131,132,1485,True,744,391,330,1218,ar,auditory radiation,0.9475218658892128
+66,133,134,1505,True,744,391,328,1218,ar,auditory radiation,1.0
+67,135,136,1525,True,744,390,327,1218,ar,auditory radiation,1.0
+68,137,138,1545,True,744,389,325,1218,ar,auditory radiation,1.0
+69,139,140,1565,True,744,388,323,1218,ar,auditory radiation,0.9125364431486881
+70,141,142,1585,True,743,387,321,1218,ar,auditory radiation,0.6676384839650146
+71,143,144,1605,True,743,386,319,708,LGv,Ventral part of the lateral geniculate complex,0.641399416909621
+72,145,146,1625,True,743,386,318,708,LGv,Ventral part of the lateral geniculate complex,0.7842565597667639
+73,147,148,1645,True,743,385,316,708,LGv,Ventral part of the lateral geniculate complex,0.9912536443148688
+74,149,150,1665,True,743,384,314,708,LGv,Ventral part of the lateral geniculate complex,1.0
+75,151,152,1685,True,743,383,312,708,LGv,Ventral part of the lateral geniculate complex,1.0
+76,153,154,1705,True,743,382,310,708,LGv,Ventral part of the lateral geniculate complex,1.0
+77,155,156,1725,True,742,381,308,708,LGv,Ventral part of the lateral geniculate complex,1.0
+78,157,158,1745,True,742,381,307,708,LGv,Ventral part of the lateral geniculate complex,1.0
+79,159,160,1765,True,742,380,305,708,LGv,Ventral part of the lateral geniculate complex,1.0
+80,161,162,1785,True,742,379,303,708,LGv,Ventral part of the lateral geniculate complex,1.0
+81,163,164,1805,True,742,378,301,708,LGv,Ventral part of the lateral geniculate complex,1.0
+82,165,166,1825,True,742,377,299,708,LGv,Ventral part of the lateral geniculate complex,1.0
+83,167,168,1845,True,742,376,298,708,LGv,Ventral part of the lateral geniculate complex,1.0
+84,169,170,1865,True,742,376,296,708,LGv,Ventral part of the lateral geniculate complex,1.0
+85,171,172,1885,True,741,375,294,708,LGv,Ventral part of the lateral geniculate complex,1.0
+86,173,174,1905,True,741,374,292,708,LGv,Ventral part of the lateral geniculate complex,1.0
+87,175,176,1925,True,741,373,290,708,LGv,Ventral part of the lateral geniculate complex,0.9475218658892128
+88,177,178,1945,True,741,372,289,708,LGv,Ventral part of the lateral geniculate complex,0.8658892128279884
+89,179,180,1965,True,741,371,287,708,LGv,Ventral part of the lateral geniculate complex,0.5860058309037901
+90,181,182,1985,True,741,371,285,1102,fiber tracts,fiber tracts,0.6793002915451894
+91,183,184,2005,True,741,370,283,1102,fiber tracts,fiber tracts,0.8017492711370262
+92,185,186,2025,True,741,369,281,1102,fiber tracts,fiber tracts,0.673469387755102
+93,187,188,2045,True,740,368,279,1248,fi,fimbria,0.5306122448979592
+94,189,190,2065,True,740,367,278,1248,fi,fimbria,0.6647230320699709
+95,191,192,2085,True,740,366,276,1248,fi,fimbria,0.880466472303207
+96,193,194,2105,True,740,366,274,1248,fi,fimbria,0.9825072886297376
+97,195,196,2125,True,740,365,272,1248,fi,fimbria,1.0
+98,197,198,2145,True,740,364,270,1248,fi,fimbria,1.0
+99,199,200,2165,True,740,363,269,1248,fi,fimbria,1.0
+100,201,202,2185,True,740,362,267,1248,fi,fimbria,1.0
+101,203,204,2205,True,739,361,265,1248,fi,fimbria,1.0
+102,205,206,2225,True,739,361,263,1248,fi,fimbria,1.0
+103,207,208,2245,True,739,360,261,1248,fi,fimbria,1.0
+104,209,210,2265,True,739,359,259,1248,fi,fimbria,1.0
+105,211,212,2285,True,739,358,258,1248,fi,fimbria,1.0
+106,213,214,2305,True,739,357,256,1248,fi,fimbria,1.0
+107,215,216,2325,True,739,357,254,1248,fi,fimbria,1.0
+108,217,218,2345,True,739,356,252,1248,fi,fimbria,1.0
+109,219,220,2365,True,738,355,250,1248,fi,fimbria,0.9970845481049563
+110,221,222,2385,True,738,354,249,1248,fi,fimbria,0.9854227405247813
+111,223,224,2405,True,738,353,247,1248,fi,fimbria,0.9183673469387755
+112,225,226,2425,True,738,352,245,1248,fi,fimbria,0.749271137026239
+113,227,228,2445,True,738,352,243,1248,fi,fimbria,0.46355685131195334
+114,229,230,2465,True,738,351,241,1294,VL,lateral ventricle,0.717201166180758
+115,231,232,2485,True,738,350,239,1294,VL,lateral ventricle,0.8950437317784257
+116,233,234,2505,True,738,349,238,1294,VL,lateral ventricle,0.9271137026239067
+117,235,236,2525,True,737,348,236,1294,VL,lateral ventricle,1.0
+118,237,238,2545,True,737,347,234,1294,VL,lateral ventricle,1.0
+119,239,240,2565,True,737,347,232,1294,VL,lateral ventricle,0.9883381924198251
+120,241,242,2585,True,737,346,230,1294,VL,lateral ventricle,0.9154518950437318
+121,243,244,2605,True,737,345,229,1294,VL,lateral ventricle,0.8717201166180758
+122,245,246,2625,True,737,344,227,1294,VL,lateral ventricle,0.7405247813411079
+123,247,248,2645,True,737,343,225,1294,VL,lateral ventricle,0.565597667638484
+124,249,250,2665,True,737,342,223,1217,or,optic radiation,0.21574344023323616
+125,251,252,2685,True,736,342,221,574,CP,Caudoputamen,0.7784256559766763
+126,253,254,2705,True,736,341,220,574,CP,Caudoputamen,0.8746355685131195
+127,255,256,2725,True,736,340,218,574,CP,Caudoputamen,0.9708454810495627
+128,257,258,2745,True,736,339,216,574,CP,Caudoputamen,1.0
+129,259,260,2765,True,736,338,214,574,CP,Caudoputamen,1.0
+130,261,262,2785,True,736,337,212,574,CP,Caudoputamen,1.0
+131,263,264,2805,True,736,337,210,574,CP,Caudoputamen,1.0
+132,265,266,2825,True,735,336,209,574,CP,Caudoputamen,1.0
+133,267,268,2845,True,735,335,207,574,CP,Caudoputamen,1.0
+134,269,270,2865,True,735,334,205,574,CP,Caudoputamen,0.8717201166180758
+135,271,272,2885,True,735,333,203,574,CP,Caudoputamen,0.5276967930029155
+136,273,274,2905,True,735,332,201,1217,or,optic radiation,0.8221574344023324
+137,275,276,2925,True,735,332,200,1217,or,optic radiation,0.9183673469387755
+138,277,278,2945,True,735,331,198,1217,or,optic radiation,1.0
+139,279,280,2965,True,735,330,196,1217,or,optic radiation,1.0
+140,281,282,2985,True,734,329,194,1217,or,optic radiation,0.9096209912536443
+141,283,284,3005,True,734,328,192,1217,or,optic radiation,0.6938775510204082
+142,285,286,3025,True,734,327,190,1217,or,optic radiation,0.4577259475218659
+143,287,288,3045,True,734,327,189,1190,scwm,supra-callosal cerebral white matter,0.358600583090379
+144,289,290,3065,True,734,326,187,1190,scwm,supra-callosal cerebral white matter,0.6151603498542274
+145,291,292,3085,True,734,325,185,1190,scwm,supra-callosal cerebral white matter,0.5860058309037901
+146,293,294,3105,True,734,324,183,129,AUDd6b,Dorsal auditory area layer 6b,0.3965014577259475
+147,295,296,3125,True,734,323,181,129,AUDd6b,Dorsal auditory area layer 6b,0.4198250728862974
+148,297,298,3145,True,733,322,180,128,AUDd6a,Dorsal auditory area layer 6a,0.5947521865889213
+149,299,300,3165,True,733,322,178,128,AUDd6a,Dorsal auditory area layer 6a,0.7521865889212828
+150,301,302,3185,True,733,321,176,128,AUDd6a,Dorsal auditory area layer 6a,0.8513119533527697
+151,303,304,3205,True,733,320,174,128,AUDd6a,Dorsal auditory area layer 6a,0.8658892128279884
+152,305,306,3225,True,733,319,172,128,AUDd6a,Dorsal auditory area layer 6a,0.8688046647230321
+153,307,308,3245,True,733,318,171,128,AUDd6a,Dorsal auditory area layer 6a,0.9212827988338192
+154,309,310,3265,True,733,318,169,128,AUDd6a,Dorsal auditory area layer 6a,0.8396501457725948
+155,311,312,3285,True,733,317,167,128,AUDd6a,Dorsal auditory area layer 6a,0.8688046647230321
+156,313,314,3305,True,732,316,165,128,AUDd6a,Dorsal auditory area layer 6a,0.8950437317784257
+157,315,316,3325,True,732,315,163,128,AUDd6a,Dorsal auditory area layer 6a,0.9154518950437318
+158,317,318,3345,True,732,314,161,128,AUDd6a,Dorsal auditory area layer 6a,0.9300291545189504
+159,319,320,3365,True,732,313,160,128,AUDd6a,Dorsal auditory area layer 6a,0.9387755102040817
+160,321,322,3385,True,732,313,158,128,AUDd6a,Dorsal auditory area layer 6a,0.6793002915451894
+161,323,324,3405,True,732,312,156,127,AUDd5,Dorsal auditory area layer 5,0.5364431486880467
+162,325,326,3425,True,732,311,154,127,AUDd5,Dorsal auditory area layer 5,0.8571428571428571
+163,327,328,3445,True,732,310,152,127,AUDd5,Dorsal auditory area layer 5,0.9650145772594753
+164,329,330,3465,True,731,309,151,127,AUDd5,Dorsal auditory area layer 5,0.9941690962099126
+165,331,332,3485,True,731,308,149,127,AUDd5,Dorsal auditory area layer 5,0.9941690962099126
+166,333,334,3505,True,731,308,147,127,AUDd5,Dorsal auditory area layer 5,0.9737609329446064
+167,335,336,3525,True,731,307,145,127,AUDd5,Dorsal auditory area layer 5,0.9825072886297376
+168,337,338,3545,True,731,306,143,127,AUDd5,Dorsal auditory area layer 5,0.9912536443148688
+169,339,340,3565,True,731,305,141,127,AUDd5,Dorsal auditory area layer 5,1.0
+170,341,342,3585,True,731,304,140,127,AUDd5,Dorsal auditory area layer 5,1.0
+171,343,344,3605,True,731,303,138,127,AUDd5,Dorsal auditory area layer 5,1.0
+172,345,346,3625,True,730,303,136,127,AUDd5,Dorsal auditory area layer 5,1.0
+173,347,348,3645,True,730,302,134,127,AUDd5,Dorsal auditory area layer 5,1.0
+174,349,350,3665,True,730,301,132,127,AUDd5,Dorsal auditory area layer 5,1.0
+175,351,352,3685,True,730,300,131,127,AUDd5,Dorsal auditory area layer 5,1.0
+176,353,354,3705,True,730,299,129,127,AUDd5,Dorsal auditory area layer 5,1.0
+177,355,356,3725,True,730,298,127,127,AUDd5,Dorsal auditory area layer 5,0.9970845481049563
+178,357,358,3745,True,730,298,125,127,AUDd5,Dorsal auditory area layer 5,0.9504373177842566
+179,359,360,3765,True,729,297,123,127,AUDd5,Dorsal auditory area layer 5,0.6530612244897959
+180,361,362,3785,True,729,296,122,126,AUDd4,Dorsal auditory area layer 4,0.5451895043731778
+181,363,364,3805,True,729,295,120,126,AUDd4,Dorsal auditory area layer 4,0.8688046647230321
+182,365,366,3825,True,729,294,118,126,AUDd4,Dorsal auditory area layer 4,0.9825072886297376
+183,367,368,3845,True,729,293,116,126,AUDd4,Dorsal auditory area layer 4,0.9708454810495627
+184,369,370,3865,True,729,293,114,126,AUDd4,Dorsal auditory area layer 4,0.8746355685131195
+185,371,372,3885,True,729,292,112,126,AUDd4,Dorsal auditory area layer 4,0.6122448979591837
+186,373,374,3905,True,729,291,111,125,AUDd2/3,Dorsal auditory area layer 2/3,0.446064139941691
+187,375,376,3925,True,728,290,109,125,AUDd2/3,Dorsal auditory area layer 2/3,0.8367346938775511
+188,377,378,3945,True,728,289,107,125,AUDd2/3,Dorsal auditory area layer 2/3,0.8979591836734694
+189,379,380,3965,True,728,288,105,125,AUDd2/3,Dorsal auditory area layer 2/3,0.8571428571428571
+190,381,382,3985,True,728,288,103,125,AUDd2/3,Dorsal auditory area layer 2/3,0.7755102040816326
+191,383,384,4005,False,728,287,102,125,AUDd2/3,Dorsal auditory area layer 2/3,0.749271137026239

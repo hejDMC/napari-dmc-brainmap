@@ -73,9 +73,9 @@ def get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox
 
     certainty_list = get_certainty_list(probe_tract, annot)
     probe_tract['Certainty'] = certainty_list
-    # save_probe_tract_fig(input_path, probe, save_path, probe_tract)
+    save_probe_tract_fig(input_path, probe, save_path, probe_tract)
     return probe_tract
-    # df_out.to_csv('step4_output_probetrack.csv')  # save probe information csv
+
 
 @thread_worker
 def calculate_probe_tract(input_path, save_path, probe_insert):
@@ -155,7 +155,7 @@ class ProbeVisualizerWidget(QWidget):
 
     def _calculate_probe_tract(self):
         input_path = probe_visualizer.input_path.value
-        if not probe_visualizer.save_path.value:
+        if str(probe_visualizer.save_path.value) == '.':
             save_path = input_path
         else:
             save_path = probe_visualizer.save_path.value
