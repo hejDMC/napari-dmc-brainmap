@@ -1,6 +1,7 @@
 import math
 import random
 import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -18,13 +19,13 @@ def get_brain_section_params(brainsec_widget):
         "section_list": [float(i) for i in brainsec_widget.section_list.value.split(',')],
         "section_range": float(brainsec_widget.section_range.value),
         "groups": brainsec_widget.groups.value,
-        "cmap_groups": split_to_list(brainsec_widget.cmap_groups.value),
         "bin_width": int(brainsec_widget.bin_width.value),
         "vmax": int(brainsec_widget.vmax.value),
-        "cmap_projection": brainsec_widget.cmap_projection.value,
-        "color_inj": [str(i) for i in brainsec_widget.color_inj.value.split(',')],
-        "color_optic": [str(i) for i in brainsec_widget.color_optic.value.split(',')],
-        "color_npx": [str(i) for i in brainsec_widget.color_npx.value.split(',')],
+        "color_cells": split_to_list(brainsec_widget.color_cells.value),
+        "color_projections": brainsec_widget.cmap_projection.value,
+        "color_injection_side": [str(i) for i in brainsec_widget.color_inj.value.split(',')],
+        "color_optic_fiber": [str(i) for i in brainsec_widget.color_optic.value.split(',')],
+        "color_neuropixels_probe": [str(i) for i in brainsec_widget.color_npx.value.split(',')],
         "save_name": brainsec_widget.save_name.value,
         "save_fig": brainsec_widget.save_fig.value,
     }
@@ -40,14 +41,43 @@ def get_rows_cols(section_list):
     return n_rows, n_cols
 
 
-def create_geno_cmap(animal_dict, plotting_params, df=pd.DataFrame()):
+# def create_cmap(animal_dict, plotting_params, df=pd.DataFrame(), hue_id='channel'):
+#
+#     cmap = {}
+#     if not df.empty:
+#         group_ids = list(df[hue_id].unique())
+#     else:
+#         group_ids = list(animal_dict.keys())
+#     cmap_groups = plotting_params["color_cells"]
+#     num_groups = len(group_ids)
+#     if cmap_groups[0]:
+#         num_colors = len(cmap_groups)
+#     else:
+#         num_colors = 0
+#         cmap_groups = []
+#     if num_groups > num_colors:  # more groups than colors
+#         print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
+#               " cmap groups --> adding random colors")
+#         diff = num_groups - num_colors
+#         for d in range(diff):
+#             cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+#     elif num_groups < num_colors:  # less groups than colors
+#         print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
+#               " cmap groups --> dropping colors")
+#         diff = num_colors - num_groups
+#         cmap_groups = cmap_groups[:-diff]
+#     for g, c in zip(group_ids, cmap_groups):
+#         cmap[g] = c
+#     return cmap
 
-    geno_cmap = {}
+def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id='channel'):
+
+    cmap = {}
     if not df.empty:
-        group_ids = list(df['channel'].unique())
+        group_ids = list(df[hue_id].unique())
     else:
         group_ids = list(animal_dict.keys())
-    cmap_groups = plotting_params["cmap_groups"]
+    cmap_groups = plotting_params[clr_id]
     num_groups = len(group_ids)
     if cmap_groups[0]:
         num_colors = len(cmap_groups)
@@ -58,63 +88,125 @@ def create_geno_cmap(animal_dict, plotting_params, df=pd.DataFrame()):
         print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
               " cmap groups --> adding random colors")
         diff = num_groups - num_colors
-        for d in range(diff):
-            cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+        if clr_id == 'colors_projections':
+            colormaps = [cc for cc in cm.datad]
+            for d in range(diff):
+                cmap_groups.append(random.choice(colormaps))
+        else:
+            for d in range(diff):
+                cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
     elif num_groups < num_colors:  # less groups than colors
         print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
               " cmap groups --> dropping colors")
         diff = num_colors - num_groups
         cmap_groups = cmap_groups[:-diff]
     for g, c in zip(group_ids, cmap_groups):
-        geno_cmap[g] = c
-    return geno_cmap
+        cmap[g] = c
+    return cmap
 
 def create_color_dict(input_path, animal_list, data_dict, plotting_params):
 
     color_dict = {}
     for item in plotting_params['plot_item']:
-        # todo use this?? including the other items as well? and rename geno_cmap variable
-        if item == 'cells':
-            color_dict[item] = {}
+        color_dict[item] = {}
+        clr_id = 'color_' + item
+        if item in ['cells', 'projections', 'injection_side']:
             if plotting_params["groups"] in ['genotype', 'group']:
                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
-                geno_cmap = create_geno_cmap(animal_dict, plotting_params)
+                cmap = create_cmap(animal_dict, plotting_params, clr_id)
                 single_color = False
-            elif plotting_params["groups"] == 'channel':
-                geno_cmap = create_geno_cmap([], plotting_params, df=data_dict['cells'])
+            elif plotting_params["groups"] in ['channel', 'animal_id']:
+                cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item], hue_id=plotting_params["groups"])
                 single_color = False
             else:
                 single_color = True
-                if not plotting_params["cmap_groups"][0]:  # todo this is bad
-                    geno_cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+                if not plotting_params[clr_id][0]:
+                    cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 else:
-                    geno_cmap = plotting_params["cmap_groups"][0]
-        elif item == 'projections':
-            color_dict[item] = {}
-            geno_cmap = plotting_params["cmap_projection"]
-            single_color = True
-        elif item == 'injection_side':
-            color_dict[item] = {}
-            geno_cmap = plotting_params["color_inj"]
-            single_color = True
-        elif item == "optic_fiber":
-            color_dict[item] = {}
-            if len(plotting_params["color_optic"]) == 1:
+                    cmap = plotting_params[clr_id][0]
+        else:
+            num_probe = len(data_dict[item]['channel'].unique())
+            if num_probe == 1:
                 single_color = True
+                if not plotting_params[clr_id][0]:
+                    cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+                else:
+                    cmap = plotting_params[clr_id][0]
             else:
                 single_color = False
-            geno_cmap = plotting_params["color_optic"]
-        elif item == "neuropixels_probe":
-            color_dict[item] = {}
-            if len(plotting_params["color_npx"]) == 1:
-                single_color = True
-            else:
-                single_color = False
-            geno_cmap = plotting_params["color_npx"]
-        # todo this will fill the dict wrongly for items nto in elif clause
-        color_dict[item]['geno_cmap'] = geno_cmap
+                cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item])
+
+        color_dict[item]['cmap'] = cmap
         color_dict[item]['single_color'] = single_color
     return color_dict
+
+
+
+
+# def create_color_dict(input_path, animal_list, data_dict, plotting_params):
+#
+#     color_dict = {}
+#     for item in plotting_params['plot_item']:
+#         # todo use this?? including the other items as well? and rename cmap variable
+#         if item == 'cells':
+#             color_dict[item] = {}
+#             if plotting_params["groups"] in ['genotype', 'group']:
+#                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
+#                 cmap = create_cmap(animal_dict, plotting_params)
+#                 single_color = False
+#             elif plotting_params["groups"] in ['channel', 'animal_id']:
+#                 cmap = create_cmap([], plotting_params, df=data_dict[item], hue_id=plotting_params["groups"])
+#                 single_color = False
+#             else:
+#                 single_color = True
+#                 if not plotting_params["color_cells"][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params["color_cells"][0]
+#         elif item == 'projections':
+#             # todo projections for different channels, groups, genos?
+#             color_dict[item] = {}
+#             cmap = plotting_params["cmap_projection"]
+#             single_color = True
+#         elif item == 'injection_side':
+#             color_dict[item] = {}
+#             if plotting_params["groups"] in ['genotype', 'group']:
+#                 print("groups and genotypes not implemented for visualizing injection sides. Defaulting to single "
+#                       "color plot selected.")
+#                 single_color = True
+#                 if not plotting_params["color_inj"][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params["color_inj"][0]
+#             elif plotting_params["groups"] == 'channel':
+#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
+#                 single_color = False
+#             else:
+#                 single_color = True
+#                 if not plotting_params["color_inj"][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params["color_inj"][0]
+#
+#         else:
+#             if item == "optic_fiber":
+#                 clr_id = "color_optic"
+#             else:
+#                 clr_id = "color_npx"
+#             color_dict[item] = {}
+#             num_probe = len(data_dict[item]['channel'].unique())
+#             if num_probe == 1:
+#                 single_color = True
+#                 if not plotting_params[clr_id][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params[clr_id][0]
+#             else:
+#                 single_color = False
+#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
+#         color_dict[item]['cmap'] = cmap
+#         color_dict[item]['single_color'] = single_color
+#     return color_dict
 
 def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
 
@@ -134,6 +226,11 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
     for item in data_dict:
         data_dict[item] = coord_mm_transform(data_dict[item])
 
+    # if "injection_side" in plotting_params["plot_item"] and len(animal_list) > 1:
+    #     print("not possible to plot injection sides of multiple animals, using data from " + animal_list[0])
+    #     for item in plotting_params["plot_item"]:
+    #         data_dict[item] = data_dict[item][data_dict[item]["animal_id"] == animal_list[0]]
+
     for section in section_list:
 
         plot_dict = {}
@@ -141,7 +238,7 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
         target_ap = [int(-(target / 0.01 - bregma[0])) for target in target_ap]
         slice_idx = int(-(section / 0.01 - bregma[0]))
         annot_section = annot[slice_idx, :, :].copy()
-        annot_section_plt = plot_brain_schematic(annot_section, st)  # todo fix this one
+        annot_section_plt = plot_brain_schematic(annot_section, st)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item]['ap_mm'] >= target_ap[0])
                                               & (data_dict[item]['ap_mm'] <= target_ap[1])]
@@ -159,10 +256,10 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
                 if item == 'cells':
                     if color_dict[item]['single_color']:
                             sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=plot_dict['cells'],
-                                            color=color_dict[item]["geno_cmap"])
+                                            color=color_dict[item]["cmap"])
                     else:
                             sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=plot_dict['cells'],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["geno_cmap"])
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
@@ -172,23 +269,26 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
                         sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
-                                    color=color_dict[item]["geno_cmap"][0])
+                                    color=color_dict[item]["cmap"])
+                    else:
+                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
+                                    hue=plotting_params["groups"], color=color_dict[item]["cmap"])
                 else:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                        color=color_dict[item]["geno_cmap"][0], s=20)
+                                        color=color_dict[item]["cmap"], s=20)
                         sns.regplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm',
                                     data=plot_dict[item],
-                                    line_kws=dict(alpha=0.7, color=color_dict[item]["geno_cmap"][0]),
+                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
                         sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["geno_cmap"], s=20)
+                                        hue='channel', palette=color_dict[item]["cmap"], s=20)
 
-                        for i, c in enumerate(plot_dict[item]['channel'].unique()):
+                        for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm',
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],
-                                        line_kws=dict(alpha=0.7, color=color_dict[item]["geno_cmap"][i]),
+                                        line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
 
                 static_ax[n_row, n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[0]) * 0.01), 1)) + ' mm')
@@ -204,36 +304,39 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
                 if item == 'cells':
                     if color_dict[item]["single_color"]:
                             sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=plot_dict['cells'],
-                                            color=color_dict[item]["geno_cmap"])
+                                            color=color_dict[item]["cmap"])
                     else:
                             sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=plot_dict['cells'],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["geno_cmap"])
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
-                                 cmap=color_dict[item]["geno_cmap"], binwidth=plotting_params['bin_width'],
+                                 cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
                                  vmax=plotting_params['vmax'])
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
                         sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
-                                    color=color_dict[item]["geno_cmap"][0])
+                                    color=color_dict[item]["cmap"])
+                    else:
+                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
+                                    hue=plotting_params["groups"], color=color_dict[item]["cmap"])
                 else:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                        color=color_dict[item]["geno_cmap"][0], s=20)
+                                        color=color_dict[item]["cmap"], s=20)
                         sns.regplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm',
                                     data=plot_dict[item],
-                                    line_kws=dict(alpha=0.7, color=color_dict[item]["geno_cmap"][0]),
+                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
                         sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["geno_cmap"], s=20)
+                                        hue='channel', palette=color_dict[item]["cmap"], s=20)
 
-                        for i, c in enumerate(plot_dict[item]['channel'].unique()):
+                        for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm',
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],
-                                        line_kws=dict(alpha=0.7, color=color_dict[item]["geno_cmap"][i]),
+                                        line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
 
                 static_ax[n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[0]) * 0.01), 1)) + ' mm')
@@ -248,39 +351,40 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
                 if item == 'cells':
                     if color_dict[item]["single_color"]:
                             sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                            color=color_dict[item]["geno_cmap"])
+                                            color=color_dict[item]["cmap"])
                     else:
                             sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["geno_cmap"])
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel",
-                                 cmap=color_dict[item]["geno_cmap"], binwidth=plotting_params['bin_width'],
+                                 cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
                                  vmax=plotting_params['vmax'])
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
                         sns.kdeplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
-                                    color=color_dict[item]["geno_cmap"][0])
+                                    color=color_dict[item]["cmap"])
+                    else:
+                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
+                                    hue=plotting_params["groups"], color=color_dict[item]["cmap"])
 
                 else:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                        color=color_dict[item]["geno_cmap"][0], s=20)
+                                        color=color_dict[item]["cmap"], s=20)
                         sns.regplot(ax=static_ax, x='ml_mm', y='dv_mm',
                                     data=plot_dict[item],
-                                    line_kws=dict(alpha=0.7, color=color_dict[item]["geno_cmap"][0]),
+                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
                         sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["geno_cmap"], s=20)
+                                        hue='channel', palette=color_dict[item]["cmap"], s=20)
 
-                        print(plot_dict)
-                        print(color_dict)
-                        for i, c in enumerate(plot_dict[item]['channel'].unique()):
+                        for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax, x='ml_mm', y='dv_mm',
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],
-                                        line_kws=dict(alpha=0.7, color=color_dict[item]["geno_cmap"][i]),
+                                        line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
                 static_ax.title.set_text('bregma - ' + str(round((-(slice_idx - bregma[0]) * 0.01), 1)) + ' mm')
                 static_ax.axis('off')

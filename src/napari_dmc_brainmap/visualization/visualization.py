@@ -232,21 +232,23 @@ def heatmap_widget(
                        tooltip='enter the range around the section to include data from, set to zero if only include '
                                'data from that particular coordinate, otherwise this value will be taken plus/minus to '
                                'include more data'),
-    groups=dict(widget_type='ComboBox', label='channel/group/genotype (cell plot)?',
-                  choices=['', 'channel', 'group', 'genotype'], value='',
-                  tooltip="if you want to plot channel/group/genotype in different colors, select accordingly, "
-                          "otherwise leave empty"),
-    cmap_groups=dict(widget_type='LineEdit', label='colors (cell plot)',
-                   value='', tooltip='enter COMMA SEPERATED list of colors (or c:map), should have the same length as '
-                                     'the groups/genotypes you want to plot'),
+    groups=dict(widget_type='ComboBox', label='channel/group/genotype/animals separately?',
+                  choices=['', 'channel', 'group', 'genotype', 'animal_id'], value='',
+                  tooltip="if you want to plot channel/group/genotype or individual animals in different colors, "
+                          "select accordingly, otherwise leave empty"),
 
-    bin_width=dict(widget_type='SpinBox', label='bin_width (projection density)', value=5, min=1, max=800,
-                       tooltip='bin width for visualization of axonal density'),
-    vmax=dict(widget_type='LineEdit', label='vmax (projection density)', value='2000',
-                       tooltip='max value for colorbar for visualizing projection densities '
-                               '(depends on actual density and bin_width)'),
+    color_cells=dict(widget_type='LineEdit', label='colors (cell plot)',
+                     value='',
+                     tooltip='enter COMMA SEPERATED list of colors (or c:map), should have the same length as '
+                             'the groups/genotypes you want to plot'),
+
     cmap_projection=dict(widget_type='LineEdit', label='colormap (projection density)',
                    value='Blues', tooltip='enter a colormap for visualizing projections (e.g. Reds, Blues etc.)'),
+    bin_width=dict(widget_type='SpinBox', label='bin_width (projection density)', value=5, min=1, max=800,
+                           tooltip='bin width for visualization of axonal density'),
+    vmax=dict(widget_type='LineEdit', label='vmax (projection density)', value='2000',
+              tooltip='max value for colorbar for visualizing projection densities '
+                      '(depends on actual density and bin_width)'),
 
     color_inj=dict(widget_type='LineEdit', label='colors (injection side)',
                    value='Blue,Yellow', tooltip='enter a COMMA SEPERATED list for colors to use for the injection side'),
@@ -267,10 +269,10 @@ def brain_section_widget(
     section_list,
     section_range,
     groups,
-    cmap_groups,
+    color_cells,
+    cmap_projection,
     bin_width,
     vmax,
-    cmap_projection,
     color_inj,
     color_optic,
     color_npx

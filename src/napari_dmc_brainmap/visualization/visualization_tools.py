@@ -109,7 +109,10 @@ def load_data(input_path, animal_list, channels, data_type='cells'):
                 results_data['sphinx_id'] -= 1  # correct for indices starting at 1
                 results_data['animal_id'] = [animal_id] * len(
                     results_data)  # add the animal_id as a column for later identification
-                results_data['channel'] = [channel] * len(results_data)
+                if (data_type == "optic_fiber" or data_type == "neuropixels_probe") and len(animal_list) > 1:
+                    results_data['channel'] = [animal_id + '_' + channel] * len(results_data)
+                else:
+                    results_data['channel'] = [channel] * len(results_data)
                 # add the injection hemisphere stored in params.json file
                 params_file = input_path.joinpath(animal_id, 'params.json')  # directory of params.json file
                 with open(params_file) as fn:  # load the file
