@@ -209,7 +209,7 @@ def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_
         static_ax[t].invert_yaxis()
         static_ax[t].figure.axes[-1].yaxis.label.set_color(plotting_params["color"])
         # cbar = ax.collections[0].colorbar
-        # ax[t].collections[0].colorbar.ax.tick_params(colors=plotting_params["color"])  #todo this one is commented, but needs to be fixed, prob. calling it after loop or give color in last heatmap
+        # ax[t].collections[0].colorbar.ax.tick_params(colors=plotting_params["color"])  # todo this one is commented, but needs to be fixed, prob. calling it after loop or give color in last heatmap
         static_ax[t].spines['bottom'].set_color(plotting_params["color"])
         static_ax[t].spines['left'].set_color(plotting_params["color"])
         static_ax[t].xaxis.label.set_color(plotting_params["color"])

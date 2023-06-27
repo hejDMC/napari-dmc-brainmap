@@ -31,6 +31,7 @@ def get_brain_section_params(brainsec_widget):
     }
     return plotting_params
 
+
 def get_rows_cols(section_list):
     n_sec = len(section_list)
     n_cols = int(np.ceil(math.sqrt(n_sec)))
@@ -40,35 +41,6 @@ def get_rows_cols(section_list):
         n_rows = n_cols
     return n_rows, n_cols
 
-
-# def create_cmap(animal_dict, plotting_params, df=pd.DataFrame(), hue_id='channel'):
-#
-#     cmap = {}
-#     if not df.empty:
-#         group_ids = list(df[hue_id].unique())
-#     else:
-#         group_ids = list(animal_dict.keys())
-#     cmap_groups = plotting_params["color_cells"]
-#     num_groups = len(group_ids)
-#     if cmap_groups[0]:
-#         num_colors = len(cmap_groups)
-#     else:
-#         num_colors = 0
-#         cmap_groups = []
-#     if num_groups > num_colors:  # more groups than colors
-#         print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
-#               " cmap groups --> adding random colors")
-#         diff = num_groups - num_colors
-#         for d in range(diff):
-#             cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
-#     elif num_groups < num_colors:  # less groups than colors
-#         print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
-#               " cmap groups --> dropping colors")
-#         diff = num_colors - num_groups
-#         cmap_groups = cmap_groups[:-diff]
-#     for g, c in zip(group_ids, cmap_groups):
-#         cmap[g] = c
-#     return cmap
 
 def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id='channel'):
 
@@ -103,6 +75,7 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
     for g, c in zip(group_ids, cmap_groups):
         cmap[g] = c
     return cmap
+
 
 def create_color_dict(input_path, animal_list, data_dict, plotting_params):
 
@@ -141,77 +114,9 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
     return color_dict
 
 
-
-
-# def create_color_dict(input_path, animal_list, data_dict, plotting_params):
-#
-#     color_dict = {}
-#     for item in plotting_params['plot_item']:
-#         # todo use this?? including the other items as well? and rename cmap variable
-#         if item == 'cells':
-#             color_dict[item] = {}
-#             if plotting_params["groups"] in ['genotype', 'group']:
-#                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
-#                 cmap = create_cmap(animal_dict, plotting_params)
-#                 single_color = False
-#             elif plotting_params["groups"] in ['channel', 'animal_id']:
-#                 cmap = create_cmap([], plotting_params, df=data_dict[item], hue_id=plotting_params["groups"])
-#                 single_color = False
-#             else:
-#                 single_color = True
-#                 if not plotting_params["color_cells"][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params["color_cells"][0]
-#         elif item == 'projections':
-#             # todo projections for different channels, groups, genos?
-#             color_dict[item] = {}
-#             cmap = plotting_params["cmap_projection"]
-#             single_color = True
-#         elif item == 'injection_side':
-#             color_dict[item] = {}
-#             if plotting_params["groups"] in ['genotype', 'group']:
-#                 print("groups and genotypes not implemented for visualizing injection sides. Defaulting to single "
-#                       "color plot selected.")
-#                 single_color = True
-#                 if not plotting_params["color_inj"][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params["color_inj"][0]
-#             elif plotting_params["groups"] == 'channel':
-#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
-#                 single_color = False
-#             else:
-#                 single_color = True
-#                 if not plotting_params["color_inj"][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params["color_inj"][0]
-#
-#         else:
-#             if item == "optic_fiber":
-#                 clr_id = "color_optic"
-#             else:
-#                 clr_id = "color_npx"
-#             color_dict[item] = {}
-#             num_probe = len(data_dict[item]['channel'].unique())
-#             if num_probe == 1:
-#                 single_color = True
-#                 if not plotting_params[clr_id][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params[clr_id][0]
-#             else:
-#                 single_color = False
-#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
-#         color_dict[item]['cmap'] = cmap
-#         color_dict[item]['single_color'] = single_color
-#     return color_dict
-
 def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
 
     color_dict = create_color_dict(input_path, animal_list, data_dict, plotting_params)
-    # tgt_channel = plotting_params["tgt_channel"] # this not from params file todo option for more than one channel
     section_list = plotting_params["section_list"]  # in mm AP coordinates for coronal sections
     n_rows, n_cols = get_rows_cols(section_list)
     figsize = [int(i) for i in brain_section_widget.plot_size.value.split(',')]
@@ -225,11 +130,6 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
     annot = dummy_load_allen_annot()
     for item in data_dict:
         data_dict[item] = coord_mm_transform(data_dict[item])
-
-    # if "injection_side" in plotting_params["plot_item"] and len(animal_list) > 1:
-    #     print("not possible to plot injection sides of multiple animals, using data from " + animal_list[0])
-    #     for item in plotting_params["plot_item"]:
-    #         data_dict[item] = data_dict[item][data_dict[item]["animal_id"] == animal_list[0]]
 
     for section in section_list:
 
@@ -398,3 +298,97 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
     if plotting_params["save_fig"]:
         mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
     return mpl_widget
+
+
+# todo delete this if not needed anymore
+# def create_cmap(animal_dict, plotting_params, df=pd.DataFrame(), hue_id='channel'):
+#
+#     cmap = {}
+#     if not df.empty:
+#         group_ids = list(df[hue_id].unique())
+#     else:
+#         group_ids = list(animal_dict.keys())
+#     cmap_groups = plotting_params["color_cells"]
+#     num_groups = len(group_ids)
+#     if cmap_groups[0]:
+#         num_colors = len(cmap_groups)
+#     else:
+#         num_colors = 0
+#         cmap_groups = []
+#     if num_groups > num_colors:  # more groups than colors
+#         print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
+#               " cmap groups --> adding random colors")
+#         diff = num_groups - num_colors
+#         for d in range(diff):
+#             cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+#     elif num_groups < num_colors:  # less groups than colors
+#         print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
+#               " cmap groups --> dropping colors")
+#         diff = num_colors - num_groups
+#         cmap_groups = cmap_groups[:-diff]
+#     for g, c in zip(group_ids, cmap_groups):
+#         cmap[g] = c
+#     return cmap
+
+# def create_color_dict(input_path, animal_list, data_dict, plotting_params):
+#
+#     color_dict = {}
+#     for item in plotting_params['plot_item']:
+#         if item == 'cells':
+#             color_dict[item] = {}
+#             if plotting_params["groups"] in ['genotype', 'group']:
+#                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
+#                 cmap = create_cmap(animal_dict, plotting_params)
+#                 single_color = False
+#             elif plotting_params["groups"] in ['channel', 'animal_id']:
+#                 cmap = create_cmap([], plotting_params, df=data_dict[item], hue_id=plotting_params["groups"])
+#                 single_color = False
+#             else:
+#                 single_color = True
+#                 if not plotting_params["color_cells"][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params["color_cells"][0]
+#         elif item == 'projections':
+#             color_dict[item] = {}
+#             cmap = plotting_params["cmap_projection"]
+#             single_color = True
+#         elif item == 'injection_side':
+#             color_dict[item] = {}
+#             if plotting_params["groups"] in ['genotype', 'group']:
+#                 print("groups and genotypes not implemented for visualizing injection sides. Defaulting to single "
+#                       "color plot selected.")
+#                 single_color = True
+#                 if not plotting_params["color_inj"][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params["color_inj"][0]
+#             elif plotting_params["groups"] == 'channel':
+#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
+#                 single_color = False
+#             else:
+#                 single_color = True
+#                 if not plotting_params["color_inj"][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params["color_inj"][0]
+#
+#         else:
+#             if item == "optic_fiber":
+#                 clr_id = "color_optic"
+#             else:
+#                 clr_id = "color_npx"
+#             color_dict[item] = {}
+#             num_probe = len(data_dict[item]['channel'].unique())
+#             if num_probe == 1:
+#                 single_color = True
+#                 if not plotting_params[clr_id][0]:
+#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
+#                 else:
+#                     cmap = plotting_params[clr_id][0]
+#             else:
+#                 single_color = False
+#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
+#         color_dict[item]['cmap'] = cmap
+#         color_dict[item]['single_color'] = single_color
+#     return color_dict
