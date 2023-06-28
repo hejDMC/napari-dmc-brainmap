@@ -105,10 +105,34 @@ def split_strings_layers(s):
     if s.startswith('TEa'):  # special case due to small 'a', will otherwise split 'TE' + 'a1', not 'TEa' + '1'
         head = s[:3]
         tail = s[3:]
+    elif s.startswith('CA'):
+        head = s
+        tail = []
     else:
         head = s.rstrip('0123456789/ab')
         tail = s[len(head):]
     return head, tail
+
+
+def get_parent(a, st):
+    # dummy function to get parent id for quick and dirty quantification of injection side
+    level_dict = {
+        7: ['Isocortex', 'HPF', 'TH'],
+        6: ['OLF', 'HY'],
+        5: ['CTXsp', 'CNU', 'MB', 'CB'],
+        4: ['HB']
+    }
+    a_parent = a
+    for k, v in level_dict.items():
+        for i in v:
+            if st[st['acronym'] == i]['structure_id_path'].iloc[0] in a:
+                if len(a.split('/')) > (k + 3):
+                    a_parent = st[st['structure_id_path'] == '/'.join(a.split('/')[:k+2]) + '/']['acronym'].iloc[0]
+                break
+
+    return a_parent
+
+
 
 def clean_results_df(df, st):  # todo this somewhere seperate
     path_list = st['structure_id_path'][df['sphinx_id']]
