@@ -8,12 +8,12 @@ import json
 import tifffile as tiff
 import numpy as np
 
-from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack
+from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_folder
 from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
 
 
 @thread_worker
-def do_stitching(input_path, filter_list, params_dict):
+def do_stitching(input_path, filter_list, params_dict, stitch_tiles):
     animal_id = get_animal_id(input_path)
     direct_sharpy_track = params_dict['operations']['sharpy_track']
 
@@ -29,47 +29,69 @@ def do_stitching(input_path, filter_list, params_dict):
         in_obj = data_dir.joinpath(obj)
         for f in filter_list:
             stitch_dir = get_info(input_path, 'stitched', channel=f, create_dir=True, only_dir=True)
-            in_chan = in_obj.joinpath(obj + '_' + f + '_1')
-            ## load tile stack name
-            stack = []
-            im_list = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
-            for fn in im_list:
-                stack.append(fn)
-            stack.sort()
-            ## load stack data
-            whole_stack = []
-            for stk in stack:
-                with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
-                    for page in tif.pages:  # iterate over pages
-                        image = page.asarray()  # convert to array
-                        whole_stack.append(image)  # append to whole_stack container
-            ## convert to numpy array
-            whole_stack = np.array(whole_stack)
+            if stitch_tiles:
+                in_chan = in_obj.joinpath(f)
+                section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
+                section_list_new = [animal_id + "_" + obj + "_" + str(k + 1) for k, ss in
+                                    enumerate(section_list)]
+                [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in
+                 zip(section_list, section_list_new)]
+                section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir()])
+                for section in section_dirs:
 
-            # load tile location meta data from meta folder
-            meta_json_where = in_obj.joinpath(obj + '_meta_1', 'regions_pos.json')
+                    stitched_path = stitch_dir.joinpath(section.parts[-1] + '_stitched.tif')
+                    if direct_sharpy_track:
+                        sharpy_chans = params_dict['sharpy_track_params']['channels']
+                        if f in sharpy_chans:
+                            sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
+                            sharpy_im_dir = sharpy_dir.joinpath(section.parts[-1] + '_downsampled.tif')
+                            stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir)
+                        else:
+                            stitch_folder(section, 205, stitched_path, params_dict, f)
+                    else:
+                        stitch_folder(section, 205, stitched_path, params_dict, f)
+            else:
+                in_chan = in_obj.joinpath(obj + '_' + f + '_1')
+                # load tile stack name
+                stack = []
+                im_list = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
+                for fn in im_list:
+                    stack.append(fn)
+                stack.sort()
+                # load stack data
+                whole_stack = []
+                for stk in stack:
+                    with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
+                        for page in tif.pages:  # iterate over pages
+                            image = page.asarray()  # convert to array
+                            whole_stack.append(image)  # append to whole_stack container
+                # convert to numpy array
+                whole_stack = np.array(whole_stack)
 
-            with open(meta_json_where, 'r') as data:
-                img_meta = json.load(data)
-            # get number of regions on this objective slide
-            region_n = len(img_meta)
-            # iterate regions
-            for rn in range(region_n):
-                pos_list = img_meta['region_' + str(rn)]
-                stitched_path = stitch_dir.joinpath(animal_id + '_' + obj + '_' + str(rn + 1) + '_stitched.tif')
-                if direct_sharpy_track:
-                    sharpy_chans = params_dict['sharpy_track_params']['channels']
-                    if f in sharpy_chans:
-                        sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                        sharpy_im_dir = sharpy_dir.joinpath(animal_id + '_' + obj + '_' +
-                                                            str(rn + 1) + '_downsampled.tif')
-                        pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, sharpy_im_dir)
+                # load tile location meta data from meta folder
+                meta_json_where = in_obj.joinpath(obj + '_meta_1', 'regions_pos.json')
+
+                with open(meta_json_where, 'r') as data:
+                    img_meta = json.load(data)
+                # get number of regions on this objective slide
+                region_n = len(img_meta)
+                # iterate regions
+                for rn in range(region_n):
+                    pos_list = img_meta['region_' + str(rn)]
+                    stitched_path = stitch_dir.joinpath(animal_id + '_' + obj + '_' + str(rn + 1) + '_stitched.tif')
+                    if direct_sharpy_track:
+                        sharpy_chans = params_dict['sharpy_track_params']['channels']
+                        if f in sharpy_chans:
+                            sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
+                            sharpy_im_dir = sharpy_dir.joinpath(animal_id + '_' + obj + '_' +
+                                                                str(rn + 1) + '_downsampled.tif')
+                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, sharpy_im_dir)
+                        else:
+                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
                     else:
                         pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
-                else:
-                    pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
-                # remove stitched tiles from whole_stack
-                whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
+                    # remove stitched tiles from whole_stack
+                    whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
     params_dict = clean_params_dict(params_dict, "operations")
     params_fn = input_path.joinpath('params.json')
     params_dict = update_params_dict(input_path, params_dict)
@@ -83,6 +105,8 @@ def do_stitching(input_path, filter_list, params_dict):
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
                     tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                                 'folder containing segmentation results'),
+    stitch_tiles=dict(widget_type='CheckBox', text='stitching image tiles', value=False,
+                           tooltip='option to stitch images from tiles (ticked) or from image stack (not ticked)'),
     channels=dict(widget_type='Select', label='imaged channels', value=['green', 'cy3'],
                       choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                       tooltip='select the imaged channels, '
@@ -111,6 +135,7 @@ def do_stitching(input_path, filter_list, params_dict):
 def stitching_widget(
     viewer: Viewer,
     input_path,  # posix path
+    stitch_tiles,
     channels,
     sharpy_bool,
     sharpy_chan,
@@ -167,8 +192,9 @@ class StitchingWidget(QWidget):
         return params_dict
     def _do_stitching(self):
         input_path = stitching_widget.input_path.value
+        stitch_tiles = stitching_widget.stitch_tiles.value
         params_dict = self._get_stitching_params()
         filter_list = params_dict['general']['chans_imaged']
-        preprocessing_worker = do_stitching(input_path, filter_list, params_dict)
+        preprocessing_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles)
         preprocessing_worker.start()
 

@@ -1,36 +1,43 @@
 import tifffile
-import pandas as pd
 import numpy as np
+import json
 import cv2
 import tifffile as tiff
 from skimage.exposure import rescale_intensity
 
-def get_meta(path):
-    with tifffile.TiffFile(path) as tif:
-        img_meta = tif.imagej_metadata['Info']
-    img_meta_list = img_meta.split('DeviceCoordinatesUm":{"')[1:]
-    meta_clean = pd.DataFrame(index=['focus', 'x', 'y'])
-    for i in img_meta_list:
-        s = i.split(',"GridRowIndex"')[0]
-        depth, x, y, _, _, label = s.split(',')
-        depth = depth.split('[')[1][:-1]
-        x = x.split('[')[1]
-        y = y[:-1]
-        label = label.split(':')[1][1:-1]
-        meta_clean[label] = [depth, x, y]
-    # meta_clean.to_csv(path.split('/')[-1][:-8]+'_meta.csv')
-    return meta_clean
 
+def load_meta(section_dir):
+    path_to_tiff = section_dir.joinpath([f.parts[-1] for f in section_dir.glob('*.tif')][0])
+    with tifffile.TiffFile(path_to_tiff) as tif:
+        meta_data = json.loads(tif.imagej_metadata['Info'])
+    return meta_data
 
-def get_size(path_to_tiff):
-    meta_data = get_meta(path_to_tiff)
-    print('meta-data loaded')
-    x_series = meta_data.iloc[1].values.astype(float)
-    # y_series = meta_data.iloc[2].values.astype(float)
-    height = np.sum(np.abs(np.diff(x_series).astype(int)) < 13) + 1
-    width = int(len(x_series) / height)
-    # print('this cover slide has *', width, '* patches in width, and *', height, '* patches in height.')
-    return width, height
+# def get_meta(path):
+#     with tifffile.TiffFile(path) as tif:
+#         img_meta = tif.imagej_metadata['Info']
+#     img_meta_list = img_meta.split('DeviceCoordinatesUm":{"')[1:]
+#     meta_clean = pd.DataFrame(index=['focus', 'x', 'y'])
+#     for i in img_meta_list:
+#         s = i.split(',"GridRowIndex"')[0]
+#         depth, x, y, _, _, label = s.split(',')
+#         depth = depth.split('[')[1][:-1]
+#         x = x.split('[')[1]
+#         y = y[:-1]
+#         label = label.split(':')[1][1:-1]
+#         meta_clean[label] = [depth, x, y]
+#     # meta_clean.to_csv(path.split('/')[-1][:-8]+'_meta.csv')
+#     return meta_clean
+#
+#
+# def get_size(path_to_tiff):
+#     meta_data = get_meta(path_to_tiff)
+#     print('meta-data loaded')
+#     x_series = meta_data.iloc[1].values.astype(float)
+#     # y_series = meta_data.iloc[2].values.astype(float)
+#     height = np.sum(np.abs(np.diff(x_series).astype(int)) < 13) + 1
+#     width = int(len(x_series) / height)
+#     # print('this cover slide has *', width, '* patches in width, and *', height, '* patches in height.')
+#     return width, height
 
 def get_size_json(pos_list):
     pos = np.array(pos_list)
@@ -117,16 +124,71 @@ def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, do
         stitch_canvas = anti_distortion(stitch_canvas)
     else:
         pass
-    ## save to full resolution to stitched folder
+    # save to full resolution to stitched folder
     tiff.imwrite(stitched_path, stitch_canvas)
     print(stitched_path, ' stitched')
-    ## downsample and save to sharptrack folder for green channel
+    # downsample and and save to sharpy_track folder
     if not downsampled_path:
         pass
     else:
         contrast_tuple = tuple(params['sharpy_track_params'][chan])
         downsample(stitch_canvas, downsampled_path, (1140, 800), contrast_tuple)
     return pop_img
+
+
+def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled_path=False, padding=True):
+
+    meta_data = load_meta(section_dir)
+    data_list = [meta_data['Prefix'] + "_MMStack_" + d['Label'] +'.ome.tif' for d in meta_data['StagePositions']]
+
+    w = max([i['GridCol'] for i in meta_data['StagePositions']]) + 1
+    h = max([i['GridRow'] for i in meta_data['StagePositions']]) + 1
+
+    # calculate canvas size
+    canvas_w = int(2048 * w) - int(overlap * (w - 1))
+    canvas_h = int(2048 * h) - int(overlap * (h - 1))
+    # initialize a empty array
+    stitch_canvas = np.zeros((canvas_h, canvas_w), np.uint16)
+
+    loc_map = map_loc(w, h)
+
+    for j in range(h):
+        for i in range(w):
+            d_left, d_up = (0, 0)
+            img = cv2.imread(str(section_dir.joinpath(data_list[loc_map[int(w * j) + i]])), cv2.IMREAD_ANYDEPTH)
+            # overlap shifting
+            # horizontal shifting
+            if i == 0:
+                d_left = 0
+            else:
+                d_left = int(overlap * i)
+            # vertical shifting
+            if j == 0:
+                d_up = 0
+            else:
+                d_up = int(overlap * j)
+            # filling in canvas with tiles
+            try:
+                stitch_canvas[int(j * 2048) - d_up:int((j + 1) * 2048) - d_up,
+                int(i * 2048) - d_left:int((i + 1) * 2048) - d_left] = img
+            except:
+                print("image damaged")
+    # anti-distortion
+    if padding is True:
+        stitch_canvas = anti_distortion(stitch_canvas)
+    else:
+        pass
+    tiff.imwrite(stitched_path, stitch_canvas)
+    print(stitched_path, ' stitched')
+    if not downsampled_path:
+        pass
+    else:
+        contrast_tuple = tuple(params['sharpy_track_params'][chan])
+        downsample(stitch_canvas, downsampled_path, (1140, 800), contrast_tuple)
+
+
+
+
 
 
 def downsample(input_tiff, output_png, size_tuple, contrast_tuple):
