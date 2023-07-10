@@ -1,13 +1,16 @@
 from napari import Viewer
+from napari.qt.threading import thread_worker
 from natsort import natsorted
 import cv2
-from napari_dmc_brainmap.utils import get_info
+from napari_dmc_brainmap.utils import get_info, get_animal_id
 from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
+import numpy as np
 import pandas as pd
 import random
 import matplotlib.colors as mcolors
+from skimage.measure import label, regionprops
 from napari.utils.notifications import show_info
 
 
@@ -71,6 +74,39 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
         return im
     else:
         return path_to_im
+
+@thread_worker
+def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type='cells'):
+    for chan in channels:
+        mask_dir = get_info(input_path, mask_folder, seg_type=mask_type, channel=chan, only_dir=True)
+        output_dir = get_info(input_path, output_folder, seg_type=mask_type, channel=chan, create_dir=True,
+                              only_dir=True)
+        mask_images = natsorted([im.parts[-1] for im in mask_dir.glob('*.tiff')])
+        for im_name in mask_images:
+            path_to_im = mask_dir.joinpath(im_name)
+            image = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
+            label_img = label(image) # identify individual segmented structures
+            regions = regionprops(label_img) # get there properties -> we want to have the centroid point as a "location" of the cell
+            cent = np.zeros((np.size(regions), 2))
+            for idx, props in enumerate(regions):
+                cent[idx, 0] = props.centroid[0] # y-coordinates
+                cent[idx, 1] = props.centroid[1] # x-coordinates
+            # create csv file in folders to match imaris output
+            csv_to_save = pd.DataFrame(cent)
+            csv_to_save = csv_to_save.rename(columns={0: "Position Y", 1: "Position X"})
+            csv_save_name = output_dir.joinpath(im_name.split('.')[0] + '_' + mask_type + '.csv')
+            csv_to_save.to_csv(csv_save_name)
+            #
+            location_binary = np.zeros((image.shape)) # make new binary with centers of segmented cells only
+            cent = (np.round(cent)).astype(int)
+            for val in cent:
+                location_binary[val[0], val[1]] = 255
+            location_binary = location_binary.astype(int)
+            location_binary = location_binary.astype('uint8') # convert to 8-bit
+            save_name = im_name.split('.')[0] + '_centroids.tif'  # get the name
+            cv2.imwrite(str(mask_dir.joinpath(save_name)), location_binary)
+            # progress_bar.update(100 / len(binary_images))
+        print("Done with " + chan)
 
 @magicgui(
     layout='vertical',
@@ -146,6 +182,27 @@ def load_preseg_widget(
 
     return load_preseg_widget
 
+@magicgui(
+    layout='vertical',
+    mask_folder=dict(widget_type='LineEdit', label='folder name with pre-segmented data', value='segmentation_masks',
+                     tooltip='folder needs to contain sub-folders with channel names and .tif images with segmented '
+                             'of cells.'),
+    mask_type=dict(widget_type='ComboBox', label='segmentation type',
+                    choices=['cells'], value='cells',
+                    tooltip='select segmentation type to load'),  # todo other than cells?
+    output_folder=dict(widget_type='LineEdit', label='output folder', value='segmentation',
+                     tooltip='name of output folder for storing centroids of segmentation masks'),
+    call_button=False
+)
+def find_centroids_widget(
+    viewer: Viewer,
+    mask_folder,
+    mask_type,
+    output_folder
+) -> None:
+
+    return find_centroids_widget
+
 
 
 class SegmentWidget(QWidget):
@@ -160,11 +217,19 @@ class SegmentWidget(QWidget):
         preseg = load_preseg_widget
         self._collapse_preseg.addWidget(preseg.native)
 
+        self._collapse_center = QCollapsible('Find centroids for pre-segmented data (masks): expand for more', self)
+        center = find_centroids_widget
+        self._collapse_center.addWidget(center.native)
+        btn_center = QPushButton("get center coordinates for pre-segmented data")
+        btn_center.clicked.connect(self._get_center_coord)
+        self._collapse_center.addWidget(btn_center)
+
         btn = QPushButton("save data and load next image")
         btn.clicked.connect(self._save_and_load)
 
         self.layout().addWidget(segment.native)
         self.layout().addWidget(self._collapse_preseg)
+        self.layout().addWidget(self._collapse_center)
         self.layout().addWidget(btn)
 
     def _update_save_dict(self, image_idx, seg_type, n_probes):
@@ -324,5 +389,12 @@ class SegmentWidget(QWidget):
         #             save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
         #             coords.to_csv(save_name)
 
-
+    def _get_center_coord(self):
+        input_path = segment_widget.input_path.value
+        channels = segment_widget.channels.value
+        mask_folder = find_centroids_widget.mask_folder.value
+        mask_type = find_centroids_widget.mask_type.value
+        output_folder = find_centroids_widget.output_folder.value
+        center_worker = get_center_coord(input_path, channels, mask_folder, output_folder, mask_type=mask_type)
+        center_worker.start()
 
