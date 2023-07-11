@@ -312,13 +312,9 @@ class SegmentWidget(QWidget):
         pre_seg_type = load_preseg_widget.seg_type.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=pre_seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
-        print(im_name)
-        print(pre_seg_list)
         fn_to_load = [d for d in pre_seg_list if d.startswith(im_name.split('.')[0])]
-        print(fn_to_load)
         if fn_to_load:
             df = pd.read_csv(pre_seg_dir.joinpath(fn_to_load[0]))  # load dataframe
-            print(df)
             try:
                 pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
             except KeyError:
@@ -340,7 +336,6 @@ class SegmentWidget(QWidget):
             if load_preseg_widget.load_bool.value:  # loading presegmented cells
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx)
-                    print(pre_seg_data)
                     self.viewer.add_points(pre_seg_data, size=5, name=chan, face_color=cmap_dict[chan])
             else:
                 for chan in channels:

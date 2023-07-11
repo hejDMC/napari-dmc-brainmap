@@ -143,7 +143,7 @@ def barplot_widget(
                                           ' to plot (no white spaces: area1,area2)'),
     intervals=dict(widget_type='LineEdit', label='intervals',
                    value='-0.5,0.0,0.5,1.0,1.5', tooltip='enter a COMMA SEPERATED list of mm coordinates relative '
-                                                         'to bregma defining the intervals to plot'),
+                                                         'to bregma defining the intervals to plot (increasing in value)'),
     include_layers=dict(widget_type='CheckBox', label='include layers?', value=True,
                        tooltip='option to include layers of brain areas defined above, e.g. PL1, PL2/3 etc. '
                                'for PL'),
