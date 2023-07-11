@@ -138,8 +138,7 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan):
 @thread_worker
 def quantify_injection_side(input_path, chan, seg_type='injection_side'):
 
-
-    if not seg_type == 'injection_side':
+    if seg_type not in ['injection_side', 'cells']:
         print("not implemented! please, select 'injection_side' as segmentation type")
         return
 
@@ -183,7 +182,7 @@ def quantify_injection_side(input_path, chan, seg_type='injection_side'):
     quant_df_pivot.to_csv(save_fn)
     print("Relative injection side for " + chan + " channel:")
     print(quant_df_pivot)
-    return [quant_df_pivot, chan]
+    return [quant_df_pivot, chan, seg_type]
 
 
 
@@ -270,16 +269,17 @@ class ResultsWidget(QWidget):
     def _quantify_injection_side(self):
         input_path = results_widget.input_path.value
         channels = results_widget.channels.value
+        seg_type = results_widget.seg_type.value
         for chan in channels:
-            worker_quantification = quantify_injection_side(input_path, chan)
+            worker_quantification = quantify_injection_side(input_path, chan, seg_type=seg_type)
             worker_quantification.returned.connect(self._plot_quant_injection_side)
             worker_quantification.start()
 
 
     def _plot_quant_injection_side(self, in_data):
-        df, chan = in_data
+        df, chan, seg_type = in_data
         input_path = results_widget.input_path.value
-        results_dir = get_info(input_path, 'results', channel=chan, seg_type='injection_side', only_dir=True)
+        results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
         clrs = sns.color_palette(quant_inj_widget.cmap.value)
         mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
         static_ax = mpl_widget.figure.subplots()
