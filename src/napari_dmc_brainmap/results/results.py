@@ -182,7 +182,7 @@ def quantify_injection_side(input_path, chan, seg_type='injection_side'):
     quant_df_pivot.to_csv(save_fn)
     print("Relative injection side for " + chan + " channel:")
     print(quant_df_pivot)
-    return [quant_df_pivot, chan, seg_type]
+    return [quant_df_pivot, chan, seg_type, results_data]
 
 
 
@@ -221,15 +221,19 @@ def results_widget(
     save_fig=dict(widget_type='CheckBox', label='save figure?', value=False,
                        tooltip='tick to save figure'),
     plot_size=dict(widget_type='LineEdit', label='enter plot size',
-                            value='8,6', tooltip='enter the COMMA SEPERATED size of the plot'),
+                            value='16,12', tooltip='enter the COMMA SEPERATED size of the plot'),
     cmap=dict(widget_type='LineEdit', label='colormap',
               value='Blues', tooltip='enter colormap to use for the pie chart'),
+    kde_axis=dict(widget_type='ComboBox', label='select axis for density plots',
+                  choices=['AP', 'ML', 'DV', 'AP/ML', 'AP/DV', 'ML/DV'], value='AP',
+                  tooltip='AP=antero-posterior, ML=medio-lateral, DV=dorso-ventral'),
     call_button=False
 )
 def quant_inj_widget(
         save_fig,
         plot_size,
-        cmap
+        cmap,
+        kde_axis
 ):
     return quant_inj_widget
 
@@ -277,15 +281,35 @@ class ResultsWidget(QWidget):
 
 
     def _plot_quant_injection_side(self, in_data):
-        df, chan, seg_type = in_data
+        df, chan, seg_type, results_data = in_data
         input_path = results_widget.input_path.value
         results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
         clrs = sns.color_palette(quant_inj_widget.cmap.value)
         mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
-        static_ax = mpl_widget.figure.subplots()
-        static_ax.pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
-        static_ax.title.set_text('quantification of the injection side in ' + chan + " channel")
-        static_ax.axis('off')
+
+        plt_axis = quant_inj_widget.kde_axis.value.split('/')
+        axis_dict = {
+            'AP': ['ap_mm', 'antero-posterior coordinates [mm]'],
+            'ML': ['ml_mm', 'medio-lateral coordinates [mm]'],
+            'DV': ['dv_mm', 'dorso-ventral coordinates [mm]']
+        }
+
+        static_ax = mpl_widget.figure.subplots(1, 2)
+        static_ax[0].pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
+        static_ax[0].title.set_text('quantification of ' + seg_type + ' in ' + chan + " channel")
+        static_ax[0].axis('off')
+        if len(plt_axis) == 1:
+            sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-1],
+                        common_norm=False, fill=True, legend=False)
+            static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
+        else:
+            sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y=axis_dict[plt_axis[1]][0] ,
+                        color=clrs[-1], common_norm=False, fill=True, legend=False)
+            static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
+            static_ax[1].set_ylabel(axis_dict[plt_axis[1]][1])
+        static_ax[1].spines['top'].set_visible(False)
+        static_ax[1].spines['right'].set_visible(False)
+        static_ax[1].title.set_text('kde plot of ' + seg_type + ' in ' + chan + " channel")
         if quant_inj_widget.save_fig.value:
             save_fn = results_dir.joinpath('quantification_injection_side.svg')
             mpl_widget.figure.savefig(save_fn)

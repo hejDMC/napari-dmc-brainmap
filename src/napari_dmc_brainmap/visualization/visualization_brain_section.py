@@ -300,95 +300,44 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
     return mpl_widget
 
 
-# todo delete this if not needed anymore
-# def create_cmap(animal_dict, plotting_params, df=pd.DataFrame(), hue_id='channel'):
+# todo started with some stuff to merge line of brain section plot, but removing elements doesn't work..plus the child function is making things quite big, so prob just appending the g_element
+# import xml.etree.ElementTree as ET
 #
-#     cmap = {}
-#     if not df.empty:
-#         group_ids = list(df[hue_id].unique())
-#     else:
-#         group_ids = list(animal_dict.keys())
-#     cmap_groups = plotting_params["color_cells"]
-#     num_groups = len(group_ids)
-#     if cmap_groups[0]:
-#         num_colors = len(cmap_groups)
-#     else:
-#         num_colors = 0
-#         cmap_groups = []
-#     if num_groups > num_colors:  # more groups than colors
-#         print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
-#               " cmap groups --> adding random colors")
-#         diff = num_groups - num_colors
-#         for d in range(diff):
-#             cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
-#     elif num_groups < num_colors:  # less groups than colors
-#         print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
-#               " cmap groups --> dropping colors")
-#         diff = num_colors - num_groups
-#         cmap_groups = cmap_groups[:-diff]
-#     for g, c in zip(group_ids, cmap_groups):
-#         cmap[g] = c
-#     return cmap
-
-# def create_color_dict(input_path, animal_list, data_dict, plotting_params):
+# def merge_layers(svg_file_path):
+#     tree = ET.parse(svg_file_path)
+#     root = tree.getroot()
 #
-#     color_dict = {}
-#     for item in plotting_params['plot_item']:
-#         if item == 'cells':
-#             color_dict[item] = {}
-#             if plotting_params["groups"] in ['genotype', 'group']:
-#                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
-#                 cmap = create_cmap(animal_dict, plotting_params)
-#                 single_color = False
-#             elif plotting_params["groups"] in ['channel', 'animal_id']:
-#                 cmap = create_cmap([], plotting_params, df=data_dict[item], hue_id=plotting_params["groups"])
-#                 single_color = False
-#             else:
-#                 single_color = True
-#                 if not plotting_params["color_cells"][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params["color_cells"][0]
-#         elif item == 'projections':
-#             color_dict[item] = {}
-#             cmap = plotting_params["cmap_projection"]
-#             single_color = True
-#         elif item == 'injection_side':
-#             color_dict[item] = {}
-#             if plotting_params["groups"] in ['genotype', 'group']:
-#                 print("groups and genotypes not implemented for visualizing injection sides. Defaulting to single "
-#                       "color plot selected.")
-#                 single_color = True
-#                 if not plotting_params["color_inj"][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params["color_inj"][0]
-#             elif plotting_params["groups"] == 'channel':
-#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
-#                 single_color = False
-#             else:
-#                 single_color = True
-#                 if not plotting_params["color_inj"][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params["color_inj"][0]
+#     # Find all <g> elements
+#     g_elements = root.findall('.//{http://www.w3.org/2000/svg}g')
 #
-#         else:
-#             if item == "optic_fiber":
-#                 clr_id = "color_optic"
-#             else:
-#                 clr_id = "color_npx"
-#             color_dict[item] = {}
-#             num_probe = len(data_dict[item]['channel'].unique())
-#             if num_probe == 1:
-#                 single_color = True
-#                 if not plotting_params[clr_id][0]:
-#                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
-#                 else:
-#                     cmap = plotting_params[clr_id][0]
-#             else:
-#                 single_color = False
-#                 cmap = create_cmap([], plotting_params, df=data_dict[item])
-#         color_dict[item]['cmap'] = cmap
-#         color_dict[item]['single_color'] = single_color
-#     return color_dict
+#     if len(g_elements) > 1:
+#         # Create a new <g> element for the merged layers
+#         merged_g = ET.Element('{http://www.w3.org/2000/svg}g')
+#
+#         # Iterate through each <g> element and move its children to the merged layer
+#         elements_to_remove = []
+#         for g_element in g_elements:
+#             try:
+#                 if g_element.get('id').startswith('LineCollection'):
+#                     for child in g_element:
+#                         merged_g.append(child)
+#                     elements_to_remove.append(g_element)
+#             except AttributeError:
+#                 pass
+#
+#         # Create a list of elements to remove
+#         # elements_to_remove = list(g_elements)
+#
+#         # Remove the existing <g> elements
+#         for element in elements_to_remove:
+#             root.remove(element)
+#
+#         # Add the merged <g> element to the root
+#         root.append(merged_g)
+#
+#     # Save the modified SVG file
+#     tree.write(svg_file_path, xml_declaration=True)
+#
+# # Example usage
+# svg_file_path = '/home/felix/Desktop/BM-001/plots/test.svg'
+# merge_layers(svg_file_path)
