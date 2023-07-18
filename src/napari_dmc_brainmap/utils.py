@@ -189,3 +189,10 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
 
     return dict
 
+def get_bregma(atlas="allen_mouse_10um"):
+
+    bregma_dict = {
+        "allen_mouse_10um": [540, 0, 570]
+    }
+
+    return bregma_dict[atlas]

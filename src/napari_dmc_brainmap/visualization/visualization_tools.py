@@ -4,11 +4,10 @@ import json
 import matplotlib.colors as mcolors
 from natsort import natsorted
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
-
+from bg_atlasapi import BrainGlobeAtlas
 
 def dummy_load_allen_structure_tree():
-    s = sliceHandle()
+
     st = s.df_tree
     return st
 
@@ -16,11 +15,6 @@ def dummy_load_allen_annot():
     s = sliceHandle(load_annot=True)
     annot = s.annot  # todo not sure this works
     return annot
-
-def get_bregma():
-    s = sliceHandle()
-    bregma = s.bregma
-    return bregma
 
 def get_ipsi_contra(df):
     '''

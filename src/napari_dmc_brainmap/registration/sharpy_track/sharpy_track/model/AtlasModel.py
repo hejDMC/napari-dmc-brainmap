@@ -1,11 +1,10 @@
-import numpy as np
-import cv2
+
 from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
-import os
-import pandas as pd
+
+
 from pathlib import Path
 from pkg_resources import resource_filename
 from bg_atlasapi import BrainGlobeAtlas
@@ -24,20 +23,17 @@ class AtlasModel():
 
 
     def loadTemplate(self):
-        # self.vol = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
         print('loading template volume...')
         self.template = self.atlas.reference
         self.template = adjust_contrast(self.template, (0, self.template.max()))
         self.template = do_8bit(self.template)
 
-    #
+
     def loadAnnot(self):
-        # self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
         self.annot = self.atlas.annotation
-        # self.ap_mat = np.full((800,1140),539) # initiate ap_map at AP = 0mm
-    #
+
+
     def loadStructureTree(self):
-        # self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
         self.sTree = self.atlas.structures
         self.bregma = [540, 0, 570]
 
@@ -159,10 +155,10 @@ class AtlasModel():
         self.imgStack = np.full((regViewer.status.sliceNum,800,1140),-1,dtype=np.uint8)
         # copy slices to stack
         for i in range(regViewer.status.sliceNum):
-            full_path = os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[i])
-            img_data = cv2.imread(full_path,cv2.IMREAD_GRAYSCALE)
-            self.imgStack[i,:,:] = img_data
-        print(regViewer.status.sliceNum,"Slice(s) loaded")
+            full_path = Path(regViewer.status.folderPath).joinpath(regViewer.status.imgFileName[i])
+            img_data = cv2.imread(str(full_path), cv2.IMREAD_GRAYSCALE)
+            self.imgStack[i, :, :] = img_data
+        print(regViewer.status.sliceNum, "Slice(s) loaded")
 
 
     def updateDotPosition(self,regViewer):

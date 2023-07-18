@@ -66,13 +66,13 @@ def get_certainty_list(probe_tract, annot):
             nML = np.delete(nML, i_to_remove)  # index lists
             voxel_reduce = len(i_to_remove)  # reduce demoninator at certainty
 
-        sphinxn = annot[nAP, nDV, nML]  # get sphinxID of all neibouring voxels, except outliers
-        sphinxID = annot[probe_tract['Voxel_AP'][row],
+        structures_neighbor = annot[nAP, nDV, nML]  # get structure_ids of all neighboring voxels, except outliers
+        structure_id = annot[probe_tract['Voxel_AP'][row],
                          probe_tract['Voxel_DV'][row],
                          probe_tract['Voxel_ML'][row]]  # center voxel
-        uni, count = np.unique(sphinxn, return_counts=True)  # summarize neibouring structures
+        uni, count = np.unique(structures_neighbor, return_counts=True)  # summarize neibouring structures
         try:
-            certainty = dict(zip(uni, count))[sphinxID] / (
+            certainty = dict(zip(uni, count))[structure_id] / (
                     (check_size * 2 + 1) ** 3 - voxel_reduce)  # calculate certainty score
             certainty_list.append(certainty)
         except KeyError:
@@ -161,12 +161,12 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
 
     ## get certainty value, color code with each brain region
     # get unique regions
-    region_unique = np.unique(probe_tract['SphinxID'].values)
+    region_unique = np.unique(probe_tract['structure_id'].values)
     # generate visually distinct colors
     colors = distinctipy.get_colors(len(region_unique))
     reg_color_dict = dict(zip(region_unique, colors))
 
-    region_split = np.split(probe_tract['SphinxID'].values, np.where(np.diff(probe_tract['SphinxID'].values))[0] + 1)
+    region_split = np.split(probe_tract['structure_id'].values, np.where(np.diff(probe_tract['structure_id'].values))[0] + 1)
 
     chan_row_n = 0
     for r in region_split:

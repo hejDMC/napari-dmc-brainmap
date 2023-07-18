@@ -1,15 +1,18 @@
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QFileDialog
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.MainWidget import MainWidget
+from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 
 import numpy as np
-import pandas as pd
-import cv2,json
+
+import cv2
+import json
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap,QImage
 from pathlib import Path
 from pkg_resources import resource_filename
 from bg_atlasapi import BrainGlobeAtlas
 
+# todo merge this with atlas model
 
 class ProbeVisualizer(QMainWindow):
     def __init__(self, app):
@@ -23,9 +26,6 @@ class ProbeVisualizer(QMainWindow):
         self.createMenus()
         print("loading reference atlas...")
         self.atlas = BrainGlobeAtlas("allen_mouse_10um")
-        self.loadVolume()
-        self.loadAnnot()
-        self.loadStructureTree()
         self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()
@@ -37,16 +37,17 @@ class ProbeVisualizer(QMainWindow):
         self.widget = MainWidget(self)
         self.setCentralWidget(self.widget.widget)
 
-        
-
     def loadTemplate(self):
-        self.vol = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
-    
+        print('loading template volume...')
+        self.template = self.atlas.reference
+        self.template = adjust_contrast(self.template, (0, self.template.max()))
+        self.template = do_8bit(self.template)
+
     def loadAnnot(self):
-        self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
-    
+        self.annot = self.atlas.annotation
+
     def loadStructureTree(self):
-        self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
+        self.sTree = self.atlas.structures
         self.bregma = [540, 0, 570]
 
     def calculateImageGrid(self):
@@ -78,19 +79,20 @@ class ProbeVisualizer(QMainWindow):
         # get coordinates in mm
         # from cursor position get annotation index
         if self.viewerID == 0: # coronal
-            sphinx_id = self.annot[self.currentAP,self.widget.labelContour.cursorPos[1],self.widget.labelContour.cursorPos[0]]
+            structure_id = self.annot[self.currentAP,self.widget.labelContour.cursorPos[1],self.widget.labelContour.cursorPos[0]]
             coord_mm = self.getCoordMM([self.currentAP,self.widget.labelContour.cursorPos[1],self.widget.labelContour.cursorPos[0]])
         elif self.viewerID == 1: # axial
-            sphinx_id = self.annot[self.widget.labelContour.cursorPos[0],self.currentDV,self.widget.labelContour.cursorPos[1]]
+            structure_id = self.annot[self.widget.labelContour.cursorPos[0],self.currentDV,self.widget.labelContour.cursorPos[1]]
             coord_mm = self.getCoordMM([self.widget.labelContour.cursorPos[0],self.currentDV,self.widget.labelContour.cursorPos[1]])
         else: # sagital
-            sphinx_id = self.annot[self.widget.labelContour.cursorPos[0],self.widget.labelContour.cursorPos[1],self.currentML]
+            structure_id = self.annot[self.widget.labelContour.cursorPos[0],self.widget.labelContour.cursorPos[1],self.currentML]
             coord_mm = self.getCoordMM([self.widget.labelContour.cursorPos[0],self.widget.labelContour.cursorPos[1],self.currentML])
-        # get highlight area index
-        activeArea = np.where(self.sliceAnnot == sphinx_id)
-        # find name in sTree
-        structureName = self.sTree.iloc[sphinx_id-1,:]['safe_name']
-        self.highlightArea(coord_mm,activeArea,structureName)
+        if structure_id > 0:
+            # get highlight area index
+            activeArea = np.where(self.sliceAnnot == structure_id)
+            # find name in sTree
+            structureName = self.sTree.data[structure_id]['name']
+            self.highlightArea(coord_mm,activeArea,structureName)
 
     def highlightArea(self,listCoordMM,activeArea,structureName):
         contourHighlight = self.outline.copy()

@@ -10,8 +10,9 @@ from skspatial.objects import Line, Points # scikit-spatial package: https://sci
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from napari_dmc_brainmap.probe_visualizer.probe_visualizer_tools import get_primary_axis, get_voxelized_coord, \
     get_certainty_list, check_probe_insert, save_probe_tract_fig
-from napari_dmc_brainmap.visualization.visualization_tools import dummy_load_allen_annot, dummy_load_allen_structure_tree
 from napari_dmc_brainmap.utils import get_info
+
+from bg_atlasapi import BrainGlobeAtlas
 
 
 def load_probe_data(results_dir, probe):
@@ -39,12 +40,13 @@ def get_linefit3d(probe_df):
 
     return linefit, linevox, ax_primary
 
-def get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox):
+def get_probe_tract(input_path, save_path, atlas, probe, probe_insert, linefit, linevox):
+
     # find brain surface
-    annot = dummy_load_allen_annot()
-    sphinxID_list = annot[linevox['zpixel'], linevox['ypixel'], linevox['xpixel']]
-    sphinx_split = np.split(sphinxID_list, np.where(np.diff(sphinxID_list))[0] + 1)
-    surface_index = len(sphinx_split[0])  # get index of first non-root structure
+    annot = atlas.annotation
+    structure_id_list = annot[linevox['zpixel'], linevox['ypixel'], linevox['xpixel']]
+    structure_split = np.split(structure_id_list, np.where(np.diff(structure_id_list))[0] + 1)
+    surface_index = len(structure_split[0])  # get index of first non-root structure
     surface_vox = linevox.iloc[surface_index, :].values  # get brain surface voxel coordinates
 
     probe_insert, direction_unit = check_probe_insert(probe_insert, linefit, surface_vox)
@@ -65,11 +67,13 @@ def get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox
             np.expand_dims(direction_unit, axis=0))
         + surface_vox).astype(int))
 
-    probe_tract['SphinxID'] = annot[probe_tract['Voxel_AP'], probe_tract['Voxel_DV'], probe_tract['Voxel_ML']]
+    probe_tract['structure_id'] = annot[probe_tract['Voxel_AP'], probe_tract['Voxel_DV'], probe_tract['Voxel_ML']]
+
     # read df_tree
-    df_tree = dummy_load_allen_structure_tree()
-    probe_tract['Acronym'] = df_tree.iloc[probe_tract['SphinxID'] - 1, :]['acronym'].values
-    probe_tract['Name'] = df_tree.iloc[probe_tract['SphinxID'] - 1, :]['name'].values
+    df_tree = atlas.structures
+
+    probe_tract['Acronym'] = [df_tree.data[i]['acronym'] if i > 0 else 'root' for i in probe_tract['structure_id']]
+    probe_tract['Name'] = [df_tree.data[i]['name'] if i > 0 else 'root' for i in probe_tract['structure_id']]
 
     certainty_list = get_certainty_list(probe_tract, annot)
     probe_tract['Certainty'] = certainty_list
@@ -90,13 +94,15 @@ def calculate_probe_tract(input_path, save_path, probe_insert):
     #     if diff < 0:
     #         for d in range(diff):
     #             probe_insert.append(4000)
+    print("loading reference atlas...")
+    atlas = BrainGlobeAtlas("allen_mouse_10um")
     print("calculating probe tract for...")
     for probe in probes_list:
         print("... " + probe)
         probe_df = load_probe_data(results_dir, probe)
         linefit, linevox, ax_primary = get_linefit3d(probe_df)
 
-        probe_tract = get_probe_tract(input_path, save_path, probe, probe_insert, linefit, linevox)
+        probe_tract = get_probe_tract(input_path, save_path, atlas, probe, probe_insert, linefit, linevox)
         # save probe tract data
         save_fn = save_path.joinpath(probe + '_data.csv')
         probe_tract.to_csv(save_fn)
