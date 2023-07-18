@@ -150,7 +150,7 @@ class AtlasModel():
             img_data = cv2.imread(full_path,cv2.IMREAD_GRAYSCALE)
             self.imgStack[i,:,:] = img_data
         print(regViewer.status.sliceNum,"Slice(s) loaded")
-    
+
 
     def updateDotPosition(self,regViewer):
         # ignore if less than 5 pairs of dots
