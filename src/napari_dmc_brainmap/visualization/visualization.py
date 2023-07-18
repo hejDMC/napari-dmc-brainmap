@@ -12,6 +12,8 @@ from napari_dmc_brainmap.visualization.visualization_bar_plot import get_bar_plo
 from napari_dmc_brainmap.visualization.visualization_heatmap import get_heatmap_params, do_heatmap
 from napari_dmc_brainmap.visualization.visualization_brain_section import get_brain_section_params, \
     do_brain_section_plot
+from bg_atlasapi import BrainGlobeAtlas
+
 @magicgui(
     layout='vertical',
     input_path=dict(widget_type='FileEdit', label='input path: ',
@@ -324,10 +326,11 @@ class VisualizationWidget(QWidget):
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_bar_plot_params(barplot_widget)
-
-        df = load_data(input_path, animal_list, channels)
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas("allen_mouse_10um")
+        df = load_data(input_path, atlas, animal_list, channels)
         tgt_list = split_to_list(barplot_widget.tgt_list.value)
-        mpl_widget = do_bar_plot(df, plotting_params, animal_list, tgt_list, barplot_widget, save_path)
+        mpl_widget = do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widget, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 
 
@@ -340,10 +343,11 @@ class VisualizationWidget(QWidget):
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_heatmap_params(heatmap_widget)
-
-        df = load_data(input_path, animal_list, channels)
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas("allen_mouse_10um")
+        df = load_data(input_path, atlas, animal_list, channels)
         tgt_list = split_to_list(heatmap_widget.tgt_list.value)
-        mpl_widget = do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_path)
+        mpl_widget = do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 
     def _do_brain_section_plot(self):
@@ -357,10 +361,13 @@ class VisualizationWidget(QWidget):
         plotting_params = get_brain_section_params(brain_section_widget)
         plot_item = brain_section_widget.plot_item.value
         data_dict = {}
-        for item in plot_item:
-            data_dict[item] = load_data(input_path, animal_list, channels, data_type=item)
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas("allen_mouse_10um")
 
-        mpl_widget = do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, brain_section_widget,
+        for item in plot_item:
+            data_dict[item] = load_data(input_path, atlas, animal_list, channels, data_type=item)
+
+        mpl_widget = do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, brain_section_widget,
                                                      save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 

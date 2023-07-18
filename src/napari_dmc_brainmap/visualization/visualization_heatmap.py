@@ -5,11 +5,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list, split_strings_layers
-from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_bregma, dummy_load_allen_structure_tree, dummy_load_allen_annot
+from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_bregma
 
-def calculate_percentage_heatmap_plot(df_all, plotting_params, animal_list, tgt_list, sub_list):
+def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_list, tgt_list, sub_list):
 
-    df = get_tgt_data_only(df_all, tgt_list)
+    df = get_tgt_data_only(df_all, atlas, tgt_list)
     interval_labels = plotting_params["interval_labels"]
     intervals = plotting_params["intervals"]
     df['bin'] = pd.cut(df['ap_mm'], intervals, labels=interval_labels)
@@ -72,25 +72,31 @@ def get_interval_labels(intervals):
             interval_labels.append(str(intervals[i]) + " to " + str(intervals[i+1]))
     return interval_labels
 
-def get_layer_list(tgt_list):
-    st = dummy_load_allen_structure_tree()
+def get_layer_list(tgt_list, atlas):
+
+    # for now only for isocortical areas, not sure about olfactory areas
     new_tgt_list = []
     for tgt in tgt_list:
-        tgt_path = st[st['acronym'] == tgt]['structure_id_path'].to_list()[0]
-        try:
-            new_tgt_list += st[st['structure_id_path'].str.contains(tgt_path)]['acronym'].to_list()[1:]  # ignore first entry -- this is parent
-        except IndexError:
-            pass
-    # for some cortical regions, a layer 2 and layer 2/3 exist --> ignore the layer 2
-    new_tgt_list = [t for t in new_tgt_list if not split_strings_layers(t)[1] == '2']
+        if 'Isocortex' in atlas.get_structure_ancestors(tgt):
+            new_tgt_list.append(atlas.get_structure_descendants(tgt))
+        else:
+            new_tgt_list.append(tgt)
+    new_tgt_list = [l for sublist in new_tgt_list for l in sublist]  # flatten list
+    #     tgt_path = st[st['acronym'] == tgt]['structure_id_path'].to_list()[0]
+    #     try:
+    #         new_tgt_list += st[st['structure_id_path'].str.contains(tgt_path)]['acronym'].to_list()[1:]  # ignore first entry -- this is parent
+    #     except IndexError:
+    #         pass
+    # # for some cortical regions, a layer 2 and layer 2/3 exist --> ignore the layer 2
+    # new_tgt_list = [t for t in new_tgt_list if not split_strings_layers(t)[1] == '2']
     return new_tgt_list
 
-def check_brain_area_in_bin(df):
+def check_brain_area_in_bin(df, atlas):
     # for heatmap plotting, check if brain area exists in bin
     print('checking for existence of brain area in bin ...')
     bregma = get_bregma()
-    st = dummy_load_allen_structure_tree()
-    annot = dummy_load_allen_annot()
+    st = atlas.structures
+    annot = atlas.annotation
     for bin in df.columns:
         print(bin)
         b_start, b_end = bin.split(' to ')
@@ -102,7 +108,8 @@ def check_brain_area_in_bin(df):
 
             ids_in_bin = np.unique(annot[b_start_coord:b_end_coord, :, :])
         for area in df.index:
-            area_id = int(st[st['acronym'] == area]['sphinx_id'])
+            area_id = st[area].data['id']
+            # area_id = int(st[st['acronym'] == area]['sphinx_id'])
             if area_id not in ids_in_bin:
                 df[bin][area] = -1
     return df
@@ -130,7 +137,7 @@ def get_heatmap_params(heatmap_widget):
     }
     return plotting_params
 
-def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_path, sub_list=False):
+def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget, save_path, sub_list=False):
     # if applicable only get the ipsi or contralateral cells
     hemisphere = plotting_params['hemisphere']
     if hemisphere == 'ipsi':
@@ -139,13 +146,14 @@ def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_
         df = df[df['ipsi_contra'] == 'contra']
 
     if plotting_params["include_layers"]:
-        new_tgt_list = get_layer_list(tgt_list)
+        new_tgt_list = get_layer_list(tgt_list, atlas)
+        print(new_tgt_list)
     else:
         new_tgt_list = tgt_list
 
-    tgt_data_to_plot = calculate_percentage_heatmap_plot(df, plotting_params, animal_list, new_tgt_list, sub_list)
+    tgt_data_to_plot = calculate_percentage_heatmap_plot(df, atlas, plotting_params, animal_list, new_tgt_list, sub_list)
     # put not existing areas to -1 for plotting
-    tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot)
+    tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
     if plotting_params["transpose"]:
         tgt_data_to_plot = tgt_data_to_plot.transpose()
     max_range = tgt_data_to_plot.max().max()
@@ -168,7 +176,7 @@ def do_heatmap(df, animal_list, tgt_list, plotting_params, heatmap_widget, save_
         static_ax[0].get_shared_y_axes().join(static_ax[a])
     for t, tgt in enumerate(tgt_list):
         if plotting_params["include_layers"]:
-            tgt_col = get_layer_list([tgt])
+            tgt_col = get_layer_list([tgt], atlas)
             i_start = tgt_data_to_plot.columns.get_loc(tgt_col[0])
             i_end = tgt_data_to_plot.columns.get_loc(tgt_col[-1])
             sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end+1], cmap=cmap, cbar=False, vmin=cmap_min,

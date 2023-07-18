@@ -137,8 +137,9 @@ def get_parent(a, st):
 def clean_results_df(df, atlas):
 
     list_delete = ['root']
-    for item in ['fiber tracts']:  # 'ventricular systems'
+    for item in ['fiber tracts', 'VS']:
         list_delete.append(atlas.get_structure_descendants(item))
+    list_delete = [l for sublist in list_delete for l in sublist]  # flatten list
     df = df.drop(df[df['acronym'].isin(list_delete)].index)
     df = df.reset_index(drop=True)
 

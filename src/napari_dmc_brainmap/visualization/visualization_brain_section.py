@@ -9,8 +9,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict
-from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, dummy_load_allen_structure_tree, \
-    dummy_load_allen_annot, plot_brain_schematic, coord_mm_transform
+from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, coord_mm_transform
 
 
 def get_brain_section_params(brainsec_widget):
@@ -114,7 +113,7 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
     return color_dict
 
 
-def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
+def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
 
     color_dict = create_color_dict(input_path, animal_list, data_dict, plotting_params)
     section_list = plotting_params["section_list"]  # in mm AP coordinates for coronal sections
@@ -126,8 +125,7 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
     n_col = 0
     section_range = plotting_params["section_range"]
     bregma = get_bregma()
-    st = dummy_load_allen_structure_tree()
-    annot = dummy_load_allen_annot()
+    annot = atlas.annotation
     for item in data_dict:
         data_dict[item] = coord_mm_transform(data_dict[item])
 
@@ -138,7 +136,7 @@ def do_brain_section_plot(input_path, data_dict, animal_list, plotting_params, b
         target_ap = [int(-(target / 0.01 - bregma[0])) for target in target_ap]
         slice_idx = int(-(section / 0.01 - bregma[0]))
         annot_section = annot[slice_idx, :, :].copy()
-        annot_section_plt = plot_brain_schematic(annot_section, st)
+        annot_section_plt = plot_brain_schematic(annot_section, atlas)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item]['ap_mm'] >= target_ap[0])
                                               & (data_dict[item]['ap_mm'] <= target_ap[1])]

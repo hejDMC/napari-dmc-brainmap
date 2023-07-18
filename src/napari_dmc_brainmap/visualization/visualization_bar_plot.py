@@ -6,14 +6,14 @@ from matplotlib.figure import Figure
 from napari_dmc_brainmap.utils import split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df
 
-def calculate_percentage_bar_plot(df_all, animal_list, tgt_list, plotting_params):
+def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting_params):
 
     absolute_numbers = plotting_params["absolute_numbers"]
     if absolute_numbers:
         rel_percentage = False
     else:
         rel_percentage = True
-    df = get_tgt_data_only(df_all, tgt_list)
+    df = get_tgt_data_only(df_all, atlas, tgt_list)
     df_geno = df.copy() # copy df to extract genotype of mice later on
     df = df.pivot_table(index='tgt_name', columns=['animal_id'],
                                                         aggfunc='count').fillna(0)
@@ -72,7 +72,7 @@ def get_bar_plot_params(barplot_widget):
     }
     return plotting_params
 
-def do_bar_plot(df, plotting_params, animal_list, tgt_list, barplot_widget, save_path):
+def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widget, save_path):
 
     # if applicable only get the ipsi or contralateral cells
     hemisphere = plotting_params["hemisphere"]
@@ -90,7 +90,7 @@ def do_bar_plot(df, plotting_params, animal_list, tgt_list, barplot_widget, save
         y_var = "percent_cells"
         x_var = "tgt_name"
     # get re-structured dataframe for plotting
-    tgt_data_to_plot = calculate_percentage_bar_plot(df, animal_list, tgt_list, plotting_params)
+    tgt_data_to_plot = calculate_percentage_bar_plot(df, atlas, animal_list, tgt_list, plotting_params)
 
     if not plotting_params[
         "alphabetic"]:  # re-structuring of df creates alphabetic order of brain areas, if tgt_list order should be kept do resort

@@ -4,17 +4,7 @@ import json
 import matplotlib.colors as mcolors
 from natsort import natsorted
 from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
-from bg_atlasapi import BrainGlobeAtlas
 
-# def dummy_load_allen_structure_tree():
-#
-#     st = s.df_tree
-#     return st
-#
-# def dummy_load_allen_annot():
-#     s = sliceHandle(load_annot=True)
-#     annot = s.annot  # todo not sure this works
-#     return annot
 
 def get_ipsi_contra(df):
     '''
@@ -33,22 +23,18 @@ def get_ipsi_contra(df):
     return df
 
 
-def get_tgt_data_only(df, tgt_list):
-    tgt_path_list = []
-    st = dummy_load_allen_structure_tree()
-    for acr in tgt_list:
-        curr_idx = st.index[st['acronym'] == acr].tolist()
-        tgt_path_list.append(st['structure_id_path'].iloc[curr_idx])
+def get_tgt_data_only(df, atlas, tgt_list):
 
-    for idx, tgt_path in enumerate(tgt_path_list):
-        tgt_path = tgt_path.to_list()
-        if idx == 0:
-            tgt_only_data = df[df['path_list'].str.contains(tgt_path[0])].copy()
-            tgt_only_data['tgt_name'] = [tgt_list[idx]] * len(tgt_only_data)
+    tgt_only_data = pd.DataFrame()
+    for tgt in tgt_list:
+        tgt_list_childs = atlas.get_structure_descendants(tgt)
+        if tgt_list_childs:
+            dummy_df = df[df['acronym'].isin(tgt_list_childs)]
         else:
-            dummy_data = df[df['path_list'].str.contains(tgt_path[0])].copy()
-            dummy_data['tgt_name'] = [tgt_list[idx]] * len(dummy_data)
-            tgt_only_data = pd.concat([tgt_only_data, dummy_data])
+            dummy_df = df[df['acronym'].isin([tgt])]
+        dummy_df['tgt_name'] = [tgt] * len(dummy_df)
+        tgt_only_data = pd.concat([tgt_only_data, dummy_df])
+
     return tgt_only_data
 
 def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
@@ -83,10 +69,9 @@ def get_ipsi_contra(df):
         df.loc[(df['ml_mm'] > 0), 'ipsi_contra'] = 'contra'
     return df
 
-def load_data(input_path, animal_list, channels, data_type='cells'):
-    atlas = BrainGlobeAtlas("allen_mouse_10um")
+def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
 
-    st = atlas.structures
+
     #  loop over animal_ids
     results_data_merged = pd.DataFrame()  # initialize merged dataframe
     for animal_id in animal_list:
@@ -102,7 +87,6 @@ def load_data(input_path, animal_list, channels, data_type='cells'):
             if results_file.exists():
                 results_data = pd.read_csv(results_file)  # load the data
                 results_data['ml_mm'] *= (-1)  # so that negative values are left hemisphere
-                results_data['sphinx_id'] -= 1  # correct for indices starting at 1
                 results_data['animal_id'] = [animal_id] * len(
                     results_data)  # add the animal_id as a column for later identification
                 if (data_type == "optic_fiber" or data_type == "neuropixels_probe") and len(animal_list) > 1:
@@ -143,7 +127,7 @@ def load_data(input_path, animal_list, channels, data_type='cells'):
                 results_data = get_ipsi_contra(results_data)
                 results_data_merged = pd.concat([results_data_merged, results_data])
         print("loaded data from " + animal_id)
-        results_data_merged = clean_results_df(results_data_merged, st)
+        results_data_merged = clean_results_df(results_data_merged, atlas)
         print(results_data_merged[results_data_merged['name'] == 'root'])
         results_data_merged = results_data_merged.reset_index(drop=True)
     return results_data_merged
@@ -165,7 +149,7 @@ def coord_mm_transform(df, to_coord = True):
     return df
 
 
-def plot_brain_schematic(annot_section, st, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
+def plot_brain_schematic(annot_section, atlas, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
                          unilateral_target=False, transparent=True):
     """
     Function to plot brain schematics as colored plots
