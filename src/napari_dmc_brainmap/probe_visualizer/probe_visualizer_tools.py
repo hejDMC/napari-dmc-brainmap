@@ -88,27 +88,27 @@ def check_probe_insert(probe_insert, linefit, surface_vox):
     direction_vec = linefit['direction'].values  # line direction vector
     direction_unit = direction_vec / np.linalg.norm(direction_vec)  # scale direction vector to length 1
 
-    # read probe depth from histology evidence
-    if probe_insert is None:
-        print('manipulator readout not provided, using histology.')
-        df_3Dscatter = pd.read_csv('step2_output_probevoxelcoordinates.csv',
-                                   index_col=0)  # read probe 3D coordinates from step2
-        scatter_vox = np.array(df_3Dscatter[['AP', 'DV', 'ML']].values)
-
-        # calculate scatter projection on fit line
-        projection_online = np.matmul(
-            np.expand_dims(np.dot(scatter_vox - linefit['point'].values, direction_unit), 1),
-            np.expand_dims(direction_unit, 0)) + linefit['point'].values
-
-        # calculate distance of projection from surface
-        dist_to_surface = ((projection_online.T[0] - surface_vox[0]) ** 2 + \
-                           (projection_online.T[1] - surface_vox[1]) ** 2 + \
-                           (projection_online.T[2] - surface_vox[2]) ** 2) ** 0.5
-
-        furthest_um = np.max(dist_to_surface) * 10  # convert voxel to um, 10um/voxel
-        probe_insert = int(furthest_um)
-    else:
-        pass
+    # # read probe depth from histology evidence  todo delete this?
+    # if probe_insert is None:
+    #     print('manipulator readout not provided, using histology.')
+    #     df_3Dscatter = pd.read_csv('step2_output_probevoxelcoordinates.csv',
+    #                                index_col=0)  # read probe 3D coordinates from step2
+    #     scatter_vox = np.array(df_3Dscatter[['AP', 'DV', 'ML']].values)
+    #
+    #     # calculate scatter projection on fit line
+    #     projection_online = np.matmul(
+    #         np.expand_dims(np.dot(scatter_vox - linefit['point'].values, direction_unit), 1),
+    #         np.expand_dims(direction_unit, 0)) + linefit['point'].values
+    #
+    #     # calculate distance of projection from surface
+    #     dist_to_surface = ((projection_online.T[0] - surface_vox[0]) ** 2 + \
+    #                        (projection_online.T[1] - surface_vox[1]) ** 2 + \
+    #                        (projection_online.T[2] - surface_vox[2]) ** 2) ** 0.5
+    #
+    #     furthest_um = np.max(dist_to_surface) * 10  # convert voxel to um, 10um/voxel
+    #     probe_insert = int(furthest_um)
+    # else:
+    #     pass
 
     return probe_insert, direction_unit
 

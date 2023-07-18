@@ -18,17 +18,17 @@ class AtlasModel():
         self.imgStack = None
         print("loading reference atlas...")
         self.atlas = BrainGlobeAtlas("allen_mouse_10um")
-        self.loadVolume()
+        self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()
 
 
-    def loadVolume(self):
+    def loadTemplate(self):
         # self.vol = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
         print('loading template volume...')
-        self.vol = self.atlas.reference
-        self.vol = adjust_contrast(self.vol, (0, self.vol.max()))
-        self.vol = do_8bit(self.vol)
+        self.template = self.atlas.reference
+        self.template = adjust_contrast(self.template, (0, self.template.max()))
+        self.template = do_8bit(self.template)
 
     #
     def loadAnnot(self):
@@ -37,7 +37,7 @@ class AtlasModel():
         # self.ap_mat = np.full((800,1140),539) # initiate ap_map at AP = 0mm
     #
     def loadStructureTree(self):
-        self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
+        # self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
         self.sTree = self.atlas.structures
         self.bregma = [540, 0, 570]
 
@@ -126,7 +126,7 @@ class AtlasModel():
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)
 
     def simpleSlice(self,regViewer):
-        self.slice = self.vol[get_ap(regViewer.status.currentAP),:,:].copy()
+        self.slice = self.template[get_ap(regViewer.status.currentAP), :, :].copy()
         self.ap_mat = np.full((800,1140),get_ap(regViewer.status.currentAP))
     
     def angleSlice(self,regViewer):
@@ -150,7 +150,7 @@ class AtlasModel():
             # index volume with ap_mat and grid
             self.ap_mat = ap_mat # save AP plane for indexing structure information 
             self.ap_flat = ap_flat # save current AP list to AtlasModel for getContourIndex
-            self.slice = self.vol[ap_flat,self.r_grid_y,self.r_grid_x].reshape(800,1140)
+            self.slice = self.template[ap_flat, self.r_grid_y, self.r_grid_x].reshape(800, 1140)
         else: # if not empty, show black image with warning
             self.slice = np.zeros((800,1140),dtype=np.uint8)
             cv2.putText(self.slice, "Slice out of volume!", (400,400), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)

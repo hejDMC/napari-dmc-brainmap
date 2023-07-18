@@ -8,6 +8,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap,QImage
 from pathlib import Path
 from pkg_resources import resource_filename
+from bg_atlasapi import BrainGlobeAtlas
+
 
 class ProbeVisualizer(QMainWindow):
     def __init__(self, app):
@@ -19,6 +21,11 @@ class ProbeVisualizer(QMainWindow):
         # do not create status object, handle DV information by self
         self.createActions()
         self.createMenus()
+        print("loading reference atlas...")
+        self.atlas = BrainGlobeAtlas("allen_mouse_10um")
+        self.loadVolume()
+        self.loadAnnot()
+        self.loadStructureTree()
         self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()

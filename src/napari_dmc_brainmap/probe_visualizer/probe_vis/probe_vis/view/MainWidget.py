@@ -40,18 +40,18 @@ class MainWidget():
     def loadSlice(self,probeV):
 
         if probeV.viewerID == 0: # coronal
-            self.slice = probeV.vol[probeV.currentAP,:,:].copy()
+            self.slice = probeV.template[probeV.currentAP, :, :].copy()
             cv2.putText(self.slice, "AP: "+str(probeV.currentAP), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
             cv2.putText(self.slice, "("+str(np.round((540-probeV.currentAP)*0.01,2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 
         elif probeV.viewerID == 1: # axial
             # rotate AP axis to screen width axis
-            self.slice = probeV.vol[:,probeV.currentDV,:].T.copy()
+            self.slice = probeV.template[:, probeV.currentDV, :].T.copy()
             cv2.putText(self.slice, "DV: "+str(probeV.currentDV), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
             cv2.putText(self.slice, "("+str(np.round((0-probeV.currentDV)*0.01,2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
         else: # sagittal
             # rotate AP axis to screen width axis
-            self.slice = probeV.vol[:,:,probeV.currentML].T.copy()
+            self.slice = probeV.template[:, :, probeV.currentML].T.copy()
             cv2.putText(self.slice, "ML: "+str(probeV.currentML), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
             cv2.putText(self.slice, "("+str(np.round((570-probeV.currentML)*0.01,2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 

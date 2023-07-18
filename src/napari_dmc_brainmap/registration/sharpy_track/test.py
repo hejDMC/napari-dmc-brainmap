@@ -15,7 +15,7 @@ ap = 750
 
 # slice annotation volume
 slice_annot = atlasModel.annot[ap,:,:].astype(np.int32) # convert to int32 for contour detection
-slice_vol = atlasModel.vol[ap,:,:] # volume 8 bit
+slice_vol = atlasModel.template[ap, :, :] # volume 8 bit
 
 contours,_ = cv2.findContours(slice_annot, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 # create canvas
