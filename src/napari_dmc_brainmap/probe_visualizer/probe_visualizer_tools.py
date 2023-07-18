@@ -4,7 +4,7 @@ import numpy as np
 import distinctipy
 import matplotlib.pyplot as plt
 
-from napari_dmc_brainmap.utils import get_animal_id, get_info
+from napari_dmc_brainmap.utils import get_animal_id
 
 def get_primary_axis(direction_vector): # get primary axis from direction vector
     direction_comp = np.abs(direction_vector) # get component absolute value

@@ -3,30 +3,42 @@ import cv2
 from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
+from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 import os
 import pandas as pd
 from pathlib import Path
 from pkg_resources import resource_filename
+from bg_atlasapi import BrainGlobeAtlas
+
 
 class AtlasModel():
     def __init__(self) -> None:
         self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
+        self.calculateImageGrid()
+        self.imgStack = None
+        print("loading reference atlas...")
+        self.atlas = BrainGlobeAtlas("allen_mouse_10um")
         self.loadVolume()
         self.loadAnnot()
         self.loadStructureTree()
-        self.calculateImageGrid()
-        self.imgStack = None
-    
+
 
     def loadVolume(self):
-        self.vol = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
-    
+        # self.vol = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','template_volume_8bit.npy')) # load 8bit volume
+        print('loading template volume...')
+        self.vol = self.atlas.reference
+        self.vol = adjust_contrast(self.vol, (0, self.vol.max()))
+        self.vol = do_8bit(self.vol)
+
+    #
     def loadAnnot(self):
-        self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
+        # self.annot = np.load(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','annotation_volume_10um_by_index.npy'))
+        self.annot = self.atlas.annotation
         # self.ap_mat = np.full((800,1140),539) # initiate ap_map at AP = 0mm
-    
+    #
     def loadStructureTree(self):
         self.sTree = pd.read_csv(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','atlas','structure_tree_safe_2017.csv'))
+        self.sTree = self.atlas.structures
         self.bregma = [540, 0, 570]
 
     def calculateImageGrid(self):
@@ -70,13 +82,14 @@ class AtlasModel():
         # get coordinates in mm
         ap_mm,dv_mm,ml_mm = self.getCoordMM(ap,dv,ml)
         # from cursor position get annotation index
-        sphinx_id = self.annot[ap,dv,ml]
-        # get highlight area index
-        activeArea = np.where(self.sliceAnnot == sphinx_id)
-        # find name in sTree
-        structureName = self.sTree.iloc[sphinx_id-1,:]['safe_name']
-        # print('AP:',ap_mm,' DV:',dv_mm,' ML:',ml_mm)
-        regViewer.widget.viewerLeft.highlightArea(regViewer,[ap_mm,dv_mm,ml_mm],activeArea,structureName)
+        structure_id = self.annot[ap,dv,ml]
+        if structure_id > 0:
+            # get highlight area index
+            activeArea = np.where(self.sliceAnnot == structure_id)
+            # find name in sTree
+            structureName = self.sTree.data[structure_id]['name']
+            # print('AP:',ap_mm,' DV:',dv_mm,' ML:',ml_mm)
+            regViewer.widget.viewerLeft.highlightArea(regViewer,[ap_mm,dv_mm,ml_mm],activeArea,structureName)
 
     
 
