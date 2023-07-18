@@ -134,25 +134,14 @@ def get_parent(a, st):
 
 
 
-def clean_results_df(df, st):  # todo this somewhere seperate
-    path_list = st['structure_id_path'][df['sphinx_id']]
-    path_list = path_list.to_list()
-    df['path_list'] = path_list
-    df = df.reset_index()
+def clean_results_df(df, atlas):
 
-    # clean data - not cells in root, fiber tracts and ventricles
-    # drop "root"
-    df = df.drop(df[df['name'] == 'root'].index)
-
-    # fiber tracks and all children of it
-    fiber_path = st[st['name'] == 'fiber tracts']['structure_id_path'].iloc[0]
-    df = df.drop(
-        df[df['path_list'].str.contains(fiber_path)].index)
-
-    ventricle_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
-    df = df.drop(
-        df[df['path_list'].str.contains(ventricle_path)].index)
+    list_delete = ['root']
+    for item in ['fiber tracts']:  # 'ventricular systems'
+        list_delete.append(atlas.get_structure_descendants(item))
+    df = df.drop(df[df['acronym'].isin(list_delete)].index)
     df = df.reset_index(drop=True)
+
     return df
 
 def split_to_list(input_str):

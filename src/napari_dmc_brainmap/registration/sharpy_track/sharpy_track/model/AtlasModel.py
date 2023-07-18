@@ -3,7 +3,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
-
+from napari_dmc_brainmap.utils import get_bregma
 
 from pathlib import Path
 from pkg_resources import resource_filename
@@ -35,7 +35,7 @@ class AtlasModel():
 
     def loadStructureTree(self):
         self.sTree = self.atlas.structures
-        self.bregma = [540, 0, 570]
+        self.bregma = get_bregma()
 
     def calculateImageGrid(self):
         dv = np.arange(800)

@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QFileDialog
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.MainWidget import MainWidget
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
+from napari_dmc_brainmap.utils import get_bregma
 
 import numpy as np
 
@@ -48,7 +49,7 @@ class ProbeVisualizer(QMainWindow):
 
     def loadStructureTree(self):
         self.sTree = self.atlas.structures
-        self.bregma = [540, 0, 570]
+        self.bregma = get_bregma()
 
     def calculateImageGrid(self):
         dv = np.arange(800)

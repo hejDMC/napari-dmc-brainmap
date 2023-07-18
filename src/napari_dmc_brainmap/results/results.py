@@ -11,11 +11,11 @@ from sklearn.preprocessing import minmax_scale
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import seaborn as sns
-from napari_dmc_brainmap.utils import get_animal_id, get_info, get_parent, split_strings_layers, clean_results_df
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
-from napari_dmc_brainmap.visualization.visualization_tools import dummy_load_allen_structure_tree
+from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
+from napari_dmc_brainmap.results.find_structure import sliceHandle
+from bg_atlasapi import BrainGlobeAtlas
 import json
-import time
+
 
 
 def regi_points_polygon(x_scaled, y_scaled):
@@ -79,26 +79,25 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
     s.setImgFolder(regi_dir)
     # set which slice in there
     s.setSlice(slice_idx)
-    # s.visualizeMapping(coords)
     section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
     return section_data
 
-def plot_quant_injection_side(df): #(input_path, c):
-
-    # results_dir = get_info(input_path, 'results', channel=c, seg_type='injection_side', only_dir=True)
-    # fn = results_dir.joinpath('quantification_injection_side.csv')
-    # df = pd.read_csv(fn)
-    # df = df.drop('animal_id', axis=1)
-    clrs = sns.color_palette(quant_inj_widget.cmap.value)
-    mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
-    static_ax = mpl_widget.figure.subplots()
-    static_ax.pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
-    # static_ax.title.set_text('quantification of the injection side in ' + c + " channel")
-    static_ax.axis('off')
-    # if quant_inj_widget.save_fig.value:
-        # save_fn = results_dir.joinpath('quantification_injection_side.svg')
-        # mpl_widget.figure.savefig(save_fn)
-    return mpl_widget
+# def plot_quant_injection_side(df): #(input_path, c):
+#
+#     # results_dir = get_info(input_path, 'results', channel=c, seg_type='injection_side', only_dir=True)
+#     # fn = results_dir.joinpath('quantification_injection_side.csv')
+#     # df = pd.read_csv(fn)
+#     # df = df.drop('animal_id', axis=1)
+#     clrs = sns.color_palette(quant_inj_widget.cmap.value)
+#     mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
+#     static_ax = mpl_widget.figure.subplots()
+#     static_ax.pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
+#     # static_ax.title.set_text('quantification of the injection side in ' + c + " channel")
+#     static_ax.axis('off')
+#     # if quant_inj_widget.save_fig.value:
+#         # save_fn = results_dir.joinpath('quantification_injection_side.svg')
+#         # mpl_widget.figure.savefig(save_fn)
+#     return mpl_widget
 
 
 @thread_worker
@@ -136,31 +135,25 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan):
             print("No segmentation images found in " + str(segment_dir))
 
 @thread_worker
-def quantify_injection_side(input_path, chan, seg_type='injection_side'):
+def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
 
     if seg_type not in ['injection_side', 'cells']:
         print("not implemented! please, select 'injection_side' as segmentation type")
         return
 
-    st = dummy_load_allen_structure_tree()
     animal_id = get_animal_id(input_path)
     results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
     results_fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
     if results_fn.exists():
         results_data = pd.read_csv(results_fn)  # load the data
-        results_data['sphinx_id'] -= 1  # correct for matlab indices starting at 1
         results_data['animal_id'] = [animal_id] * len(
                 results_data)  # add the animal_id as a column for later identification
         # add the injection hemisphere stored in params.json file
-        params_file = input_path.joinpath('params.json')  # directory of params.json file   # todo this as function
-        with open(params_file) as fn:  # load the file
-            params_data = json.load(fn)
 
-    results_data = clean_results_df(results_data, st)
+    results_data = clean_results_df(results_data, atlas)
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data
     acronym_parent = [split_strings_layers(s)[0] for s in results_data['acronym']]
-    # acronym_parent = [get_parent(s, st) for s in results_data['acronym']]  # todo this is for layers, but very slow
     results_data['acronym_parent'] = acronym_parent
     # count pixels (injection side) for each cell, add 0 for empty regions
     quant_df = pd.DataFrame()
@@ -274,8 +267,10 @@ class ResultsWidget(QWidget):
         input_path = results_widget.input_path.value
         channels = results_widget.channels.value
         seg_type = results_widget.seg_type.value
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas("allen_mouse_10um")
         for chan in channels:
-            worker_quantification = quantify_injection_side(input_path, chan, seg_type=seg_type)
+            worker_quantification = quantify_injection_side(input_path, atlas, chan, seg_type=seg_type)
             worker_quantification.returned.connect(self._plot_quant_injection_side)
             worker_quantification.start()
 

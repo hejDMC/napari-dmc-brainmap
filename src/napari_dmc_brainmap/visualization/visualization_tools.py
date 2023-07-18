@@ -3,18 +3,18 @@ import numpy as np
 import json
 import matplotlib.colors as mcolors
 from natsort import natsorted
-from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
+from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
 from bg_atlasapi import BrainGlobeAtlas
 
-def dummy_load_allen_structure_tree():
-
-    st = s.df_tree
-    return st
-
-def dummy_load_allen_annot():
-    s = sliceHandle(load_annot=True)
-    annot = s.annot  # todo not sure this works
-    return annot
+# def dummy_load_allen_structure_tree():
+#
+#     st = s.df_tree
+#     return st
+#
+# def dummy_load_allen_annot():
+#     s = sliceHandle(load_annot=True)
+#     annot = s.annot  # todo not sure this works
+#     return annot
 
 def get_ipsi_contra(df):
     '''
@@ -84,7 +84,9 @@ def get_ipsi_contra(df):
     return df
 
 def load_data(input_path, animal_list, channels, data_type='cells'):
-    st = dummy_load_allen_structure_tree()
+    atlas = BrainGlobeAtlas("allen_mouse_10um")
+
+    st = atlas.structures
     #  loop over animal_ids
     results_data_merged = pd.DataFrame()  # initialize merged dataframe
     for animal_id in animal_list:
