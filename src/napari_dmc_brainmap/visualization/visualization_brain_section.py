@@ -135,8 +135,8 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         target_ap = [section + section_range, section - section_range]
         target_ap = [int(-(target / 0.01 - bregma[0])) for target in target_ap]
         slice_idx = int(-(section / 0.01 - bregma[0]))
-        annot_section = annot[slice_idx, :, :].copy()
-        annot_section_plt = plot_brain_schematic(annot_section, atlas)
+        annot_section_plt = plot_brain_schematic(atlas, slice_idx)
+        np.save(r'C:\Users\felix-arbeit\Documents\Academia\DMC-lab\projects\dopamine\analysis\anatomy\data\DP-256\dummy.npy', annot_section_plt)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item]['ap_mm'] >= target_ap[0])
                                               & (data_dict[item]['ap_mm'] <= target_ap[1])]

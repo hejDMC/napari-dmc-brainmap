@@ -128,7 +128,6 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                 results_data_merged = pd.concat([results_data_merged, results_data])
         print("loaded data from " + animal_id)
         results_data_merged = clean_results_df(results_data_merged, atlas)
-        print(results_data_merged[results_data_merged['name'] == 'root'])
         results_data_merged = results_data_merged.reset_index(drop=True)
     return results_data_merged
 
@@ -149,9 +148,10 @@ def coord_mm_transform(df, to_coord = True):
     return df
 
 
-def plot_brain_schematic(annot_section, atlas, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
+def plot_brain_schematic(atlas, slice_idx, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
                          unilateral_target=False, transparent=True):
     """
+    # todo orientation for plot
     Function to plot brain schematics as colored plots
 
     :param annot_section: 2d array with brain section
@@ -163,17 +163,18 @@ def plot_brain_schematic(annot_section, atlas, target_region_list=False, target_
     :param transparent: BOOLEAN for setting white pixels to transparent (e.g. plotting on black background)
     :return: annot_section in RGBA values on x-y coordintaes for plotting
     """
-    annot_section[annot_section == 1] = 0  # set non brain values to 1
 
-    if target_region_list:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
-        target_color_list = target_len_check(target_region_list, target_color_list, "color")
-        target_transparency = target_len_check(target_region_list, target_transparency, "transparency")
+    annot_section = atlas.annotation[slice_idx, :, :].copy()
+    annot_section[annot_section > 0] = 1  # set all brain areas to 1
 
     cmap_brain = ['white', 'linen', 'lightgray',
                   'lightcyan']  # colormap for the brain outline (white: empty space,
                                 # linen=brain, lightgray=root, lightcyan=ventricles)
 
-    if target_region_list:  # add colors list of brain regions to cmap for plotting
+    if target_region_list:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
+        target_color_list = target_len_check(target_region_list, target_color_list, "color")
+        target_transparency = target_len_check(target_region_list, target_transparency, "transparency")
+        # add colors list of brain regions to cmap for plotting
         cmap_brain += target_color_list
 
     cmap_brain = np.array(
@@ -183,69 +184,83 @@ def plot_brain_schematic(annot_section, atlas, target_region_list=False, target_
     if target_region_list:
         for idx in range(len(target_transparency)):
             cmap_brain[(idx-len(target_transparency))][-1] = target_transparency[idx]
+        tgt_list = ['fiber tracts', 'VS'] + target_region_list
+    else:
+        tgt_list = ['fiber tracts', 'VS']
 
     if transparent:
         cmap_brain[0][-1] = 0  # set alpha on white pixels transparent
-
-    # get the idx for fibre structures (gray) and ventricles)
-    gray_idx = []
-    fiber_tracts_path = st[st['name'] == 'fiber tracts']['structure_id_path'].iloc[0]
-
-    ventr_idx = []
-    ventr_tracts_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
-    for item in np.unique(annot_section):
-        if (item > 0) & (item != 1):  # todo changed 997 to 1 here
-            if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(fiber_tracts_path):
-                gray_idx.append(item)
-            elif st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(ventr_tracts_path):
-                ventr_idx.append(item)
-
-    # get indices for tgt_area as well, iterative stuff is likely quite slow...
-    if target_region_list:
-        tgt_idx_list = {}
-        for idx, target_region in enumerate(target_region_list):
-            tgt_idx = []
-            tgt_path = st[st['name'] == target_region]['structure_id_path'].iloc[0]
-            for item in np.unique(annot_section):
-                if (item > 0) & (item != 1):
-                    if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(tgt_path):
-                        tgt_idx.append(item)
-            tgt_idx_list[idx] = tgt_idx
-        dummy_list = []  # dummy list of all target idx for loop below
-        for i in tgt_idx_list:
-            dummy_list += tgt_idx_list[i]
-        # change values in annot slice accordingly
-        # 0 (= nothing there) stays 0
-        for idx_r, row in enumerate(annot_section):  # todo: there must be a better option than this loop...
-            for idx_c, col in enumerate(row):
-                # brain stuff set to 1
-                if (col != 0) & (col not in gray_idx) & (col not in ventr_idx) & (col not in dummy_list):
-                    annot_section[idx_r, idx_c] = 1
-                # fibres to 2
-                elif col in gray_idx:
-                    annot_section[idx_r, idx_c] = 2
-                # ventricles to 3
-                elif col in ventr_idx:
-                    annot_section[idx_r, idx_c] = 3
-                # set target values to increasing values accordingly
-                elif col in dummy_list:
-                    for tgt in tgt_idx_list:
-                        if col in tgt_idx_list[tgt]:
-                            annot_section[idx_r, idx_c] = tgt + 4
-    else:
-        # change values in annot slice accordingly
-        # 0 (= nothing there) stays 0
-        for idx_r, row in enumerate(annot_section):  # todo: there must be a better option than this loop...
-            for idx_c, col in enumerate(row):
-                # brain stuff set to 1
-                if (col != 0) & (col not in gray_idx) & (col not in ventr_idx):
-                    annot_section[idx_r, idx_c] = 1
-                # fibres to 2
-                elif col in gray_idx:
-                    annot_section[idx_r, idx_c] = 2
-                # ventricles to 3
-                elif col in ventr_idx:
-                    annot_section[idx_r, idx_c] = 3
+    for n, tgt in enumerate(tgt_list):
+        tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
+        annot_section[tgt_mask > 0] = n + 2  # for setting color, 0 = background, 1 = non target brain, 2 = fibers, 3 = ventricles, >3 tgt structures
+    #
+    #
+    #
+    #
+    # # get the idx for fibre structures (gray) and ventricles)
+    # gray_idx = []
+    # fiber_tracts_childs = atlas.get_structure_descendants('fiber tracts')
+    # fiber_tracts_ids = [st[i]['id'] for i in fiber_tracts_childs]
+    #
+    # ventr_idx = []
+    # ventr_tracts_childs = atlas.get_structure_descendants('VS')
+    # ventr_tracts_ids = [st[i]['id'] for i in ventr_tracts_childs]
+    #
+    #
+    # ventr_tracts_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
+    # for item in np.unique(annot_section):
+    #     if (item > 0) & (item != 1):  # todo changed 997 to 1 here
+    #         if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(fiber_tracts_path):
+    #             gray_idx.append(item)
+    #         elif st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(ventr_tracts_path):
+    #             ventr_idx.append(item)
+    #
+    # # get indices for tgt_area as well, iterative stuff is likely quite slow...
+    # if target_region_list:
+    #     tgt_idx_list = {}
+    #     for idx, target_region in enumerate(target_region_list):
+    #         tgt_idx = []
+    #         tgt_path = st[st['name'] == target_region]['structure_id_path'].iloc[0]
+    #         for item in np.unique(annot_section):
+    #             if (item > 0) & (item != 1):
+    #                 if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(tgt_path):
+    #                     tgt_idx.append(item)
+    #         tgt_idx_list[idx] = tgt_idx
+    #     dummy_list = []  # dummy list of all target idx for loop below
+    #     for i in tgt_idx_list:
+    #         dummy_list += tgt_idx_list[i]
+    #     # change values in annot slice accordingly
+    #     # 0 (= nothing there) stays 0
+    #     for idx_r, row in enumerate(annot_section):  # todo: there must be a better option than this loop...
+    #         for idx_c, col in enumerate(row):
+    #             # brain stuff set to 1
+    #             if (col != 0) & (col not in gray_idx) & (col not in ventr_idx) & (col not in dummy_list):
+    #                 annot_section[idx_r, idx_c] = 1
+    #             # fibres to 2
+    #             elif col in gray_idx:
+    #                 annot_section[idx_r, idx_c] = 2
+    #             # ventricles to 3
+    #             elif col in ventr_idx:
+    #                 annot_section[idx_r, idx_c] = 3
+    #             # set target values to increasing values accordingly
+    #             elif col in dummy_list:
+    #                 for tgt in tgt_idx_list:
+    #                     if col in tgt_idx_list[tgt]:
+    #                         annot_section[idx_r, idx_c] = tgt + 4
+    # else:
+    #     # change values in annot slice accordingly
+    #     # 0 (= nothing there) stays 0
+    #     for idx_r, row in enumerate(annot_section):  # todo: there must be a better option than this loop...
+    #         for idx_c, col in enumerate(row):
+    #             # brain stuff set to 1
+    #             if (col != 0) & (col not in gray_idx) & (col not in ventr_idx):
+    #                 annot_section[idx_r, idx_c] = 1
+    #             # fibres to 2
+    #             elif col in gray_idx:
+    #                 annot_section[idx_r, idx_c] = 2
+    #             # ventricles to 3
+    #             elif col in ventr_idx:
+    #                 annot_section[idx_r, idx_c] = 3
 
     # transfer to RGB values and return annot_section
     annot_section_plt = cmap_brain[annot_section]
