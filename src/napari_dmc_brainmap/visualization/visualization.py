@@ -224,6 +224,15 @@ def heatmap_widget(
     plot_item=dict(widget_type='Select', label='item to plot',
                       choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'],
                       tooltip='select items to plot cells/injection side/projection density, hold ctrl/shift to select multiple'),
+    brain_areas=dict(widget_type='LineEdit', label='list of brain areas',
+                     tooltip='enter the COMMA SEPERATED list of names of brain areas (acronym)'
+                             ' to plot (no white spaces: area1,area2)'),
+    brain_areas_color=dict(widget_type='LineEdit', label='brain area colors',
+                           tooltip='enter the COMMA SEPERATED list of colors for brain areas '
+                                 '(no white spaces: red,blue,yellow)'),
+    brain_areas_transparency=dict(widget_type='LineEdit', label='brain area transparency',
+                                  tooltip='enter the COMMA SEPERATED transparency values for colors for brain areas '
+                                   ' in 8-bit range (max 255, min 0; no white spaces: 100,42,255)'),
     plot_size=dict(widget_type='LineEdit', label='enter plot size',
                             value='8,6', tooltip='enter the COMMA SEPERATED size of the plot'),
     section_list=dict(widget_type='LineEdit', label='list of sections',
@@ -267,6 +276,9 @@ def brain_section_widget(
     save_fig,
     save_name,
     plot_item,
+    brain_areas,
+    brain_areas_color,
+    brain_areas_transparency,
     plot_size,
     section_list,
     section_range,

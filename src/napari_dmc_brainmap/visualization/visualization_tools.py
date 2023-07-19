@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
+import random
 import matplotlib.colors as mcolors
 from natsort import natsorted
 from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
@@ -148,8 +149,34 @@ def coord_mm_transform(df, to_coord = True):
     return df
 
 
-def plot_brain_schematic(atlas, slice_idx, target_region_list=False, target_color_list=['plum'], target_transparency=[255],
-                         unilateral_target=False, transparent=True):
+def match_lists(list1, list2, item):
+    if len(list1) == len(list2):
+        return list1, list2
+    elif len(list1) > len(list2):
+        diff = len(list1) - len(list2)
+        if item == 'color':
+            list2.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+        elif item == 'transparency':
+            list2.append(list2[-1])
+        return list1, list2
+    elif len(list1) < len(list2):
+        list2 = list2[:len(list1)]
+        return list1, list2
+
+
+def brain_region_color(plotting_params):
+    color_dict_regions = {}
+    brain_areas = plotting_params['brain_areas']
+    brain_areas_color = plotting_params['brain_areas_color']
+    brain_areas_transparency = plotting_params['brain_areas_transparency']
+
+    brain_areas, brain_areas_color = match_lists(brain_areas, brain_areas_color, 'color')
+    brain_areas, brain_areas_transparency = match_lists(brain_areas, brain_areas_transparency, 'transparency')
+
+    return brain_areas, brain_areas_color, brain_areas_transparency
+
+
+def plot_brain_schematic(atlas, slice_idx, plotting_params, unilateral_target=False, transparent=True):
     """
     # todo orientation for plot
     Function to plot brain schematics as colored plots
@@ -171,20 +198,21 @@ def plot_brain_schematic(atlas, slice_idx, target_region_list=False, target_colo
                   'lightcyan']  # colormap for the brain outline (white: empty space,
                                 # linen=brain, lightgray=root, lightcyan=ventricles)
 
-    if target_region_list:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
-        target_color_list = target_len_check(target_region_list, target_color_list, "color")
-        target_transparency = target_len_check(target_region_list, target_transparency, "transparency")
+    if plotting_params['brain_areas']:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
+        brain_areas, brain_areas_color, brain_areas_transparency = brain_region_color(plotting_params)
         # add colors list of brain regions to cmap for plotting
-        cmap_brain += target_color_list
+        cmap_brain += brain_areas_color
+    else:
+        brain_areas = False
 
     cmap_brain = np.array(
         [[int(x * 255) for x in list(mcolors.to_rgba(c))] for c in cmap_brain])  # transfer colors to RGBA for imshow function
 
     # set the transparency values based on input from list
-    if target_region_list:
-        for idx in range(len(target_transparency)):
-            cmap_brain[(idx-len(target_transparency))][-1] = target_transparency[idx]
-        tgt_list = ['fiber tracts', 'VS'] + target_region_list
+    if brain_areas:
+        for idx in range(len(brain_areas_transparency)):
+            cmap_brain[(idx-len(brain_areas_transparency))][-1] = brain_areas_transparency[idx]
+        tgt_list = ['fiber tracts', 'VS'] + brain_areas
     else:
         tgt_list = ['fiber tracts', 'VS']
 
@@ -265,32 +293,3 @@ def plot_brain_schematic(atlas, slice_idx, target_region_list=False, target_colo
     # transfer to RGB values and return annot_section
     annot_section_plt = cmap_brain[annot_section]
     return annot_section_plt
-
-
-def target_len_check(target_region_list, target_list_to_comapare, target_type):
-    """
-    Related to plot_brain_schematic() -- check length of list for colors and transparency for target regions
-    Add or delete default values if length differs
-
-    :param target_region_list: LIST with target regions
-    :param target_list_to_comapare: LIST with colors/transparency values
-    :param target_type: needs to be either 'color' or 'transparency'
-    :return: corrected list of colors or transparency values
-
-    """
-    if len(target_region_list) == len(target_list_to_comapare):
-        pass
-    elif len(target_region_list) > len(target_list_to_comapare):
-        print("WARNING -- more target regions than target " + target_type + " --> setting missing to default " + target_type)
-        for i in range(len(target_region_list) - len(target_list_to_comapare)):
-            if target_type == 'color':
-                target_list_to_comapare.append('plum')
-            elif target_type == 'transparency':
-                target_list_to_comapare.append(255)
-            else:
-                print("ERROR -- target_type not correctly defined -- set to either 'color' or 'transparency'")
-    else:
-        print("WARNING -- more target " + target_type + " than target  " + target_type + " --> deleting colors to match number of " + target_type)
-        for i in range(len(target_list_to_comapare) - len(target_region_list)):
-            target_list_to_comapare.pop()
-    return target_list_to_comapare

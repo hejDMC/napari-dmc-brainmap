@@ -15,6 +15,9 @@ from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, pl
 def get_brain_section_params(brainsec_widget):
     plotting_params = {
         "plot_item": brainsec_widget.plot_item.value,
+        "brain_areas": [str(i) for i in brainsec_widget.brain_areas.value.split(',')],
+        "brain_areas_color": [str(i) for i in brainsec_widget.brain_areas_color.value.split(',')],
+        "brain_areas_transparency": [int(i) for i in brainsec_widget.brain_areas_transparency.value.split(',')],
         "section_list": [float(i) for i in brainsec_widget.section_list.value.split(',')],
         "section_range": float(brainsec_widget.section_range.value),
         "groups": brainsec_widget.groups.value,
@@ -22,7 +25,7 @@ def get_brain_section_params(brainsec_widget):
         "vmax": int(brainsec_widget.vmax.value),
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
         "color_projections": brainsec_widget.cmap_projection.value,
-        "color_injection_side": [str(i) for i in brainsec_widget.color_inj.value.split(',')],
+        "color_injection_side": [str(i) for i in brainsec_widget.color_inj.value.split(',')],  # todo why not function?
         "color_optic_fiber": [str(i) for i in brainsec_widget.color_optic.value.split(',')],
         "color_neuropixels_probe": [str(i) for i in brainsec_widget.color_npx.value.split(',')],
         "save_name": brainsec_widget.save_name.value,
@@ -113,6 +116,7 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
     return color_dict
 
 
+
 def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
 
     color_dict = create_color_dict(input_path, animal_list, data_dict, plotting_params)
@@ -135,7 +139,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         target_ap = [section + section_range, section - section_range]
         target_ap = [int(-(target / 0.01 - bregma[0])) for target in target_ap]
         slice_idx = int(-(section / 0.01 - bregma[0]))
-        annot_section_plt = plot_brain_schematic(atlas, slice_idx)
+        annot_section_plt = plot_brain_schematic(atlas, slice_idx, plotting_params)
         np.save(r'C:\Users\felix-arbeit\Documents\Academia\DMC-lab\projects\dopamine\analysis\anatomy\data\DP-256\dummy.npy', annot_section_plt)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item]['ap_mm'] >= target_ap[0])
@@ -143,6 +147,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
 
         cnt = 0
+        if not plot_dict:
+            plot_dict = {'dummy'}  # plot only contours
+            print("no plotting item selected, plotting only contours of brain section")
+
         for item in plot_dict:
             if len(section_list) > 2:
                 if cnt < 1:
@@ -171,7 +179,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     else:
                         sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
                                     hue=plotting_params["groups"], color=color_dict[item]["cmap"])
-                else:
+                elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_row, n_col], x='ml_mm', y='dv_mm', data=plot_dict[item],
                                         color=color_dict[item]["cmap"], s=20)
@@ -219,7 +227,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     else:
                         sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
                                     hue=plotting_params["groups"], color=color_dict[item]["cmap"])
-                else:
+                elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_col], x='ml_mm', y='dv_mm', data=plot_dict[item],
                                         color=color_dict[item]["cmap"], s=20)
@@ -267,7 +275,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                         sns.kdeplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
                                     hue=plotting_params["groups"], color=color_dict[item]["cmap"])
 
-                else:
+                elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax, x='ml_mm', y='dv_mm', data=plot_dict[item],
                                         color=color_dict[item]["cmap"], s=20)
