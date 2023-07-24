@@ -1,10 +1,12 @@
 import cv2
 import math
 import numpy as np
+from enum import Enum
 from skimage.exposure import rescale_intensity
 from skimage.filters import threshold_yen
 import tifffile as tiff
 from napari_dmc_brainmap.utils import get_info
+from bg_atlasapi.list_atlases import descriptors, utils
 
 # todo warning for overwriting
 def create_dirs(params, input_path):
@@ -23,6 +25,26 @@ def create_dirs(params, input_path):
                     save_dirs[operation] = data_dir.parent
     return save_dirs
 
+def get_resolution_tuple(atlas, params_dict):
+    # resolution tuple (width, height)
+    orient_dict = {
+        'coronal': 'frontal',
+        'horizontal': 'horizontal',
+        'sagittal': 'sagittal'
+    }
+    section_orient = params_dict['sharpy_track_params']['sections']
+    orient_idx = atlas.space.sections.index(orient_dict[section_orient])
+    resolution_idx = atlas.space.index_pairs[orient_idx]
+
+    resolution_tuple = tuple([atlas.space.shape[i] for i in resolution_idx])
+    # todo check if this is true for all atlases
+    if section_orient == 'coronal':
+        resolution_tuple = resolution_tuple[::-1]
+
+    return resolution_tuple
+
+
+
 def load_stitched_images(input_path, filter, image):
     #
     # load and return stitched image in R-made folder of same name
@@ -35,13 +57,13 @@ def adjust_contrast(data, contrast_tuple):
     adjusted_image = rescale_intensity(data, contrast_tuple)
     return adjusted_image
 
-def downsample_image(data, scale_factor=False):
+def downsample_image(data, scale_factor=False, resolution_tuple=False):
     # downsampling of image; default is just downsampling the image
     if scale_factor:
         size_tuple = (math.floor(data.shape[1]/scale_factor), math.floor(data.shape[0]/scale_factor))
     # if no scale factor provided  downsample to sharpy-track size: max-[800-1140]
     else:
-        size_tuple = (1140, 800)
+        size_tuple = resolution_tuple  # (1140, 800)
     data_resized = cv2.resize(data, size_tuple)
     data_resized = data_resized.astype('uint16')
     return data_resized
@@ -99,7 +121,7 @@ def make_single_channel(data, chan, params):
     return data
 
 
-def make_sharpy_track(data, chan, params):
+def make_sharpy_track(data, chan, params, resolution_tuple):
 
     #
     if params['sharpy_track_params']['contrast_adjustment']:
@@ -107,7 +129,7 @@ def make_sharpy_track(data, chan, params):
         data = adjust_contrast(data, contrast_tuple)
     #
     # and we always downsample
-    data = downsample_image(data)
+    data = downsample_image(data, scale_factor=False, resolution_tuple=resolution_tuple)
     data = do_8bit(data)
     return data
 
@@ -153,7 +175,7 @@ def select_chans(chan_list, filter_list, operation):
         chans = list(set(chan_list) & set(filter_list))
     return chans
 
-def preprocess_images(im, filter_list, input_path, params, save_dirs):
+def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution_tuple):
     print("started with " + str(im))
     stack_dict = {}  # save all loaded filters as dict['filter'][array]
     for f in filter_list:
@@ -162,7 +184,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs):
     if params['operations']['sharpy_track']:
         chans = select_chans(params['sharpy_track_params']['channels'], filter_list, 'sharpy_track')
         for chan in chans:
-            downsampled_image = make_sharpy_track(stack_dict[chan].copy(), chan, params)
+            downsampled_image = make_sharpy_track(stack_dict[chan].copy(), chan, params, resolution_tuple)
             ds_image_name = im + '_downsampled.tif'
             ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
             tiff.imwrite(str(ds_image_path), downsampled_image)
@@ -199,3 +221,23 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs):
             binary_image_name = im + '_binary.tif'
             binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
             tiff.imwrite(str(binary_image_path), binary_image)
+
+
+def get_available_atlases():
+    """
+    from: https://github.com/brainglobe/brainreg-segment  -- July 2023
+    Get the available brainglobe atlases
+    :return: Dict of available atlases (["name":version])
+    """
+    available_atlases = utils.conf_from_url(
+        descriptors.remote_url_base.format("last_versions.conf")
+    )
+    available_atlases = dict(available_atlases["atlases"])
+    return available_atlases
+
+def get_atlas_dropdown():
+    atlas_dict = {}
+    for i, k in enumerate(get_available_atlases().keys()):
+        atlas_dict.setdefault(k, k)
+    atlas_keys = Enum("atlas_key", atlas_dict)
+    return atlas_keys

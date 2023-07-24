@@ -14,7 +14,10 @@ from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFileDialog, QLineEdit
 from superqt import QCollapsible
 from magicgui import magicgui
-from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
+from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs, get_atlas_dropdown, \
+    get_resolution_tuple
+
+from bg_atlasapi import BrainGlobeAtlas
 
 @magicgui(
     input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
@@ -139,6 +142,13 @@ def do_stack(
 @magicgui(
     button=dict(widget_type='CheckBox', text='create downsampled images for sharpy-track', value=False,
                 tooltip='option to create downsampled images [1140x800 px] for brain registration using sharpy-track'),
+    section_orient=dict(widget_type='ComboBox', label='lind of sections',
+                    choices=['coronal', 'sagittal', 'horizontal'], value='coronal',
+                    tooltip="select the how you sliced the brain"),
+    atlas=dict(label='reference atlas',
+                tooltip='select the reference atlas using for registration '
+                        '(from https://github.com/brainglobe/bg-atlasapi/ and '
+                        'https://github.com/brainglobe/brainreg-segment'),
     channels=dict(widget_type='Select', label='selected channels', value='all',
                   choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
                   tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
@@ -161,6 +171,8 @@ def do_stack(
 def do_sharpy(
         self,
         button,
+        section_orient,
+        atlas: get_atlas_dropdown(),
         channels,
         ds_params,
         contrast_bool,
@@ -226,11 +238,17 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, 
     # if num_cores > multiprocessing.cpu_count():
     #     print("maximum available cores = " + str(multiprocessing.cpu_count()))
     #     num_cores = multiprocessing.cpu_count()
+    if params_dict['operations']['sharpy_track']:
+        print('loading reference atlas ' + params_dict['sharpy_track_params']['atlas'] + ' ...')
+        atlas = BrainGlobeAtlas(params_dict['sharpy_track_params']['atlas'])
+        resolution_tuple = get_resolution_tuple(atlas, params_dict)
+    else:
+        resolution_tuple = False
     if any(params_dict['operations'].values()):
         if num_cores > 1:
             print("parallel processing not implemented yet")
         Parallel(n_jobs=num_cores)(delayed(preprocess_images)
-                                   (im, filter_list, input_path, params_dict, save_dirs) for im in tqdm(img_list))
+                                   (im, filter_list, input_path, params_dict, save_dirs, resolution_tuple) for im in tqdm(img_list))
         params_dict = clean_params_dict(params_dict, "operations")
         params_fn = input_path.joinpath('params.json')
         params_dict = update_params_dict(input_path, params_dict)
@@ -280,9 +298,20 @@ class PreprocessingWidget(QWidget):
         self.layout().addWidget(footer.native)
         self.layout().addWidget(btn)
 
-    def _get_info(self, widget, rgb=False):
-        if rgb:
+    def _get_info(self, widget, operation=False):
+        if operation == 'rgb':
             return {
+                "channels": widget.channels.value,
+                "downsampling": widget.ds_params.value,
+                "contrast_adjustment": widget.contrast_bool.value,
+                "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
+                "green": [int(i) for i in widget.contrast_green.value.split(',')],
+                "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')]
+            }
+        elif operation == 'sharpy_track':
+            return {
+                "sections": widget.section_orient.value,
+                "atlas": widget.atlas.value.value,
                 "channels": widget.channels.value,
                 "downsampling": widget.ds_params.value,
                 "contrast_adjustment": widget.contrast_bool.value,
@@ -317,10 +346,10 @@ class PreprocessingWidget(QWidget):
                     "sharpy_track": do_sharpy.button.value,
                     "binary": do_binary.button.value
                 },
-            "rgb_params": self._get_info(do_rgb, rgb=True),
+            "rgb_params": self._get_info(do_rgb, operation='rgb'),
             "single_channel_params": self._get_info(do_single_channel),
             "stack_params": self._get_info(do_stack),
-            "sharpy_track_params": self._get_info(do_sharpy),
+            "sharpy_track_params": self._get_info(do_sharpy, operation='sharpy_track'),
             "binary_params":
                 {
                     "channels": do_binary.channels.value,
@@ -338,6 +367,7 @@ class PreprocessingWidget(QWidget):
     def _do_preprocessing(self):
         input_path = header_widget.input_path.value
         params_dict = self._get_preprocessing_params()
+        print(str(do_sharpy.atlas.value.value))
         save_dirs = create_dirs(params_dict, input_path)
         filter_list = params_dict['general']['chans_imaged']
         img_list = get_im_list(input_path)
