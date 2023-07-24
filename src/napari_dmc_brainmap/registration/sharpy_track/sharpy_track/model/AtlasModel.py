@@ -11,12 +11,13 @@ from bg_atlasapi import BrainGlobeAtlas
 
 
 class AtlasModel():
-    def __init__(self) -> None:
+    def __init__(self, regi_dict) -> None:
         self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
-        self.calculateImageGrid()
         self.imgStack = None
         print("loading reference atlas...")
-        self.atlas = BrainGlobeAtlas("allen_mouse_10um")
+        self.atlas = BrainGlobeAtlas(regi_dict['atlas'])
+        self.xyz_dict = regi_dict['xyz_dict']
+        self.calculateImageGrid()
         self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()
@@ -38,12 +39,12 @@ class AtlasModel():
         self.bregma = get_bregma()
 
     def calculateImageGrid(self):
-        dv = np.arange(800)
-        ml = np.arange(1140)
-        grid_x,grid_y = np.meshgrid(ml,dv)
+        y = np.arange(self.xyz_dict['y'][1])
+        x = np.arange(self.xyz_dict['x'][1])
+        grid_x,grid_y = np.meshgrid(x, y)
         self.r_grid_x = grid_x.ravel()
         self.r_grid_y = grid_y.ravel()
-        self.grid = np.stack([grid_y,grid_x],axis=2)
+        self.grid = np.stack([grid_y, grid_x], axis=2)
     
     def getContourIndex(self,regViewer):
         # check simple slice or angled slice
@@ -51,11 +52,11 @@ class AtlasModel():
         if (regViewer.status.MLangle == 0) and (regViewer.status.DVangle == 0):
             self.sliceAnnot = self.annot[get_ap(regViewer.status.currentAP),:,:].copy().astype(np.int32)
         else:
-            self.sliceAnnot = self.annot[self.ap_flat,self.r_grid_y,self.r_grid_x].reshape(800,1140).astype(np.int32)
+            self.sliceAnnot = self.annot[self.ap_flat,self.r_grid_y,self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1]).astype(np.int32)
         # get contours
         contours,_ = cv2.findContours(self.sliceAnnot, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
         # create canvas
-        empty = np.zeros((800,1140),dtype=np.uint8)
+        empty = np.zeros((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),dtype=np.uint8)
         # draw contours on canvas
         self.outline = cv2.drawContours(empty,contours,-1,color=255) # grayscale, 8bit
         self.outline= cv2.cvtColor(self.outline, cv2.COLOR_GRAY2RGBA) # convert to RGBA
@@ -123,16 +124,16 @@ class AtlasModel():
 
     def simpleSlice(self,regViewer):
         self.slice = self.template[get_ap(regViewer.status.currentAP), :, :].copy()
-        self.ap_mat = np.full((800,1140),get_ap(regViewer.status.currentAP))
+        self.ap_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),get_ap(regViewer.status.currentAP))
     
     def angleSlice(self,regViewer):
         # calculate from ML and DV angle, the plane of current slice
-        ml_shift = int(np.tan(np.deg2rad(regViewer.status.MLangle)) * 570)
-        dv_shift = int(np.tan(np.deg2rad(regViewer.status.DVangle)) * 400)
+        ml_shift = int(np.tan(np.deg2rad(regViewer.status.MLangle)) * (self.xyz_dict['x'][1]/2))
+        dv_shift = int(np.tan(np.deg2rad(regViewer.status.DVangle)) * (self.xyz_dict['y'][1]/2))
 
-        center = np.array([get_ap(regViewer.status.currentAP),400,570])
-        c_right = np.array([get_ap(regViewer.status.currentAP)+ml_shift,400,1139])
-        c_top = np.array([get_ap(regViewer.status.currentAP)-dv_shift,0,570]) 
+        center = np.array([get_ap(regViewer.status.currentAP),(self.xyz_dict['y'][1]/2),(self.xyz_dict['x'][1]/2)])
+        c_right = np.array([get_ap(regViewer.status.currentAP)+ml_shift,(self.xyz_dict['y'][1]/2),(self.xyz_dict['x'][1]-1)])
+        c_top = np.array([get_ap(regViewer.status.currentAP)-dv_shift,0,(self.xyz_dict['x'][1]/2)])
         # calculate plane vector
         vec_1 = c_right-center
         vec_2 = c_top-center
@@ -141,18 +142,18 @@ class AtlasModel():
         ap_mat = (-vec_n[1]*(self.grid[:,:,0]-center[1])-vec_n[2]*(self.grid[:,:,1]-center[2]))/vec_n[0] + center[0]
         ap_flat = ap_mat.astype(int).ravel() # flatten AP matrix
         # within-volume check
-        outside_vol = np.argwhere((ap_flat<0)|(ap_flat>1319)) # outside of volume index
+        outside_vol = np.argwhere((ap_flat<0)|(ap_flat>(self.xyz_dict['z'][1]-1))) # outside of volume index
         if outside_vol.size == 0: # if outside empty, inside of volume
             # index volume with ap_mat and grid
             self.ap_mat = ap_mat # save AP plane for indexing structure information 
             self.ap_flat = ap_flat # save current AP list to AtlasModel for getContourIndex
-            self.slice = self.template[ap_flat, self.r_grid_y, self.r_grid_x].reshape(800, 1140)
+            self.slice = self.template[ap_flat, self.r_grid_y, self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1])
         else: # if not empty, show black image with warning
-            self.slice = np.zeros((800,1140),dtype=np.uint8)
+            self.slice = np.zeros((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),dtype=np.uint8)
             cv2.putText(self.slice, "Slice out of volume!", (400,400), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
     
     def getStack(self,regViewer):
-        self.imgStack = np.full((regViewer.status.sliceNum,800,1140),-1,dtype=np.uint8)
+        self.imgStack = np.full((regViewer.status.sliceNum,self.xyz_dict['y'][1],self.xyz_dict['x'][1]),-1,dtype=np.uint8)
         # copy slices to stack
         for i in range(regViewer.status.sliceNum):
             full_path = Path(regViewer.status.folderPath).joinpath(regViewer.status.imgFileName[i])
@@ -169,16 +170,16 @@ class AtlasModel():
         else: # refresh dot coodinate
             atlas_pts = [] 
             for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(dot.pos().x()/regViewer.status.aspectRatio),int(dot.pos().y()/regViewer.status.aspectRatio)]) # scale coordinates
+                atlas_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
             sample_pts = []
             for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(dot.pos().x()/regViewer.status.aspectRatio),int(dot.pos().y()/regViewer.status.aspectRatio)]) # scale coordinates
+                sample_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
             # update dot record in dictionary
             regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
             regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
             regViewer.status.saveRegistration()
             # apply transformation
-            self.updateTransform(regViewer,np.array(atlas_pts)*regViewer.status.aspectRatio,np.array(sample_pts)*regViewer.status.aspectRatio) # scale coordinates
+            self.updateTransform(regViewer, np.array(atlas_pts) * regViewer.status.scaleFactor, np.array(sample_pts) * regViewer.status.scaleFactor) # scale coordinates
         
     def checkSaved(self,regViewer):
         # load exist dots if there is any
@@ -199,8 +200,8 @@ class AtlasModel():
             regViewer.widget.viewerLeft.loadSlice(regViewer) # slice atlas
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                dotLeft = DotObject(int(xyAtlas[0]*regViewer.status.aspectRatio), int(xyAtlas[1]*regViewer.status.aspectRatio), int(10*regViewer.status.aspectRatio)) # list to itemGroup
-                dotRight = DotObject(int(xySample[0]*regViewer.status.aspectRatio), int(xySample[1]*regViewer.status.aspectRatio), int(10*regViewer.status.aspectRatio)) # list to itemGroup
+                dotLeft = DotObject(int(xyAtlas[0] * regViewer.status.scaleFactor), int(xyAtlas[1] * regViewer.status.scaleFactor), int(10 * regViewer.status.scaleFactor)) # list to itemGroup
+                dotRight = DotObject(int(xySample[0] * regViewer.status.scaleFactor), int(xySample[1] * regViewer.status.scaleFactor), int(10 * regViewer.status.scaleFactor)) # list to itemGroup
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
                 # add dots to scene

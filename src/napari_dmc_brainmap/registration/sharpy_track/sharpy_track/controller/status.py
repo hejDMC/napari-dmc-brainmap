@@ -2,9 +2,10 @@ import numpy as np
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
 from PyQt5.QtCore import Qt
 import json
+from PyQt5.QtWidgets import QApplication
 
 class StatusContainer():
-    def __init__(self,screenWidth,screenHeight) -> None:
+    def __init__(self, regi_dict) -> None:
         self.cursor = 0
         self.currentAP = 0
         self.MLangle = 0
@@ -18,22 +19,28 @@ class StatusContainer():
         self.atlasDots = {}
         self.sampleDots = {}
         self.blendMode = {}
-        self.screenSize = [screenWidth,screenHeight]
+        self.xyz_dict = regi_dict['xyz_dict']
+        self.atlas_resolution = [self.xyz_dict['x'][1], self.xyz_dict['y'][1]]
+        QAppInstance = QApplication.instance()  # get current QApplication Instance
+        self.screenSize = [QAppInstance.primaryScreen().size().width(), QAppInstance.primaryScreen().size().height()]
         self.applySizePolicy()
         self.imgFileName = None
         self.folderPath = None
 
     def applySizePolicy(self):
-        if (self.screenSize == [2560,1440]) or (self.screenSize == [3840,2160]):
+        if self.screenSize[0] > round(self.atlas_resolution[0]*2.2) and self.screenSize[1] > round(self.atlas_resolution[1] > 1.1):  # 2x width (plus margin) and 1x height (plus margin)
+            self.scaleFactor = 1
             self.fullWindowSizeNarrow = [2350,940]
-            self.fullWindowSizeWide = [2394,940]
-            self.singleWindowSize = [1140,800]
-            self.aspectRatio = 1
+            self.fullWindowSizeWide = [int(round(self.atlas_resolution[0]*2.2)), int(round(self.atlas_resolution[1] > 1.1))]
+            self.singleWindowSize = self.atlas_resolution
+
         else: # [1920,1080] resolution
+            self.scaleFactor = round(self.screenSize[0]/(self.atlas_resolution[0] * 2.3), 2)
             self.fullWindowSizeNarrow = [1762,705]
-            self.fullWindowSizeWide = [1820,705]
-            self.singleWindowSize = [855,600]
-            self.aspectRatio = 0.75
+            self.fullWindowSizeWide = [(self.atlas_resolution[0]*2.2) * self.scaleFactor,
+                                       (self.atlas_resolution[1]*1.1) * self.scaleFactor]
+            self.singleWindowSize = [int(i*self.scaleFactor) for i in self.atlas_resolution]
+
 
 
     def sampleChanged(self,regViewer):
@@ -91,16 +98,16 @@ class StatusContainer():
         ## update viewerLeft
         if (self.cursor == -1) & (self.tMode == 0): # tMode OFF, inside viewerLeft
             if event.angleDelta().y() < 0: # scrolling towards posterior
-                self.currentAP -= 0.01
+                self.currentAP -= self.xyz_dict['z'][2] / 1000
                 self.currentAP = np.round(self.currentAP,2)
             elif event.angleDelta().y() > 0: # scrolling towards anterior
-                self.currentAP += 0.01
+                self.currentAP += self.xyz_dict['z'][2] / 1000
                 self.currentAP = np.round(self.currentAP,2)
             else:
                 pass
 
             # within range check
-            if get_ap(self.currentAP) > 1319:
+            if get_ap(self.currentAP) > self.xyz_dict['z'][1] - 1:
                 self.currentAP = -7.8
                 # print("Posterior End!")
             elif get_ap(self.currentAP) < 0:
@@ -156,19 +163,19 @@ class StatusContainer():
 
     def keyPressEventHandle(self, regViewer, event):
         if (event.key() == 50) & (self.tMode == 0): # pressed numpad 2
-            self.DVangle = np.round(self.DVangle-0.1,1)
+            self.DVangle = np.round(self.DVangle-(self.xyz_dict['y'][2] / 1000),1)
             regViewer.widget.dvSlider.setSliderPosition(int(self.DVangle*10))
             regViewer.widget.viewerLeft.loadSlice(regViewer)
         elif (event.key() == 52) & (self.tMode == 0): # pressed numpad 4
-            self.MLangle = np.round(self.MLangle-0.1,1)
+            self.MLangle = np.round(self.MLangle-(self.xyz_dict['x'][2] / 1000),1)
             regViewer.widget.mlSlider.setSliderPosition(int(self.MLangle*10))
             regViewer.widget.viewerLeft.loadSlice(regViewer)
         elif (event.key() == 54) & (self.tMode == 0): # pressed numpad 6
-            self.MLangle = np.round(self.MLangle+0.1,1)
+            self.MLangle = np.round(self.MLangle+(self.xyz_dict['x'][2] / 1000),1)
             regViewer.widget.mlSlider.setSliderPosition(int(self.MLangle*10))
             regViewer.widget.viewerLeft.loadSlice(regViewer)
         elif (event.key() == 56) & (self.tMode == 0): # pressed numpad 8
-            self.DVangle = np.round(self.DVangle+0.1,1)
+            self.DVangle = np.round(self.DVangle+(self.xyz_dict['y'][2] / 1000),1)
             regViewer.widget.dvSlider.setSliderPosition(int(self.DVangle*10))
             regViewer.widget.viewerLeft.loadSlice(regViewer)
 

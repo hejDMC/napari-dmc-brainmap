@@ -15,7 +15,7 @@ from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFile
 from superqt import QCollapsible
 from magicgui import magicgui
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs, get_atlas_dropdown, \
-    get_resolution_tuple
+    get_xyz
 
 from bg_atlasapi import BrainGlobeAtlas
 
@@ -142,7 +142,7 @@ def do_stack(
 @magicgui(
     button=dict(widget_type='CheckBox', text='create downsampled images for sharpy-track', value=False,
                 tooltip='option to create downsampled images [1140x800 px] for brain registration using sharpy-track'),
-    section_orient=dict(widget_type='ComboBox', label='lind of sections',
+    section_orient=dict(widget_type='ComboBox', label='orientation of sectioning',
                     choices=['coronal', 'sagittal', 'horizontal'], value='coronal',
                     tooltip="select the how you sliced the brain"),
     atlas=dict(label='reference atlas',
@@ -241,7 +241,9 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, 
     if params_dict['operations']['sharpy_track']:
         print('loading reference atlas ' + params_dict['sharpy_track_params']['atlas'] + ' ...')
         atlas = BrainGlobeAtlas(params_dict['sharpy_track_params']['atlas'])
-        resolution_tuple = get_resolution_tuple(atlas, params_dict)
+        xyz_dict = get_xyz(atlas, params_dict)
+        params_dict['sharpy_track_params']['xyz_dict'] = xyz_dict
+        resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
     else:
         resolution_tuple = False
     if any(params_dict['operations'].values()):
@@ -310,7 +312,7 @@ class PreprocessingWidget(QWidget):
             }
         elif operation == 'sharpy_track':
             return {
-                "sections": widget.section_orient.value,
+                "orientation": widget.section_orient.value,
                 "atlas": widget.atlas.value.value,
                 "channels": widget.channels.value,
                 "downsampling": widget.ds_params.value,

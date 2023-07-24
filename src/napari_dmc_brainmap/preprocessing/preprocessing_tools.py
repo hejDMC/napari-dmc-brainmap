@@ -25,23 +25,23 @@ def create_dirs(params, input_path):
                     save_dirs[operation] = data_dir.parent
     return save_dirs
 
-def get_resolution_tuple(atlas, params_dict):
+def get_xyz(atlas, params_dict):
     # resolution tuple (width, height)
     orient_dict = {
         'coronal': 'frontal',
         'horizontal': 'horizontal',
         'sagittal': 'sagittal'
     }
-    section_orient = params_dict['sharpy_track_params']['sections']
+    section_orient = params_dict['sharpy_track_params']['orientation']
     orient_idx = atlas.space.sections.index(orient_dict[section_orient])
     resolution_idx = atlas.space.index_pairs[orient_idx]
+    xyz_dict = {
+        'z': [atlas.space.axes_description[orient_idx], atlas.space.shape[orient_idx], atlas.space.resolution[orient_idx]],
+        'y': [atlas.space.axes_description[resolution_idx[0]], atlas.space.shape[resolution_idx[0]], atlas.space.resolution[resolution_idx[0]]],
+        'x': [atlas.space.axes_description[resolution_idx[1]], atlas.space.shape[resolution_idx[1]], atlas.space.resolution[resolution_idx[1]]],
+    }
 
-    resolution_tuple = tuple([atlas.space.shape[i] for i in resolution_idx])
-    # todo check if this is true for all atlases
-    if section_orient == 'coronal':
-        resolution_tuple = resolution_tuple[::-1]
-
-    return resolution_tuple
+    return xyz_dict
 
 
 
