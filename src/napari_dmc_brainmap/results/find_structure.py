@@ -2,7 +2,9 @@
 import pandas as pd
 from pathlib import Path
 from pkg_resources import resource_filename
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
+from natsort import natsorted
+from tifffile import tifffile
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_ap, fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.utils import get_bregma
 import numpy as np
 import json
@@ -39,14 +41,9 @@ class sliceHandle():
         self.ImgFolder = ImgFolder
 
     def loadImg(self):
-        files_all = natsorted(os.listdir(self.ImgFolder))
+        self.sampleImgFiles = natsorted([f.parts[-1] for f in self.ImgFolder.glob('*.tif')])
         self.sampleImgFiles = []
-        for f in files_all:
-            if not (f.startswith('.')) and (f.endswith('.tif') or f.endswith('.tiff')):
-                self.sampleImgFiles.append(f)
-            else:
-                pass
-        self.currentSampleImg = tifffile.imread(os.path.join(self.ImgFolder, self.sampleImgFiles[self.currentSlice]))
+        self.currentSampleImg = tifffile.imread((self.ImgFolder.joinpath(self.sampleImgFiles[self.currentSlice])))
         print('Working on: ', self.sampleImgFiles[self.currentSlice])
 
     def parseJSON(self):

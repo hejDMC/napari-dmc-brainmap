@@ -40,9 +40,9 @@ class MainWidget():
     def loadSlice(self,probeV):
 
         if probeV.viewerID == 0: # coronal
-            self.slice = probeV.template[probeV.currentAP, :, :].copy()
-            cv2.putText(self.slice, "AP: "+str(probeV.currentAP), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
-            cv2.putText(self.slice, "("+str(np.round((540-probeV.currentAP)*0.01,2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            self.slice = probeV.template[probeV.current_z, :, :].copy()
+            cv2.putText(self.slice, "AP: " + str(probeV.current_z), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
+            cv2.putText(self.slice, "(" + str(np.round((540 - probeV.current_z) * 0.01, 2)) + " mm)", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 
         elif probeV.viewerID == 1: # axial
             # rotate AP axis to screen width axis
@@ -71,8 +71,8 @@ class MainWidget():
                             pass # probe not going through this axial plane
 
                     elif probeV.viewerID == 0: # coronal plane
-                        if probeV.currentAP in vox_this_probe[:,0]:
-                            probe_coord_2d = vox_this_probe[np.where(vox_this_probe[:,0]==probeV.currentAP)[0]][:,[1,2]]
+                        if probeV.current_z in vox_this_probe[:, 0]:
+                            probe_coord_2d = vox_this_probe[np.where(vox_this_probe[:,0] == probeV.current_z)[0]][:, [1, 2]]
                             # draw dot
                             for coord in probe_coord_2d:
                                 cv2.circle(self.slice, (coord[1],coord[0]), 3, self.probeColor[p], -1) # transpost XY here
@@ -109,9 +109,9 @@ class MainWidget():
     
     def updateSlider(self,probeV):
         if probeV.viewerID == 0:
-            currentAP = probeV.currentAP # save currentAP copy
-            self.gSlider.setMaximum(1319) # currentAP reset
-            self.gSlider.setSliderPosition(currentAP) # restore currentAP
+            currentAP = probeV.current_z # save current_z copy
+            self.gSlider.setMaximum(1319) # current_z reset
+            self.gSlider.setSliderPosition(currentAP) # restore current_z
         elif probeV.viewerID == 1:
             currentDV = probeV.currentDV
             self.gSlider.setMaximum(799)

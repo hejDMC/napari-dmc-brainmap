@@ -1,9 +1,11 @@
-
+import cv2
+import numpy as np
 from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_ap, fitGeoTrans
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils import get_bregma
+
 
 from pathlib import Path
 from pkg_resources import resource_filename
@@ -49,8 +51,8 @@ class AtlasModel():
     def getContourIndex(self,regViewer):
         # check simple slice or angled slice
         # slice annotation volume, convert to int32 for contour detection
-        if (regViewer.status.MLangle == 0) and (regViewer.status.DVangle == 0):
-            self.sliceAnnot = self.annot[get_ap(regViewer.status.currentAP),:,:].copy().astype(np.int32)
+        if (regViewer.status.x_angle == 0) and (regViewer.status.y_angle == 0):
+            self.sliceAnnot = self.annot[get_ap(regViewer.status.current_z), :, :].copy().astype(np.int32)
         else:
             self.sliceAnnot = self.annot[self.ap_flat,self.r_grid_y,self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1]).astype(np.int32)
         # get contours
@@ -100,14 +102,14 @@ class AtlasModel():
         
 
     def getSlice(self,regViewer):
-        if (regViewer.status.MLangle == 0) and (regViewer.status.DVangle == 0):
+        if (regViewer.status.x_angle == 0) and (regViewer.status.y_angle == 0):
             self.simpleSlice(regViewer) # update simple slice
         else:
             self.angleSlice(regViewer) # update angled slice
 
-        cv2.putText(self.slice, "AP: "+str(regViewer.status.currentAP), (950,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-        cv2.putText(self.slice, "ML Angle: "+str(regViewer.status.MLangle), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-        cv2.putText(self.slice, "DV Angle: "+str(regViewer.status.DVangle), (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        cv2.putText(self.slice, "AP: " + str(regViewer.status.current_z), (950, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        cv2.putText(self.slice, "ML Angle: " + str(regViewer.status.x_angle), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        cv2.putText(self.slice, "DV Angle: " + str(regViewer.status.y_angle), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
 
         self.slice = cv2.resize(self.slice,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])) # resize to single window size
         self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
@@ -123,17 +125,17 @@ class AtlasModel():
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)
 
     def simpleSlice(self,regViewer):
-        self.slice = self.template[get_ap(regViewer.status.currentAP), :, :].copy()
-        self.ap_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),get_ap(regViewer.status.currentAP))
+        self.slice = self.template[get_ap(regViewer.status.current_z), :, :].copy()
+        self.ap_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]), get_ap(regViewer.status.current_z))
     
     def angleSlice(self,regViewer):
         # calculate from ML and DV angle, the plane of current slice
-        ml_shift = int(np.tan(np.deg2rad(regViewer.status.MLangle)) * (self.xyz_dict['x'][1]/2))
-        dv_shift = int(np.tan(np.deg2rad(regViewer.status.DVangle)) * (self.xyz_dict['y'][1]/2))
+        ml_shift = int(np.tan(np.deg2rad(regViewer.status.x_angle)) * (self.xyz_dict['x'][1] / 2))
+        dv_shift = int(np.tan(np.deg2rad(regViewer.status.y_angle)) * (self.xyz_dict['y'][1] / 2))
 
-        center = np.array([get_ap(regViewer.status.currentAP),(self.xyz_dict['y'][1]/2),(self.xyz_dict['x'][1]/2)])
-        c_right = np.array([get_ap(regViewer.status.currentAP)+ml_shift,(self.xyz_dict['y'][1]/2),(self.xyz_dict['x'][1]-1)])
-        c_top = np.array([get_ap(regViewer.status.currentAP)-dv_shift,0,(self.xyz_dict['x'][1]/2)])
+        center = np.array([get_ap(regViewer.status.current_z), (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] / 2)])
+        c_right = np.array([get_ap(regViewer.status.current_z) + ml_shift, (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] - 1)])
+        c_top = np.array([get_ap(regViewer.status.current_z) - dv_shift, 0, (self.xyz_dict['x'][1] / 2)])
         # calculate plane vector
         vec_1 = c_right-center
         vec_2 = c_top-center
@@ -194,9 +196,9 @@ class AtlasModel():
             atlas_pts = regViewer.status.atlasDots[regViewer.status.currentSliceNumber] # read dictionary, create dot object
             sample_pts = regViewer.status.sampleDots[regViewer.status.currentSliceNumber]
 
-            regViewer.status.MLangle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][0] # read atlasLocation
-            regViewer.status.DVangle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][1]
-            regViewer.status.currentAP = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][2]
+            regViewer.status.x_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][0] # read atlasLocation
+            regViewer.status.y_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][1]
+            regViewer.status.current_z = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][2]
             regViewer.widget.viewerLeft.loadSlice(regViewer) # slice atlas
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):

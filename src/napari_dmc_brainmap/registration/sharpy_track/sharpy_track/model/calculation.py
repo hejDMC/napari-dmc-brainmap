@@ -1,13 +1,10 @@
 import numpy as np
-import cv2
 from skimage.transform import ProjectiveTransform
-import os
-from natsort import natsorted
-import tifffile
+
 
 ## generate coordinate mapping
 # generate ap-axis mapping
-def get_ap(ap_mm):
+def get_ap(ap_mm): # todo this function to xyz
     return int(round((5.39-ap_mm) * 100))
 # generate dv-axis mapping
 def get_dv(dv_mm):

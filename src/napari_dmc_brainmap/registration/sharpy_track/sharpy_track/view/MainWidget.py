@@ -3,10 +3,10 @@ from PyQt5.QtCore import Qt
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.GraphicViewers import ViewerLeft,ViewerRight
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle import ModeToggle
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import *
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import predictPointSample
 
 class MainWidget():
-    def __init__(self,regViewer):
+    def __init__(self, regViewer, regi_dict):
         self.widget = QWidget()
         self.layoutGrid = QGridLayout()
         self.widget.setLayout(self.layoutGrid)
@@ -20,34 +20,35 @@ class MainWidget():
         self.layoutGrid.addWidget(self.viewerRight.view,1,3)
         self.viewerRight.loadSample(regViewer)
         # create volume slider
-        self.createAPslider(regViewer)
-        self.createMLslider(regViewer)
-        self.createDVslider(regViewer)
 
-    def createAPslider(self,regViewer):
-        self.apSlider = QSlider(Qt.Horizontal)
-        self.apSlider.setMinimum(0)
-        self.apSlider.setMaximum(1319)
-        self.apSlider.setSingleStep(1)
-        self.apSlider.setSliderPosition(539)
-        self.apSlider.valueChanged.connect(lambda: regViewer.status.apChanged(regViewer))
-        self.layoutGrid.addWidget(self.apSlider,2,1)
+        self.create_z_slider(regViewer, regi_dict['xyz_dict']['z'][1])
+        self.create_x_slider(regViewer, regi_dict['xyz_dict']['x'][1])
+        self.create_y_slider(regViewer, regi_dict['xyz_dict']['y'][1])
 
-    def createMLslider(self,regViewer):
-        self.mlSlider = QSlider(Qt.Horizontal)
-        self.mlSlider.setMinimum(-200)
-        self.mlSlider.setMaximum(200)
-        self.mlSlider.setSingleStep(1)
-        self.mlSlider.valueChanged.connect(lambda: regViewer.status.mlChanged(regViewer))
-        self.layoutGrid.addWidget(self.mlSlider,0,1)
+    def create_z_slider(self, regViewer, z_size):
+        self.z_slider = QSlider(Qt.Horizontal)
+        self.z_slider.setMinimum(0)
+        self.z_slider.setMaximum(z_size - 1)
+        self.z_slider.setSingleStep(1)
+        self.z_slider.setSliderPosition(int(round(z_size / 2)))
+        self.z_slider.valueChanged.connect(lambda: regViewer.status.z_changed(regViewer))
+        self.layoutGrid.addWidget(self.z_slider, 2, 1)
 
-    def createDVslider(self,regViewer):
-        self.dvSlider = QSlider(Qt.Vertical)
-        self.dvSlider.setMinimum(-200)
-        self.dvSlider.setMaximum(200)
-        self.dvSlider.setSingleStep(1)
-        self.dvSlider.valueChanged.connect(lambda: regViewer.status.dvChanged(regViewer))
-        self.layoutGrid.addWidget(self.dvSlider,1,0)
+    def create_x_slider(self, regViewer, x_size):
+        self.x_slider = QSlider(Qt.Horizontal)
+        self.x_slider.setMinimum(-x_size / 2)
+        self.x_slider.setMaximum(x_size / 2)
+        self.x_slider.setSingleStep(1)
+        self.x_slider.valueChanged.connect(lambda: regViewer.status.x_changed(regViewer))
+        self.layoutGrid.addWidget(self.x_slider, 0, 1)
+
+    def create_y_slider(self, regViewer, y_size):
+        self.y_slider = QSlider(Qt.Vertical)
+        self.y_slider.setMinimum(-y_size / 2)
+        self.y_slider.setMaximum(y_size / 2)
+        self.y_slider.setSingleStep(1)
+        self.y_slider.valueChanged.connect(lambda: regViewer.status.y_changed(regViewer))
+        self.layoutGrid.addWidget(self.y_slider, 1, 0)
 
     def createSampleSlider(self,regViewer):
         self.sampleSlider = QSlider(Qt.Horizontal)
@@ -59,7 +60,8 @@ class MainWidget():
     
     def createImageTitle(self,regViewer):
         self.imageTitle = QLabel()
-        self.imageTitle.setText(str(regViewer.status.currentSliceNumber)+'---'+regViewer.status.imgFileName[regViewer.status.currentSliceNumber])
+        self.imageTitle.setText(str(regViewer.status.currentSliceNumber) +
+                                '---'+regViewer.status.imgFileName[regViewer.status.currentSliceNumber])
         font = self.imageTitle.font()
         font.setPointSize(20)
         self.imageTitle.setFont(font)

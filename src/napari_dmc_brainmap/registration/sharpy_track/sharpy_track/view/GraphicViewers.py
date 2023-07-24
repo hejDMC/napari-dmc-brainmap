@@ -7,7 +7,7 @@ class ViewerLeft(ViewerGeneral):
     def __init__(self,regViewer) -> None:
         super().__init__(regViewer)
         self.labelContour = QLabel()
-        self.labelContour.setFixedSize(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])
+        self.labelContour.setFixedSize(regViewer.status.singleWindowSize[0], regViewer.status.singleWindowSize[1])
         self.labelContour.setVisible(False)
         self.labelContour.setStyleSheet("background:transparent")
         self.scene.addWidget(self.labelContour)
@@ -41,7 +41,7 @@ class ViewerLeft(ViewerGeneral):
     def highlightArea(self,regViewer,listCoordMM,activeArea,structureName):
         contourHighlight = regViewer.atlasModel.outline.copy()
         contourHighlight[activeArea[0],activeArea[1],:] = [255,0,0,50] # change active area to 50% red
-        # add mm coordinates, structureName
+        # add mm coordinates, structureName todo: change coordinates of text according to atlas
         cv2.putText(contourHighlight, "AP:"+str(listCoordMM[0])+" mm", (970,730), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
         cv2.putText(contourHighlight, "ML:"+str(listCoordMM[2])+" mm", (970,760), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
         cv2.putText(contourHighlight, "DV:"+str(listCoordMM[1])+" mm", (970,790), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
