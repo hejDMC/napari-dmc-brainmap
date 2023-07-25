@@ -1,5 +1,5 @@
 import numpy as np
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_ap
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_z
 from PyQt5.QtCore import Qt
 import json
 from PyQt5.QtWidgets import QApplication
@@ -107,15 +107,15 @@ class StatusContainer():
                 pass
 
             # within range check
-            if get_ap(self.current_z) > self.xyz_dict['z'][1] - 1:
+            if get_z(self.current_z) > self.xyz_dict['z'][1] - 1:
                 self.current_z = -7.8
                 # print("Posterior End!")
-            elif get_ap(self.current_z) < 0:
+            elif get_z(self.current_z) < 0:
                 self.current_z = 5.39
                 # print("Anterior End!")
             else:
                 pass
-            regViewer.widget.z_slider.setSliderPosition(get_ap(self.current_z))
+            regViewer.widget.z_slider.setSliderPosition(get_z(self.current_z))
             # regViewer.widget.viewerLeft.loadSlice(regViewer)
         ## update viewerRight
         elif (self.cursor == 1) & (self.sliceNum > 0) & (self.tMode == 0): # sample images loaded, inside viewerRight, tMode off
@@ -154,10 +154,10 @@ class StatusContainer():
     
     def saveRegistration(self):
         with open(self.folderPath.joinpath('registration.json'), 'w') as f:
-            reg_data = {'atlasLocation':self.atlasLocation,
-                        'atlasDots':self.atlasDots,
-                        'sampleDots':self.sampleDots,
-                        'imgName':self.imgNameDict}
+            reg_data = {'atlasLocation': self.atlasLocation,
+                        'atlasDots': self.atlasDots,
+                        'sampleDots': self.sampleDots,
+                        'imgName': self.imgNameDict}
             json.dump(reg_data, f)
 
 

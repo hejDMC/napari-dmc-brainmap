@@ -72,6 +72,14 @@ def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
 
     return image_list
 
+def load_params(input_path):
+    params_fn = input_path.joinpath('params.json')
+    if params_fn.exists():
+        with open(params_fn) as fn:
+            params_dict = json.load(fn)
+    else:
+        print("params file missing for " + get_animal_id(input_path))
+    return params_dict
 
 def clean_params_dict(params_dict, key):
     # remove empty keys and processes that have not run
@@ -179,10 +187,45 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
 
     return dict
 
-def get_bregma(atlas="allen_mouse_10um"):
+def get_bregma(atlas_id):
 
     bregma_dict = {
         "allen_mouse_10um": [540, 0, 570]
     }
+    if atlas_id in bregma_dict.keys():
+        bregma = bregma_dict[atlas_id]
+    else:
+        print('no bregma coordinates specified for ' + atlas_id + '\n'
+              ' returning 0/0/0 coordinates as *bregma*')
+        bregma = [0, 0, 0]
 
-    return bregma_dict[atlas]
+    return bregma
+
+def create_regi_dict(input_path, regi_chan):
+
+    regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
+    params_dict = load_params(input_path)
+
+    regi_dict = {
+        'input_path': input_path,
+        'regi_dir': regi_dir,
+        'atlas': params_dict['sharpy_track_params']['atlas'],
+        'xyz_dict': params_dict['sharpy_track_params']['xyz_dict']
+    }
+
+    return regi_dict
+
+def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
+    # list with [x,y,z] tripled
+    xyz_tuple = tuple([regi_dict['xyz_dict']['x'][0], regi_dict['xyz_dict']['y'][0], regi_dict['xyz_dict']['z'][0]])
+    index_match = [xyz_tuple.index(e) for e in atlas_tuple]
+
+    tripled_new = [triplet[i] for i in index_match]
+
+    return tripled_new
+
+def coord_mm_transform(tripled, bregma, resolution_tuple):
+
+    tripled_mm = [round(br_coord - coord) * (res/1000) for coord, br_coord, res in zip(tripled, bregma, resolution_tuple)]
+
+    return tripled_mm

@@ -1,7 +1,7 @@
 from magicgui import magicgui
 import json
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
-from napari_dmc_brainmap.utils import get_info
+from napari_dmc_brainmap.utils import create_regi_dict
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
 
 @magicgui(
@@ -35,28 +35,13 @@ class RegistrationWidget(QWidget):
         self.layout().addWidget(header.native)
         self.layout().addWidget(btn)
 
-    def create_regi_dict(self):
-        input_path = header_widget.input_path.value
-        regi_chan = header_widget.regi_chan.value
-        regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
-        params_fn = input_path.joinpath('params.json')
-        with open(params_fn) as fn:
-            params_dict = json.load(fn)
-
-
-        regi_dict = {
-            'input_path': input_path,
-            'regi_dir': regi_dir,
-            'atlas': params_dict['sharpy_track_params']['atlas'],
-            'xyz_dict': params_dict['sharpy_track_params']['xyz_dict']
-        }
-
-        return regi_dict
 
     def _start_sharpy_track(self):
         # todo think about solution to check and load atlas data
+        input_path = header_widget.input_path.value
+        regi_chan = header_widget.regi_chan.value
 
-        regi_dict = self.create_regi_dict()
+        regi_dict = create_regi_dict(input_path, regi_chan)
 
         reg_viewer = RegistrationViewer(self.viewer, regi_dict)
         reg_viewer.show()

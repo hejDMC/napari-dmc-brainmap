@@ -11,7 +11,8 @@ from sklearn.preprocessing import minmax_scale
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import seaborn as sns
-from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df
+from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df, load_params, \
+    create_regi_dict
 from napari_dmc_brainmap.results.find_structure import sliceHandle
 from bg_atlasapi import BrainGlobeAtlas
 import json
@@ -101,7 +102,7 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
 
 
 @thread_worker
-def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan):
+def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict):
 
 
     animal_id = get_animal_id(input_path)
@@ -109,7 +110,8 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan):
     with open(regi_dir.joinpath('registration.json')) as fn:
         regi_data = json.load(fn)
 
-    s = sliceHandle(regi_dir.joinpath('registration.json'))
+    regi_dict = create_regi_dict(input_path, regi_chan)
+    s = sliceHandle(regi_dict)
     if seg_type == "optic_fiber" or seg_type == "neuropixels_probe":
         seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
         channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
@@ -259,7 +261,8 @@ class ResultsWidget(QWidget):
         regi_chan = results_widget.regi_chan.value
         seg_type = results_widget.seg_type.value
         channels = results_widget.channels.value
-        worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan)
+        params_dict = load_params(input_path)
+        worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict)
         worker_results_file.start()
 
 

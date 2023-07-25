@@ -4,21 +4,22 @@ from pathlib import Path
 from pkg_resources import resource_filename
 from natsort import natsorted
 from tifffile import tifffile
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_ap, fitGeoTrans, mapPointTransform
-from napari_dmc_brainmap.utils import get_bregma
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_z, fitGeoTrans, mapPointTransform
+from napari_dmc_brainmap.utils import get_bregma, xyz_atlas_transform, coord_mm_transform
 import numpy as np
 import json
 from bg_atlasapi import BrainGlobeAtlas
 
 class sliceHandle():
-    def __init__(self, registration=False) -> None:
-        if registration:
-            self.jsonPath = registration
+    def __init__(self, regi_dict=False) -> None:
+        if regi_dict:
+            self.regi_dict = regi_dict
+            self.jsonPath = self.regi_dict['regi_dir'].joinpath('registration.json')
             self.parseJSON()
             self.getTransform()
             self.calculateImageGrid()
             print("loading reference atlas...")
-            self.atlas = BrainGlobeAtlas("allen_mouse_10um")
+            self.atlas = BrainGlobeAtlas(self.regi_dict['atlas'])
             self.loadAnnot()
             self.loadStructureTree()
             self.currentSlice = None
@@ -31,7 +32,7 @@ class sliceHandle():
 
     def loadStructureTree(self):
         self.sTree = self.atlas.structures
-        self.bregma = get_bregma()
+        self.bregma = get_bregma(self.regi_dict['atlas'])
 
     def setSlice(self, slice_n):
         self.currentSlice = slice_n
@@ -59,67 +60,62 @@ class sliceHandle():
                 self.tforms[k] = fitGeoTrans(self.regData['sampleDots'][k], self.regData['atlasDots'][k])
 
     def getVolumeIndex(self, slice_n, sample_coords):
-        ap_plane = self.getPlaneAP(slice_n)
+        z_plane = self.get_z_plane(slice_n)
         volIndex_list = []
         for s_coord in sample_coords:
             x_pre, y_pre = s_coord
             x_post, y_post = mapPointTransform(x_pre, y_pre, self.tforms[slice_n])
-            dv = int(y_post)
-            ml = int(x_post)
-            ap = int(ap_plane[dv, ml])
-            volIndex_list.append([ap, dv, ml])
+            y = int(y_post)
+            x = int(x_post)
+            z = int(z_plane[y, x])
+            volIndex_list.append([x, y, z])
         return volIndex_list
 
-    def getStructureID(self, volIndex):
-        return self.annot[volIndex[0], volIndex[1], volIndex[2]]
+    def get_z_plane(self, slice_n):
+        x_angle = self.regData['atlasLocation'][slice_n][0]
+        y_angle = self.regData['atlasLocation'][slice_n][1]
+        x_max = self.regi_dict['xyz_dict']['x'][1]
+        y_max = self.regi_dict['xyz_dict']['y'][1]
+        z_coord = get_z(self.regData['atlasLocation'][slice_n][2])
 
-    def getPlaneAP(self, slice_n):
-        MLangle = self.regData['atlasLocation'][slice_n][0]
-        DVangle = self.regData['atlasLocation'][slice_n][1]
-
-        ap_c = get_ap(self.regData['atlasLocation'][slice_n][2])
-
-        if (MLangle == 0) and (DVangle == 0):  # flat plane
-            ap_plane = np.full((800, 1140), ap_c, dtype=np.uint16)
+        if (x_angle == 0) and (y_angle == 0):  # flat plane
+            z_plane = np.full((y_max, x_max), z_coord, dtype=np.uint16)
 
         else:  # angled plane
-            ml_shift = int(np.tan(np.deg2rad(MLangle)) * 570)
-            dv_shift = int(np.tan(np.deg2rad(DVangle)) * 400)
-            center = np.array([ap_c, 400, 570])
-            c_right = np.array([ap_c + ml_shift, 400, 1139])
-            c_top = np.array([ap_c - dv_shift, 0, 570])
+            x_shift = int(np.tan(np.deg2rad(x_angle)) * x_max/2)
+            y_shift = int(np.tan(np.deg2rad(y_angle)) * y_max/2)
+            center = np.array([z_coord, y_max/2, x_max/2])
+            c_right = np.array([z_coord + x_shift, y_max/2, x_max-1])
+            c_top = np.array([z_coord - y_shift, 0, x_max/2])
             vec_1 = c_right - center
             vec_2 = c_top - center
             vec_n = np.cross(vec_1, vec_2)
-            ap_plane = (-vec_n[1] * (self.grid[:, :, 0] - center[1]) - vec_n[2] * (self.grid[:, :, 1] - center[2])) / \
+            z_plane = (-vec_n[1] * (self.grid[:, :, 0] - center[1]) - vec_n[2] * (self.grid[:, :, 1] - center[2])) / \
                        vec_n[0] + center[0]
 
-        return ap_plane
-
-    def getCoordMM(self, vol_index):
-        vol_ap, vol_dv, vol_ml = vol_index
-        ap_mm = np.round((self.bregma[0] - vol_ap) * 0.01, 2)
-        dv_mm = np.round((self.bregma[1] - vol_dv) * 0.01, 2)
-        ml_mm = np.round((self.bregma[2] - vol_ml) * 0.01, 2)
-        return [ap_mm, dv_mm, ml_mm]
+        return z_plane
 
     def calculateImageGrid(self):  # one time calculation
-        dv = np.arange(800)
-        ml = np.arange(1140)
-        grid_x, grid_y = np.meshgrid(ml, dv)
+        x_max = self.regi_dict['xyz_dict']['x'][1]
+        y_max = self.regi_dict['xyz_dict']['y'][1]
+        y = np.arange(y_max)
+        x = np.arange(x_max)
+        grid_x, grid_y = np.meshgrid(x, y)
         self.grid = np.stack([grid_y, grid_x], axis=2)
 
     def getBrainArea(self, inputCoordinates, section_name):
 
-        inputCoordinates = np.array(inputCoordinates)
+        inputCoordinates = np.array(inputCoordinates)  # inputCoordinates in [x, y]
 
-        vol_index = self.getVolumeIndex(str(self.currentSlice), inputCoordinates)  # [ap,dv,ml]
+        volIndex_list = self.getVolumeIndex(str(self.currentSlice), inputCoordinates)  # [[x, y, z], [x, y, z]...] in 'dmc-brainmap space'
+        # transfer xyz coordinates to convention used by atlas (bg_atlasapi)
+        volIndex_list = [xyz_atlas_transform(v, self.regi_dict, self.atlas.space.axes_description) for v in volIndex_list]
         id_list = []
         name_list = []
         acronym_list = []
         vol_mm_list = []
-        for i in vol_index:
-            structure_id = self.getStructureID(i)
+        for tripled in volIndex_list:
+            structure_id = self.atlas.structure_from_coords(tripled)
             id_list.append(structure_id)
             if structure_id > 0 :
                 name_list.append(self.sTree.data[structure_id]['name'])
@@ -128,15 +124,22 @@ class sliceHandle():
                 name_list.append('root')
                 acronym_list.append('root')
             # calculate Allen coordinates in mm unit
-            vol_mm = self.getCoordMM(i)
+            vol_mm = coord_mm_transform(tripled, self.bregma, self.atlas.space.resolution)
             vol_mm_list.append(vol_mm)
-        ap_coord, dv_coord, ml_coord = map(list, zip(*vol_index))
-        ap_mm, dv_mm, ml_mm = map(list, zip(*vol_mm_list))
+        name_dict = {
+            'ap': 'ap',
+            'si': 'dv',
+            'rl': 'ml'
+        }
 
-        section_data = pd.DataFrame(list(zip(name_list, acronym_list, ap_mm, dv_mm, ml_mm,
-                                             id_list, ap_coord, dv_coord, ml_coord)),
-                                    columns=['name', 'acronym', 'ap_mm', 'dv_mm', 'ml_mm',
-                                             'structure_id', 'zpixel', 'ypixel', 'xpixel'])
+        a_coord, b_coord, c_coord = map(list, zip(*volIndex_list))
+        a_mm, b_mm, c_mm = map(list, zip(*vol_mm_list))
+        col_names = ['name', 'acronym', 'structure_id']
+        col_names.append([name_dict[n] + '_mm' for n in self.atlas.space.axes_description])
+        col_names.append([name_dict[n] + '_coords' for n in self.atlas.space.axes_description])
+        section_data = pd.DataFrame(list(zip(name_list, acronym_list, id_list, a_mm, b_mm, c_mm,
+                                             a_coord, b_coord, c_coord)),
+                                    columns=col_names)
         section_data['section_name'] = [section_name] * len(section_data)
         return section_data
 

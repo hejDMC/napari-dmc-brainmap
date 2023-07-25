@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_ap, fitGeoTrans
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_z, fitGeoTrans
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils import get_bregma
 
@@ -22,7 +22,7 @@ class AtlasModel():
         self.calculateImageGrid()
         self.loadTemplate()
         self.loadAnnot()
-        self.loadStructureTree()
+        self.loadStructureTree(regi_dict)
 
 
     def loadTemplate(self):
@@ -36,9 +36,9 @@ class AtlasModel():
         self.annot = self.atlas.annotation
 
 
-    def loadStructureTree(self):
+    def loadStructureTree(self, regi_dict):
         self.sTree = self.atlas.structures
-        self.bregma = get_bregma()
+        self.bregma = get_bregma(regi_dict['atlas'])
 
     def calculateImageGrid(self):
         y = np.arange(self.xyz_dict['y'][1])
@@ -52,7 +52,7 @@ class AtlasModel():
         # check simple slice or angled slice
         # slice annotation volume, convert to int32 for contour detection
         if (regViewer.status.x_angle == 0) and (regViewer.status.y_angle == 0):
-            self.sliceAnnot = self.annot[get_ap(regViewer.status.current_z), :, :].copy().astype(np.int32)
+            self.sliceAnnot = self.annot[get_z(regViewer.status.current_z), :, :].copy().astype(np.int32)
         else:
             self.sliceAnnot = self.annot[self.ap_flat,self.r_grid_y,self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1]).astype(np.int32)
         # get contours
@@ -125,17 +125,17 @@ class AtlasModel():
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)
 
     def simpleSlice(self,regViewer):
-        self.slice = self.template[get_ap(regViewer.status.current_z), :, :].copy()
-        self.ap_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]), get_ap(regViewer.status.current_z))
+        self.slice = self.template[get_z(regViewer.status.current_z), :, :].copy()
+        self.ap_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]), get_z(regViewer.status.current_z))
     
     def angleSlice(self,regViewer):
         # calculate from ML and DV angle, the plane of current slice
         ml_shift = int(np.tan(np.deg2rad(regViewer.status.x_angle)) * (self.xyz_dict['x'][1] / 2))
         dv_shift = int(np.tan(np.deg2rad(regViewer.status.y_angle)) * (self.xyz_dict['y'][1] / 2))
 
-        center = np.array([get_ap(regViewer.status.current_z), (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] / 2)])
-        c_right = np.array([get_ap(regViewer.status.current_z) + ml_shift, (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] - 1)])
-        c_top = np.array([get_ap(regViewer.status.current_z) - dv_shift, 0, (self.xyz_dict['x'][1] / 2)])
+        center = np.array([get_z(regViewer.status.current_z), (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] / 2)])
+        c_right = np.array([get_z(regViewer.status.current_z) + ml_shift, (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] - 1)])
+        c_top = np.array([get_z(regViewer.status.current_z) - dv_shift, 0, (self.xyz_dict['x'][1] / 2)])
         # calculate plane vector
         vec_1 = c_right-center
         vec_2 = c_top-center

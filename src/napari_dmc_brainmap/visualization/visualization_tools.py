@@ -132,7 +132,7 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
         results_data_merged = results_data_merged.reset_index(drop=True)
     return results_data_merged
 
-def coord_mm_transform(df, to_coord = True):
+def coord_mm_transform(df, to_coord = True):  # todo delete this and use only the one in utils
     """
     Function to calculate atlas coordinates into mm and vice versa
     Inserted df needs to have specified columns
