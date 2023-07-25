@@ -232,8 +232,10 @@ def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord = False):
     else:
         triplet_new = [round(br_coord - coord) * (res/1000) for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
-
-    return triplet_new
+    if len(triplet_new) == 1:
+        return triplet_new[0]
+    else:
+        return triplet_new
 
 def sort_ap_dv_ml(triplet, atlas_tuple):
     tgt_tuple = ('ap', 'si', 'rl')  # bg naming convention

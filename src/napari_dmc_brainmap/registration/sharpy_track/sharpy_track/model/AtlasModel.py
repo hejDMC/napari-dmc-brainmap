@@ -54,8 +54,8 @@ class AtlasModel():
         # check simple slice or angled slice
         # slice annotation volume, convert to int32 for contour detection
         if (regViewer.status.x_angle == 0) and (regViewer.status.y_angle == 0):
-            z_coord = coord_mm_transform(regViewer.status.current_z, self.bregma[self.z_idx],
-                                      self.atlas.space.resolution[self.z_idx], mm_to_coord=True)
+            z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+                                      [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
             self.sliceAnnot = self.annot[z_coord, :, :].copy().astype(np.int32)
         else:
             self.sliceAnnot = self.annot[self.z_flat, self.r_grid_y, self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1]).astype(np.int32)
@@ -110,7 +110,7 @@ class AtlasModel():
         z_str = name_dict[self.xyz_dict['z'][0]]
         x_str = name_dict[self.xyz_dict['x'][0]]
         y_str = name_dict[self.xyz_dict['y'][0]]
-        cv2.putText(self.slice, z_str + " : " + str(regViewer.status.current_z), (950, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)  # todo positions need to be fixed
+        cv2.putText(self.slice, z_str + " mm : " + str(regViewer.status.current_z), (950, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)  # todo positions need to be fixed
         cv2.putText(self.slice, x_str + " Angle: " + str(regViewer.status.x_angle), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
         cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
 
@@ -128,8 +128,8 @@ class AtlasModel():
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)
 
     def simpleSlice(self,regViewer):
-        z_coord = coord_mm_transform(regViewer.status.current_z, self.bregma[self.z_idx],
-                                  self.atlas.space.resolution[self.z_idx], mm_to_coord=True)
+        z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+                                  [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
         self.slice = self.template[z_coord, :, :].copy()
         self.z_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]), z_coord)
     
@@ -137,8 +137,8 @@ class AtlasModel():
         # calculate from ML and DV angle, the plane of current slice
         x_shift = int(np.tan(np.deg2rad(regViewer.status.x_angle)) * (self.xyz_dict['x'][1] / 2))
         y_shift = int(np.tan(np.deg2rad(regViewer.status.y_angle)) * (self.xyz_dict['y'][1] / 2))
-        z_coord = coord_mm_transform(regViewer.status.current_z, self.bregma[self.z_idx],
-                                  self.atlas.space.resolution[self.z_idx], mm_to_coord=True)
+        z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+                                  [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
 
         center = np.array([z_coord, (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] / 2)])
         c_right = np.array([z_coord + x_shift, (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] - 1)])

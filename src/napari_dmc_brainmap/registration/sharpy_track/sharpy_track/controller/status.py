@@ -62,8 +62,9 @@ class StatusContainer():
 
     
 
-    def z_changed(self, regViewer):  # todo here too
-        self.current_z = np.round(5.39 - regViewer.widget.z_slider.value() / 100, 2)
+    def z_changed(self, regViewer):
+        self.current_z = np.round(coord_mm_transform([0], [self.bregma[self.z_idx]],
+                                      [self.xyz_dict['z'][2]]) - regViewer.widget.z_slider.value() / 100, 2)
         regViewer.widget.viewerLeft.loadSlice(regViewer)
 
     def x_changed(self, regViewer):
@@ -108,20 +109,22 @@ class StatusContainer():
             else:
                 pass
 
-            # within range check  # todo change this
-            z_coord = coord_mm_transform(self.current_z, self.bregma[self.z_idx],
-                                      self.xyz_dict['z'][2], mm_to_coord=True)
+            # within range check
+            z_coord = coord_mm_transform([self.current_z], [self.bregma[self.z_idx]],
+                                      [self.xyz_dict['z'][2]], mm_to_coord=True)
+
             if z_coord > self.xyz_dict['z'][1] - 1:
-                self.current_z = coord_mm_transform(z_coord, self.bregma[self.z_idx],
-                                      self.xyz_dict['z'][2])
+                self.current_z = coord_mm_transform([z_coord],[self.bregma[self.z_idx]],
+                                      [self.xyz_dict['z'][2]])
 
             elif z_coord < 0:
-                self.current_z = coord_mm_transform(z_coord, self.bregma[self.z_idx],
-                                      self.xyz_dict['z'][2])
+                self.current_z = coord_mm_transform([z_coord], [self.bregma[self.z_idx]],
+                                      [self.xyz_dict['z'][2]])
                 # print("Anterior End!")
             else:
                 pass
-            regViewer.widget.z_slider.setSliderPosition(get_z(self.current_z))
+            regViewer.widget.z_slider.setSliderPosition(coord_mm_transform([self.current_z], [self.bregma[self.z_idx]],
+                                      [self.xyz_dict['z'][2]], mm_to_coord=True))
             # regViewer.widget.viewerLeft.loadSlice(regViewer)
         ## update viewerRight
         elif (self.cursor == 1) & (self.sliceNum > 0) & (self.tMode == 0): # sample images loaded, inside viewerRight, tMode off

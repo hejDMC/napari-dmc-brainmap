@@ -44,7 +44,6 @@ class sliceHandle():
 
     def loadImg(self):
         self.sampleImgFiles = natsorted([f.parts[-1] for f in self.ImgFolder.glob('*.tif')])
-        self.sampleImgFiles = []
         self.currentSampleImg = tifffile.imread((self.ImgFolder.joinpath(self.sampleImgFiles[self.currentSlice])))
         print('Working on: ', self.sampleImgFiles[self.currentSlice])
 
@@ -77,8 +76,8 @@ class sliceHandle():
         y_angle = self.regData['atlasLocation'][slice_n][1]
         x_max = self.regi_dict['xyz_dict']['x'][1]
         y_max = self.regi_dict['xyz_dict']['y'][1]
-        z_mm = coord_mm_transform(self.regData['atlasLocation'][slice_n][2], self.bregma[self.z_idx],
-                                  self.atlas.space.resolution[self.z_idx], mm_to_coord=True)
+        z_coord = coord_mm_transform([self.regData['atlasLocation'][slice_n][2]], [self.bregma[self.z_idx]],
+                                  [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
 
         if (x_angle == 0) and (y_angle == 0):  # flat plane
             z_plane = np.full((y_max, x_max), z_coord, dtype=np.uint16)
