@@ -1,11 +1,11 @@
 import numpy as np
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_z
+from napari_dmc_brainmap.utils import coord_mm_transform
 from PyQt5.QtCore import Qt
 import json
 from PyQt5.QtWidgets import QApplication
 
 class StatusContainer():
-    def __init__(self, regi_dict) -> None:
+    def __init__(self, regi_dict, z_idx, bregma) -> None:
         self.cursor = 0
         self.current_z = 0
         self.x_angle = 0
@@ -21,6 +21,8 @@ class StatusContainer():
         self.blendMode = {}
         self.xyz_dict = regi_dict['xyz_dict']
         self.atlas_resolution = [self.xyz_dict['x'][1], self.xyz_dict['y'][1]]
+        self.z_idx = z_idx
+        self.bregma = bregma
         QAppInstance = QApplication.instance()  # get current QApplication Instance
         self.screenSize = [QAppInstance.primaryScreen().size().width(), QAppInstance.primaryScreen().size().height()]
         self.applySizePolicy()
@@ -60,7 +62,7 @@ class StatusContainer():
 
     
 
-    def z_changed(self, regViewer):
+    def z_changed(self, regViewer):  # todo here too
         self.current_z = np.round(5.39 - regViewer.widget.z_slider.value() / 100, 2)
         regViewer.widget.viewerLeft.loadSlice(regViewer)
 
@@ -106,12 +108,16 @@ class StatusContainer():
             else:
                 pass
 
-            # within range check
-            if get_z(self.current_z) > self.xyz_dict['z'][1] - 1:
-                self.current_z = -7.8
-                # print("Posterior End!")
-            elif get_z(self.current_z) < 0:
-                self.current_z = 5.39
+            # within range check  # todo change this
+            z_coord = coord_mm_transform(self.current_z, self.bregma[self.z_idx],
+                                      self.xyz_dict['z'][2], mm_to_coord=True)
+            if z_coord > self.xyz_dict['z'][1] - 1:
+                self.current_z = coord_mm_transform(z_coord, self.bregma[self.z_idx],
+                                      self.xyz_dict['z'][2])
+
+            elif z_coord < 0:
+                self.current_z = coord_mm_transform(z_coord, self.bregma[self.z_idx],
+                                      self.xyz_dict['z'][2])
                 # print("Anterior End!")
             else:
                 pass

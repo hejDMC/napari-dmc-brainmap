@@ -22,7 +22,7 @@ class RegistrationViewer(QMainWindow):
         self.atlasModel = AtlasModel(regi_dict)
 
         # create statusContainer
-        self.status = StatusContainer(regi_dict)
+        self.status = StatusContainer(regi_dict, self.atlasModel.z_idx, self.atlasModel.bregma)
 
         self.setFixedSize(self.status.fullWindowSizeNarrow[0],self.status.fullWindowSizeNarrow[1])
         self.setWindowTitle("Registration Viewer")

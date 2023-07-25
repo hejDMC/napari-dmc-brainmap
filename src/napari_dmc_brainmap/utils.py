@@ -216,16 +216,27 @@ def create_regi_dict(input_path, regi_chan):
     return regi_dict
 
 def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
-    # list with [x,y,z] tripled
+    # list with [x,y,z] triplet
     xyz_tuple = tuple([regi_dict['xyz_dict']['x'][0], regi_dict['xyz_dict']['y'][0], regi_dict['xyz_dict']['z'][0]])
     index_match = [xyz_tuple.index(e) for e in atlas_tuple]
 
-    tripled_new = [triplet[i] for i in index_match]
+    triplet_new = [triplet[i] for i in index_match]
 
-    return tripled_new
+    return triplet_new
 
-def coord_mm_transform(tripled, bregma, resolution_tuple):
+def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord = False):
 
-    tripled_mm = [round(br_coord - coord) * (res/1000) for coord, br_coord, res in zip(tripled, bregma, resolution_tuple)]
+    if mm_to_coord:
+        triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
+                       zip(triplet, bregma, resolution_tuple)]
+    else:
+        triplet_new = [round(br_coord - coord) * (res/1000) for coord, br_coord, res in
+                       zip(triplet, bregma, resolution_tuple)]
 
-    return tripled_mm
+    return triplet_new
+
+def sort_ap_dv_ml(triplet, atlas_tuple):
+    tgt_tuple = ('ap', 'si', 'rl')  # bg naming convention
+    index_match = [atlas_tuple.index(e) for e in tgt_tuple]
+    triplet_new = [triplet[i] for i in index_match]
+    return triplet_new

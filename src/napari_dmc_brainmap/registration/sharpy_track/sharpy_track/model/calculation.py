@@ -4,14 +4,14 @@ from skimage.transform import ProjectiveTransform
 
 ## generate coordinate mapping
 # generate ap-axis mapping
-def get_z(ap_mm): # todo this function to xyz
-    return int(round((5.39-ap_mm) * 100))
+#def get_z(z_mm): # todo delete
+#    return int(round((5.39-ap_mm) * 100))
 # generate dv-axis mapping
-def get_y(dv_mm):
-    return int(round(dv_mm * 100))
-# generate ml-axis mappint
-def get_x(ml_mm):
-    return int(round((5.69+ml_mm) * 100))
+# def get_y(dv_mm):
+#     return int(round(dv_mm * 100))
+# # generate ml-axis mappint
+# def get_x(ml_mm):
+#     return int(round((5.69+ml_mm) * 100))
 
 def fitGeoTrans(src, dst, mode="projective",**kwargs):
     """

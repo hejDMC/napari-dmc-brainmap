@@ -4,7 +4,7 @@ from pathlib import Path
 from pkg_resources import resource_filename
 from natsort import natsorted
 from tifffile import tifffile
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import get_z, fitGeoTrans, mapPointTransform
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.utils import get_bregma, xyz_atlas_transform, coord_mm_transform
 import numpy as np
 import json
@@ -20,6 +20,7 @@ class sliceHandle():
             self.calculateImageGrid()
             print("loading reference atlas...")
             self.atlas = BrainGlobeAtlas(self.regi_dict['atlas'])
+            self.z_idx = self.atlas.space.axes_description.index(self.regi_dict['xyz_dict']['z'][0])
             self.loadAnnot()
             self.loadStructureTree()
             self.currentSlice = None
@@ -76,7 +77,8 @@ class sliceHandle():
         y_angle = self.regData['atlasLocation'][slice_n][1]
         x_max = self.regi_dict['xyz_dict']['x'][1]
         y_max = self.regi_dict['xyz_dict']['y'][1]
-        z_coord = get_z(self.regData['atlasLocation'][slice_n][2])
+        z_mm = coord_mm_transform(self.regData['atlasLocation'][slice_n][2], self.bregma[self.z_idx],
+                                  self.atlas.space.resolution[self.z_idx], mm_to_coord=True)
 
         if (x_angle == 0) and (y_angle == 0):  # flat plane
             z_plane = np.full((y_max, x_max), z_coord, dtype=np.uint16)
@@ -114,8 +116,8 @@ class sliceHandle():
         name_list = []
         acronym_list = []
         vol_mm_list = []
-        for tripled in volIndex_list:
-            structure_id = self.atlas.structure_from_coords(tripled)
+        for triplet in volIndex_list:
+            structure_id = self.atlas.structure_from_coords(triplet)
             id_list.append(structure_id)
             if structure_id > 0 :
                 name_list.append(self.sTree.data[structure_id]['name'])
@@ -124,7 +126,7 @@ class sliceHandle():
                 name_list.append('root')
                 acronym_list.append('root')
             # calculate Allen coordinates in mm unit
-            vol_mm = coord_mm_transform(tripled, self.bregma, self.atlas.space.resolution)
+            vol_mm = coord_mm_transform(triplet, self.bregma, self.atlas.space.resolution)
             vol_mm_list.append(vol_mm)
         name_dict = {
             'ap': 'ap',
