@@ -30,17 +30,17 @@ class StatusContainer():
         self.folderPath = None
 
     def applySizePolicy(self):
-        if self.screenSize[0] > round(self.atlas_resolution[0]*2.5) and self.screenSize[1] > round(self.atlas_resolution[1] > 1.1):  # 2x width (plus margin) and 1x height (plus margin)
+        if self.screenSize[0] > round(self.atlas_resolution[0]*2.2) and self.screenSize[1] > round(self.atlas_resolution[1] > 1.1):  # 2x width (plus margin) and 1x height (plus margin)
             self.scaleFactor = 1
-            self.fullWindowSizeNarrow = [2350,940]
-            self.fullWindowSizeWide = [int(round(self.atlas_resolution[0]*2.5)), int(round(self.atlas_resolution[1] > 1.1))]
+            self.fullWindowSizeNarrow = [2350,940]  # todo delete this
+            self.fullWindowSizeWide = [int(round(self.atlas_resolution[0]*2.2)), int(round(self.atlas_resolution[1] > 1.1))]
             self.singleWindowSize = self.atlas_resolution
 
         else: # [1920,1080] resolution
             self.scaleFactor = round(self.screenSize[0]/(self.atlas_resolution[0] * 2.5), 2)
             self.fullWindowSizeNarrow = [1762,705]
-            self.fullWindowSizeWide = [(self.atlas_resolution[0]*2.5) * self.scaleFactor,
-                                       (self.atlas_resolution[1]*1.1) * self.scaleFactor]  # todo this doesn't work well
+            self.fullWindowSizeWide = [int(round((self.atlas_resolution[0]*2.2) * self.scaleFactor)),
+                                       int(round((self.atlas_resolution[1]*1.25) * self.scaleFactor))]
             self.singleWindowSize = [int(i*self.scaleFactor) for i in self.atlas_resolution]
 
 
