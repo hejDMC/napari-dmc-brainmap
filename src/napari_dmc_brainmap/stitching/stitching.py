@@ -16,7 +16,7 @@ from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dic
 def do_stitching(input_path, filter_list, params_dict, stitch_tiles):
     animal_id = get_animal_id(input_path)
     direct_sharpy_track = params_dict['operations']['sharpy_track']
-
+    resolution = params_dict['atlas_info']['resolution']
     # get obj sub-dirs
     data_dir = input_path.joinpath('raw')
     objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])
@@ -45,11 +45,11 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles):
                         if f in sharpy_chans:
                             sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
                             sharpy_im_dir = sharpy_dir.joinpath(section.parts[-1] + '_downsampled.tif')
-                            stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir)
+                            stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
                         else:
-                            stitch_folder(section, 205, stitched_path, params_dict, f)
+                            stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
                     else:
-                        stitch_folder(section, 205, stitched_path, params_dict, f)
+                        stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
             else:
                 in_chan = in_obj.joinpath(obj + '_' + f + '_1')
                 # load tile stack name
@@ -85,11 +85,14 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles):
                             sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
                             sharpy_im_dir = sharpy_dir.joinpath(animal_id + '_' + obj + '_' +
                                                                 str(rn + 1) + '_downsampled.tif')
-                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, sharpy_im_dir)
+                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
+                                                   sharpy_im_dir, resolution=resolution)
                         else:
-                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
+                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
+                                                   resolution=resolution)
                     else:
-                        pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f)
+                        pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
+                                               resolution=resolution)
                     # remove stitched tiles from whole_stack
                     whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
     params_dict = clean_params_dict(params_dict, "operations")

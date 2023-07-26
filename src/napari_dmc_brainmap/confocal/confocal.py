@@ -8,7 +8,7 @@ import cv2
 from aicsimageio.readers import CziReader
 
 from napari_dmc_brainmap.utils import get_animal_id, get_info, get_im_list
-from napari_dmc_brainmap.stitching.stitching_tools import anti_distortion
+from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
 
 
 
@@ -36,7 +36,7 @@ def create_tifs(input_path, chan_label_map):
             if num_z > 1:
                 # do max intensity projection
                 curr_img = np.max(curr_img, axis=0)
-            curr_img = anti_distortion(curr_img)  # padding
+            curr_img = padding_for_atlas(curr_img)  # padding
             save_fn = stitched_dir.joinpath(im + '_stitched.tif')
             cv2.imwrite(str(save_fn), curr_img)
 

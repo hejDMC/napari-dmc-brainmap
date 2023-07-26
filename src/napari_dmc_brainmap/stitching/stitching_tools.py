@@ -87,7 +87,7 @@ def map_loc(width, height):
         loc_map[i] = int(new_loc[i])
     return loc_map
 
-def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, downsampled_path=False, padding=True):
+def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, downsampled_path=False, padding=True, resolution=False):
 
     w, h = get_size_json(pos_list)  # pass in pos_list and get size of whole image
     pop_img = int(w * h)
@@ -121,7 +121,7 @@ def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, do
                 print("image damaged")
     # apply black margin or not
     if padding is True:
-        stitch_canvas = anti_distortion(stitch_canvas)
+        stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
     else:
         pass
     # save to full resolution to stitched folder
@@ -136,7 +136,7 @@ def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, do
     return pop_img
 
 
-def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled_path=False, padding=True):
+def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled_path=False, padding=True, resolution=False):
 
     meta_data = load_meta(section_dir)
     data_list = [meta_data['Prefix'] + "_MMStack_" + d['Label'] +'.ome.tif' for d in meta_data['StagePositions']]
@@ -175,7 +175,7 @@ def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled
                 print("image damaged")
     # anti-distortion
     if padding is True:
-        stitch_canvas = anti_distortion(stitch_canvas)
+        stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
     else:
         pass
     tiff.imwrite(stitched_path, stitch_canvas)
@@ -210,27 +210,37 @@ def downsample(input_tiff, output_png, size_tuple, contrast_tuple):
     print('-----')
 
 
-def anti_distortion(input_array):
-    h, w = np.shape(input_array)
-    ratio = w / h
-    if ratio == 1.425:
+def padding_for_atlas(input_array, resolution):
+
+    if resolution:
+        # resolution = [x, y]
+        x, y = resolution
+        tgt_ratio = x/y  # width/height
+        h, w = np.shape(input_array)
+        ratio = w / h
+        if ratio == tgt_ratio:
+            output_array = input_array
+        elif ratio < tgt_ratio:  # portrait, fill left and right
+            dest_w = round(h / y * x)
+            if (dest_w % 2) == 0:
+                pass
+            else:
+                dest_w += 1
+            d_w = int((dest_w - w) / 2)
+            output_array = np.pad(input_array, ((0, 0), (d_w, d_w)), 'constant',
+                                  constant_values=0)  # pad with absolute black
+        else:  # landscape, fill top and bottom
+            dest_h = round(w / x * y)
+            if (dest_h % 2) == 0:
+                pass
+            else:
+                dest_h += 1
+            d_h = int((dest_h - h) / 2)
+            output_array = np.pad(input_array, ((d_h, d_h), (0, 0)), 'constant',
+                                  constant_values=0)  # pad with absolute black
+
+    else:
         output_array = input_array
-    elif ratio < 1.425:  # portrait, fill left and right
-        dest_w = round(h / 800 * 1140)
-        if (dest_w % 2) == 0:
-            pass
-        else:
-            dest_w += 1
-        d_w = int((dest_w - w) / 2)
-        output_array = np.pad(input_array, ((0, 0), (d_w, d_w)), 'constant',
-                              constant_values=0)  # pad with absolute black
-    else:  # landscape, fill top and bottom
-        dest_h = round(w / 1140 * 800)
-        if (dest_h % 2) == 0:
-            pass
-        else:
-            dest_h += 1
-        d_h = int((dest_h - h) / 2)
-        output_array = np.pad(input_array, ((d_h, d_h), (0, 0)), 'constant',
-                              constant_values=0)  # pad with absolute black
+
     return output_array
+
