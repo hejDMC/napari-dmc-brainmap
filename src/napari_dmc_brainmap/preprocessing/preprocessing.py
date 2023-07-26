@@ -10,8 +10,7 @@ from napari.qt.threading import thread_worker
 import json
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, \
-    get_xyz
+from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
 from magicgui import magicgui
@@ -231,11 +230,7 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, 
     #     print("maximum available cores = " + str(multiprocessing.cpu_count()))
     #     num_cores = multiprocessing.cpu_count()
     if params_dict['operations']['sharpy_track']:
-        print('loading reference atlas ' + params_dict['sharpy_track_params']['atlas'] + ' ...')
-        atlas = BrainGlobeAtlas(params_dict['sharpy_track_params']['atlas'])
-        xyz_dict = get_xyz(atlas, params_dict)
-        params_dict['sharpy_track_params']['xyz_dict'] = xyz_dict
-        resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
+        resolution_tuple = tuple(params_dict['atlas_info']['resolution'])
     else:
         resolution_tuple = False
     if any(params_dict['operations'].values()):
@@ -243,11 +238,6 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, 
             print("parallel processing not implemented yet")
         Parallel(n_jobs=num_cores)(delayed(preprocess_images)
                                    (im, filter_list, input_path, params_dict, save_dirs, resolution_tuple) for im in tqdm(img_list))
-        params_dict = clean_params_dict(params_dict, "operations")
-        params_fn = input_path.joinpath('params.json')
-        params_dict = update_params_dict(input_path, params_dict)
-        with open(params_fn, 'w') as fn:
-            json.dump(params_dict, fn, indent=4)
         print("DONE!")
     else:
         print("No preprocessing operations selected, expand the respective windows and tick check box")
@@ -350,6 +340,11 @@ class PreprocessingWidget(QWidget):
     def _do_preprocessing(self):
         input_path = header_widget.input_path.value
         params_dict = self._get_preprocessing_params()
+        params_dict = clean_params_dict(params_dict, "operations")
+        params_fn = input_path.joinpath('params.json')
+        params_dict = update_params_dict(input_path, params_dict)
+        with open(params_fn, 'w') as fn:
+            json.dump(params_dict, fn, indent=4)
         save_dirs = create_dirs(params_dict, input_path)
         filter_list = params_dict['general']['chans_imaged']
         img_list = get_im_list(input_path)
