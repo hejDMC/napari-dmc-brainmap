@@ -132,7 +132,7 @@ def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, do
         pass
     else:
         contrast_tuple = tuple(params['sharpy_track_params'][chan])
-        downsample(stitch_canvas, downsampled_path, (1140, 800), contrast_tuple)
+        downsample(stitch_canvas, downsampled_path, tuple(resolution), contrast_tuple)
     return pop_img
 
 
@@ -184,7 +184,7 @@ def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled
         pass
     else:
         contrast_tuple = tuple(params['sharpy_track_params'][chan])
-        downsample(stitch_canvas, downsampled_path, (1140, 800), contrast_tuple)
+        downsample(stitch_canvas, downsampled_path, tuple(resolution), contrast_tuple)
 
 
 

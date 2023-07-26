@@ -341,10 +341,7 @@ class PreprocessingWidget(QWidget):
         input_path = header_widget.input_path.value
         params_dict = self._get_preprocessing_params()
         params_dict = clean_params_dict(params_dict, "operations")
-        params_fn = input_path.joinpath('params.json')
         params_dict = update_params_dict(input_path, params_dict)
-        with open(params_fn, 'w') as fn:
-            json.dump(params_dict, fn, indent=4)
         save_dirs = create_dirs(params_dict, input_path)
         filter_list = params_dict['general']['chans_imaged']
         img_list = get_im_list(input_path)

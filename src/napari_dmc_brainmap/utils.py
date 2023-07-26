@@ -105,6 +105,10 @@ def update_params_dict(input_path, params_dict):
         with open(params_fn) as fn:
             params_dict_old = json.load(fn)
         params_dict_new = merge(params_dict_old, params_dict)
+
+        with open(params_fn, 'w') as fn:
+            json.dump(params_dict_new, fn, indent=4)
+
         return params_dict_new
     else:
         return params_dict

@@ -13,9 +13,8 @@ from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dic
 
 
 @thread_worker
-def do_stitching(input_path, filter_list, params_dict, stitch_tiles):
+def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track):
     animal_id = get_animal_id(input_path)
-    direct_sharpy_track = params_dict['operations']['sharpy_track']
     resolution = params_dict['atlas_info']['resolution']
     # get obj sub-dirs
     data_dir = input_path.joinpath('raw')
@@ -95,11 +94,11 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles):
                                                resolution=resolution)
                     # remove stitched tiles from whole_stack
                     whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
-    params_dict = clean_params_dict(params_dict, "operations")
-    params_fn = input_path.joinpath('params.json')
-    params_dict = update_params_dict(input_path, params_dict)
-    with open(params_fn, 'w') as fn:
-        json.dump(params_dict, fn, indent=4)
+    # params_dict = clean_params_dict(params_dict, "operations")
+    # params_fn = input_path.joinpath('params.json')
+    # params_dict = update_params_dict(input_path, params_dict)
+    # with open(params_fn, 'w') as fn:
+    #     json.dump(params_dict, fn, indent=4)
     print('all finished!')
 
 
@@ -197,7 +196,10 @@ class StitchingWidget(QWidget):
         input_path = stitching_widget.input_path.value
         stitch_tiles = stitching_widget.stitch_tiles.value
         params_dict = self._get_stitching_params()
+        direct_sharpy_track = params_dict['operations']['sharpy_track']
+        params_dict = clean_params_dict(params_dict, "operations")
+        params_dict = update_params_dict(input_path, params_dict)
         filter_list = params_dict['general']['chans_imaged']
-        preprocessing_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles)
+        preprocessing_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track)
         preprocessing_worker.start()
 
