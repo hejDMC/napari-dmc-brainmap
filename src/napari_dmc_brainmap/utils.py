@@ -2,6 +2,8 @@ import json
 from natsort import natsorted
 import pandas as pd
 from mergedeep import merge
+from enum import Enum
+from bg_atlasapi.list_atlases import descriptors, utils
 
 def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
@@ -242,3 +244,45 @@ def sort_ap_dv_ml(triplet, atlas_tuple):
     index_match = [atlas_tuple.index(e) for e in tgt_tuple]
     triplet_new = [triplet[i] for i in index_match]
     return triplet_new
+
+
+
+def get_xyz(atlas, section_orient):
+    # resolution tuple (width, height)
+    orient_dict = {
+        'coronal': 'frontal',
+        'horizontal': 'horizontal',
+        'sagittal': 'sagittal'
+    }
+
+    orient_idx = atlas.space.sections.index(orient_dict[section_orient])
+    resolution_idx = atlas.space.index_pairs[orient_idx]
+    xyz_dict = {
+        'x': [atlas.space.axes_description[resolution_idx[1]], atlas.space.shape[resolution_idx[1]],
+              atlas.space.resolution[resolution_idx[1]]],
+        'y': [atlas.space.axes_description[resolution_idx[0]], atlas.space.shape[resolution_idx[0]],
+              atlas.space.resolution[resolution_idx[0]]],
+        'z': [atlas.space.axes_description[orient_idx], atlas.space.shape[orient_idx],
+              atlas.space.resolution[orient_idx]]
+    }
+
+    return xyz_dict
+
+def get_available_atlases():
+    """
+    from: https://github.com/brainglobe/brainreg-segment  -- July 2023
+    Get the available brainglobe atlases
+    :return: Dict of available atlases (["name":version])
+    """
+    available_atlases = utils.conf_from_url(
+        descriptors.remote_url_base.format("last_versions.conf")
+    )
+    available_atlases = dict(available_atlases["atlases"])
+    return available_atlases
+
+def get_atlas_dropdown():
+    atlas_dict = {}
+    for i, k in enumerate(get_available_atlases().keys()):
+        atlas_dict.setdefault(k, k)
+    atlas_keys = Enum("atlas_key", atlas_dict)
+    return atlas_keys

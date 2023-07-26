@@ -1,12 +1,12 @@
 import cv2
 import math
 import numpy as np
-from enum import Enum
+
 from skimage.exposure import rescale_intensity
 from skimage.filters import threshold_yen
 import tifffile as tiff
 from napari_dmc_brainmap.utils import get_info
-from bg_atlasapi.list_atlases import descriptors, utils
+
 
 # todo warning for overwriting
 def create_dirs(params, input_path):
@@ -25,23 +25,7 @@ def create_dirs(params, input_path):
                     save_dirs[operation] = data_dir.parent
     return save_dirs
 
-def get_xyz(atlas, params_dict):
-    # resolution tuple (width, height)
-    orient_dict = {
-        'coronal': 'frontal',
-        'horizontal': 'horizontal',
-        'sagittal': 'sagittal'
-    }
-    section_orient = params_dict['sharpy_track_params']['orientation']
-    orient_idx = atlas.space.sections.index(orient_dict[section_orient])
-    resolution_idx = atlas.space.index_pairs[orient_idx]
-    xyz_dict = {
-        'z': [atlas.space.axes_description[orient_idx], atlas.space.shape[orient_idx], atlas.space.resolution[orient_idx]],
-        'y': [atlas.space.axes_description[resolution_idx[0]], atlas.space.shape[resolution_idx[0]], atlas.space.resolution[resolution_idx[0]]],
-        'x': [atlas.space.axes_description[resolution_idx[1]], atlas.space.shape[resolution_idx[1]], atlas.space.resolution[resolution_idx[1]]],
-    }
 
-    return xyz_dict
 
 
 
@@ -221,23 +205,3 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
             binary_image_name = im + '_binary.tif'
             binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
             tiff.imwrite(str(binary_image_path), binary_image)
-
-
-def get_available_atlases():
-    """
-    from: https://github.com/brainglobe/brainreg-segment  -- July 2023
-    Get the available brainglobe atlases
-    :return: Dict of available atlases (["name":version])
-    """
-    available_atlases = utils.conf_from_url(
-        descriptors.remote_url_base.format("last_versions.conf")
-    )
-    available_atlases = dict(available_atlases["atlases"])
-    return available_atlases
-
-def get_atlas_dropdown():
-    atlas_dict = {}
-    for i, k in enumerate(get_available_atlases().keys()):
-        atlas_dict.setdefault(k, k)
-    atlas_keys = Enum("atlas_key", atlas_dict)
-    return atlas_keys

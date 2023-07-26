@@ -10,12 +10,12 @@ from napari.qt.threading import thread_worker
 import json
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QFileDialog, QLineEdit
+from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, \
+    get_xyz
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
 from magicgui import magicgui
-from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs, get_atlas_dropdown, \
-    get_xyz
+from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
 
 from bg_atlasapi import BrainGlobeAtlas
 
@@ -142,13 +142,7 @@ def do_stack(
 @magicgui(
     button=dict(widget_type='CheckBox', text='create downsampled images for sharpy-track', value=False,
                 tooltip='option to create downsampled images [1140x800 px] for brain registration using sharpy-track'),
-    section_orient=dict(widget_type='ComboBox', label='orientation of sectioning',
-                    choices=['coronal', 'sagittal', 'horizontal'], value='coronal',
-                    tooltip="select the how you sliced the brain"),
-    atlas=dict(label='reference atlas',
-                tooltip='select the reference atlas using for registration '
-                        '(from https://github.com/brainglobe/bg-atlasapi/ and '
-                        'https://github.com/brainglobe/brainreg-segment'),
+
     channels=dict(widget_type='Select', label='selected channels', value='all',
                   choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
                   tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
@@ -171,8 +165,6 @@ def do_stack(
 def do_sharpy(
         self,
         button,
-        section_orient,
-        atlas: get_atlas_dropdown(),
         channels,
         ds_params,
         contrast_bool,
@@ -300,20 +292,9 @@ class PreprocessingWidget(QWidget):
         self.layout().addWidget(footer.native)
         self.layout().addWidget(btn)
 
-    def _get_info(self, widget, operation=False):
-        if operation == 'rgb':
+    def _get_info(self, widget, rgb=False):
+        if rgb:
             return {
-                "channels": widget.channels.value,
-                "downsampling": widget.ds_params.value,
-                "contrast_adjustment": widget.contrast_bool.value,
-                "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-                "green": [int(i) for i in widget.contrast_green.value.split(',')],
-                "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')]
-            }
-        elif operation == 'sharpy_track':
-            return {
-                "orientation": widget.section_orient.value,
-                "atlas": widget.atlas.value.value,
                 "channels": widget.channels.value,
                 "downsampling": widget.ds_params.value,
                 "contrast_adjustment": widget.contrast_bool.value,
@@ -348,10 +329,10 @@ class PreprocessingWidget(QWidget):
                     "sharpy_track": do_sharpy.button.value,
                     "binary": do_binary.button.value
                 },
-            "rgb_params": self._get_info(do_rgb, operation='rgb'),
+            "rgb_params": self._get_info(do_rgb, rgb=True),
             "single_channel_params": self._get_info(do_single_channel),
             "stack_params": self._get_info(do_stack),
-            "sharpy_track_params": self._get_info(do_sharpy, operation='sharpy_track'),
+            "sharpy_track_params": self._get_info(do_sharpy),
             "binary_params":
                 {
                     "channels": do_binary.channels.value,
@@ -369,7 +350,6 @@ class PreprocessingWidget(QWidget):
     def _do_preprocessing(self):
         input_path = header_widget.input_path.value
         params_dict = self._get_preprocessing_params()
-        print(str(do_sharpy.atlas.value.value))
         save_dirs = create_dirs(params_dict, input_path)
         filter_list = params_dict['general']['chans_imaged']
         img_list = get_im_list(input_path)

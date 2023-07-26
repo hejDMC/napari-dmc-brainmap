@@ -1,7 +1,9 @@
 import json
-from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict
+from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict, get_atlas_dropdown, get_xyz
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
+
+from bg_atlasapi import BrainGlobeAtlas
 
 
 @magicgui(
@@ -20,6 +22,13 @@ from magicgui import magicgui
     chans_imaged=dict(widget_type='Select', label='imaged channels', choices=['dapi', 'green', 'cy3', 'cy5'],
                       value=['green', 'cy3'],
                       tooltip='select all channels imaged, to select multiple hold ctrl/shift'),
+    section_orient=dict(widget_type='ComboBox', label='orientation of sectioning',
+                        choices=['coronal', 'sagittal', 'horizontal'], value='coronal',
+                        tooltip="select the how you sliced the brain"),
+    atlas=dict(label='reference atlas',
+               tooltip='select the reference atlas using for registration '
+                       '(from https://github.com/brainglobe/bg-atlasapi/ and '
+                       'https://github.com/brainglobe/brainreg-segment'),
     call_button=False
 )
 def params_widget(
@@ -27,7 +36,10 @@ def params_widget(
     inj_side,
     geno,
     group,
-    chans_imaged
+    chans_imaged,
+    section_orient,
+    atlas: get_atlas_dropdown()
+
 ) -> None:
 
     return params_widget
@@ -54,6 +66,14 @@ class ParamsWidget(QWidget):
         genotype = params_widget.geno.value
         group = params_widget.group.value
         chans_imaged = params_widget.chans_imaged.value
+        atlas_name = params_widget.atlas.value.value
+        orientation = params_widget.section_orient.value
+        print('check existence of local version of ' + atlas_name + ' atlas ...')
+        print('loading reference atlas ' + atlas_name + ' ...')
+        atlas = BrainGlobeAtlas(atlas_name)
+        xyz_dict = get_xyz(atlas, orientation)
+        resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
+
         params_dict = {
             "general": {
                 "animal_id": animal_id,
@@ -61,6 +81,13 @@ class ParamsWidget(QWidget):
                 "genotype": genotype,
                 "group": group,
                 "chans_imaged": chans_imaged
+            },
+            "atlas_info": {
+                "atlas":  atlas_name,
+                "orientation": orientation,
+                "resolution": resolution_tuple,
+                'xyz_dict': xyz_dict
+
             }
         }
         params_dict = clean_params_dict(params_dict, "general")

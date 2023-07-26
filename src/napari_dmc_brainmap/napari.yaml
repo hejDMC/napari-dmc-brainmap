@@ -40,7 +40,7 @@ contributions:
 
   widgets:
     - command: napari-dmc-brainmap.ParamsWidget
-      display_name: Create params file (general info)
+      display_name: Create params file (general info -- ALWAYS start with this!)
 
     - command: napari-dmc-brainmap.ConfocalWidget
       display_name: Stitch czi images
