@@ -136,8 +136,8 @@ class sliceHandle():
         a_coord, b_coord, c_coord = map(list, zip(*volIndex_list))
         a_mm, b_mm, c_mm = map(list, zip(*vol_mm_list))
         col_names = ['name', 'acronym', 'structure_id']
-        col_names.append([name_dict[n] + '_mm' for n in self.atlas.space.axes_description])
-        col_names.append([name_dict[n] + '_coords' for n in self.atlas.space.axes_description])
+        col_names.extend([name_dict[n] + '_mm' for n in self.atlas.space.axes_description])
+        col_names.extend([name_dict[n] + '_coords' for n in self.atlas.space.axes_description])
         section_data = pd.DataFrame(list(zip(name_list, acronym_list, id_list, a_mm, b_mm, c_mm,
                                              a_coord, b_coord, c_coord)),
                                     columns=col_names)
