@@ -211,8 +211,8 @@ def create_regi_dict(input_path, regi_chan):
     regi_dict = {
         'input_path': input_path,
         'regi_dir': regi_dir,
-        'atlas': params_dict['sharpy_track_params']['atlas'],
-        'xyz_dict': params_dict['sharpy_track_params']['xyz_dict']
+        'atlas': params_dict['atlas_info']['atlas'],
+        'xyz_dict': params_dict['atlas_info']['xyz_dict']
     }
 
     return regi_dict
