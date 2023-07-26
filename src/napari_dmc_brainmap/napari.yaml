@@ -14,6 +14,10 @@ contributions:
       python_name: napari_dmc_brainmap.stitching:StitchingWidget
       title: Stitch tif images
 
+    - id: napari-dmc-brainmap.PaddingWidget
+      python_name: napari_dmc_brainmap.padding:PaddingWidget
+      title: Padding of stitched images to match atlas resolution
+
     - id: napari-dmc-brainmap.PreprocessingWidget
       python_name: napari_dmc_brainmap.preprocessing:PreprocessingWidget
       title: Make widget to perform preprocessing operations
@@ -47,6 +51,9 @@ contributions:
 
     - command: napari-dmc-brainmap.StitchingWidget
       display_name: Stitch tif images
+
+    - command: napari-dmc-brainmap.PaddingWidget
+      display_name: Padding of stitched images to match atlas resolution
 
     - command: napari-dmc-brainmap.PreprocessingWidget
       display_name: Preprocessing
