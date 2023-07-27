@@ -159,12 +159,23 @@ def clean_results_df(df, atlas):
 
     return df
 
-def split_to_list(input_str):
-    if input_str.startswith('c:'):
-        return input_str[2:]
+def split_to_list(input_str, out_format='str'):
+    if not input_str:
+        output_list = False
     else:
-        output_str = [i for i in input_str.split(',')]
-        return output_str
+        if input_str.startswith('c:'):
+            return input_str[2:]
+        else:
+            if out_format == 'str':
+                output_list = [i for i in input_str.split(',')]
+            elif out_format == 'float':
+                output_list = [float(i) for i in input_str.split(',')]
+            elif out_format == 'int':
+                output_list = [int(i) for i in input_str.split(',')]
+            else:
+                output_list = [i for i in input_str.split(',')]
+
+    return output_list
 
 
 def load_group_dict(input_path, animal_list, group_id='genotype'):

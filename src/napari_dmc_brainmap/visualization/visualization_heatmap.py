@@ -94,14 +94,15 @@ def get_layer_list(tgt_list, atlas):
 def check_brain_area_in_bin(df, atlas):
     # for heatmap plotting, check if brain area exists in bin
     print('checking for existence of brain area in bin ...')
-    bregma = get_bregma()
+    bregma = get_bregma(atlas.atlas_name)
+    ap_idx = atlas.space.axes_description.index('ap')
     st = atlas.structures
     annot = atlas.annotation
     for bin in df.columns:
         print(bin)
         b_start, b_end = bin.split(' to ')
-        b_start_coord = int(-(float(b_start)/0.01 - bregma[0]))
-        b_end_coord = int(-(float(b_end) / 0.01 - bregma[0]))
+        b_start_coord = int(-(float(b_start)/0.01 - bregma[ap_idx]))
+        b_end_coord = int(-(float(b_end) / 0.01 - bregma[ap_idx]))
         if b_start_coord > b_end_coord:
             ids_in_bin = np.unique(annot[b_end_coord:b_start_coord, :, :])
         else:  # todo here's a future warning: FutureWarning: Calling int on a single element Series is deprecated and will raise a TypeError in the future. Use int(ser.iloc[0]) instead!
@@ -129,7 +130,7 @@ def get_heatmap_params(heatmap_widget):
         "cmap_min_max":  [float(i) for i in heatmap_widget.cmap_min_max.value.split(',')],  # [0] is absolute value for vmin, [1] is value to multiply max_range value with
         "intervals": [float(i) for i in heatmap_widget.intervals.value.split(',')],
         "interval_labels": get_interval_labels(split_to_list(heatmap_widget.intervals.value)),
-        "include_layers": heatmap_widget.include_layers.value,
+        "include_layers": True,  # heatmap_widget.include_layers.value,
         "transpose": heatmap_widget.transpose.value,
         "save_name": heatmap_widget.save_name.value,
         "save_fig": heatmap_widget.save_fig.value,
@@ -177,6 +178,7 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
     for t, tgt in enumerate(tgt_list):
         if plotting_params["include_layers"]:
             tgt_col = get_layer_list([tgt], atlas)
+            print(tgt_col)
             i_start = tgt_data_to_plot.columns.get_loc(tgt_col[0])
             i_end = tgt_data_to_plot.columns.get_loc(tgt_col[-1])
             sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end+1], cmap=cmap, cbar=False, vmin=cmap_min,
@@ -193,12 +195,12 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
             sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col], cmap=cmap, cbar=False, vmin=cmap_min,
                         vmax=max_range * cmap_max, linewidths=1)
             sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col], cmap=mask_cbar, vmin=cmap_min,
-                        vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_start:i_end + 1] > -1, cbar=False)
+                        vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_col + 1] > -1, cbar=False)
             if t + 1 == len(tgt_list):
                 sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col], cmap=cmap, vmin=cmap_min, vmax=max_range * cmap_max,
                             linewidths=1, cbar_ax=static_ax[t + 1], cbar_kws={'label': plotting_params["cbar_label"]})
                 sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col], cmap=mask_cbar, vmin=cmap_min,
-                            vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_start:i_end + 1] > -1, cbar=False)
+                            vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_col + 1] > -1, cbar=False)
         static_ax[t].set_title(tgt_list[t], fontsize=18)
         static_ax[t].set_ylabel('')
         static_ax[t].set_xlabel('')

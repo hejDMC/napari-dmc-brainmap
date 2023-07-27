@@ -6,7 +6,7 @@ from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
 
 
-from napari_dmc_brainmap.utils import split_to_list
+from napari_dmc_brainmap.utils import split_to_list, load_params
 from napari_dmc_brainmap.visualization.visualization_tools import load_data
 from napari_dmc_brainmap.visualization.visualization_bar_plot import get_bar_plot_params, do_bar_plot
 from napari_dmc_brainmap.visualization.visualization_heatmap import get_heatmap_params, do_heatmap
@@ -148,7 +148,7 @@ def barplot_widget(
                                                          'to bregma defining the intervals to plot (increasing in value)'),
     include_layers=dict(widget_type='CheckBox', label='include layers?', value=True,
                        tooltip='option to include layers of brain areas defined above, e.g. PL1, PL2/3 etc. '
-                               'for PL'),
+                               'for PL (NOT IMPLEMENTED YET)'),
     cmap=dict(widget_type='LineEdit', label='colormap',
                             value='c:Blues', tooltip='enter colormap to use for heatmap, start with a c: ; '
                                                      'e.g. "c:NAMEOFCMAP"'),
@@ -224,6 +224,9 @@ def heatmap_widget(
     plot_item=dict(widget_type='Select', label='item to plot',
                       choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'],
                       tooltip='select items to plot cells/injection side/projection density, hold ctrl/shift to select multiple'),
+    section_orient=dict(widget_type='ComboBox', label='orientation of sectioning',
+                        choices=['coronal', 'sagittal', 'horizontal'], value='coronal',
+                        tooltip="select the how you sliced the brain"),
     brain_areas=dict(widget_type='LineEdit', label='list of brain areas',
                      tooltip='enter the COMMA SEPERATED list of names of brain areas (acronym)'
                              ' to plot (no white spaces: area1,area2)'),
@@ -276,6 +279,7 @@ def brain_section_widget(
     save_fig,
     save_name,
     plot_item,
+    section_orient,
     brain_areas,
     brain_areas_color,
     brain_areas_transparency,
@@ -329,6 +333,7 @@ class VisualizationWidget(QWidget):
         self.layout().addWidget(self._collapse_heat)
         self.layout().addWidget(self._collapse_section)
 
+    # todo: for now all animals need to be registered to the same atlas
     def _do_bar_plot(self):
         input_path = header_widget.input_path.value
         if str(header_widget.save_path.value) == '.':
@@ -338,8 +343,9 @@ class VisualizationWidget(QWidget):
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_bar_plot_params(barplot_widget)
+        params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
-        atlas = BrainGlobeAtlas("allen_mouse_10um")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
         df = load_data(input_path, atlas, animal_list, channels)
         tgt_list = split_to_list(barplot_widget.tgt_list.value)
         mpl_widget = do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widget, save_path)
@@ -355,8 +361,9 @@ class VisualizationWidget(QWidget):
         animal_list = split_to_list(header_widget.animal_list.value)
         channels = header_widget.channels.value
         plotting_params = get_heatmap_params(heatmap_widget)
+        params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
-        atlas = BrainGlobeAtlas("allen_mouse_10um")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
         df = load_data(input_path, atlas, animal_list, channels)
         tgt_list = split_to_list(heatmap_widget.tgt_list.value)
         mpl_widget = do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget, save_path)
@@ -373,8 +380,9 @@ class VisualizationWidget(QWidget):
         plotting_params = get_brain_section_params(brain_section_widget)
         plot_item = brain_section_widget.plot_item.value
         data_dict = {}
+        params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
-        atlas = BrainGlobeAtlas("allen_mouse_10um")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
 
         for item in plot_item:
             data_dict[item] = load_data(input_path, atlas, animal_list, channels, data_type=item)

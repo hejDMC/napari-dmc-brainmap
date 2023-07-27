@@ -151,7 +151,8 @@ def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
         results_data['animal_id'] = [animal_id] * len(
                 results_data)  # add the animal_id as a column for later identification
         # add the injection hemisphere stored in params.json file
-
+    else:
+        return
     results_data = clean_results_df(results_data, atlas)
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data

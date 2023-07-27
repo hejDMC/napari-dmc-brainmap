@@ -132,12 +132,12 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
         results_data_merged = results_data_merged.reset_index(drop=True)
     return results_data_merged
 
-def coord_mm_transform(df, to_coord = True):  # todo delete this and use only the one in utils
+def coord_mm_transform(df, bregma, to_coord = True):  # todo delete this and use only the one in utils?
     """
     Function to calculate atlas coordinates into mm and vice versa
     Inserted df needs to have specified columns
     """
-    bregma = get_bregma()
+
     if to_coord:
         df['ap_mm'] = -(df['ap_mm'] / 0.01 - bregma[0]).astype(int)
         df['dv_mm'] = -(df['dv_mm'] / 0.01).astype(int)
@@ -169,14 +169,15 @@ def brain_region_color(plotting_params):
     brain_areas = plotting_params['brain_areas']
     brain_areas_color = plotting_params['brain_areas_color']
     brain_areas_transparency = plotting_params['brain_areas_transparency']
-
+    if len(brain_areas_transparency) > 0 and [''] not in brain_areas_transparency:
+        brain_areas_transparency = [int(b) for b in brain_areas_transparency]
     brain_areas, brain_areas_color = match_lists(brain_areas, brain_areas_color, 'color')
     brain_areas, brain_areas_transparency = match_lists(brain_areas, brain_areas_transparency, 'transparency')
 
     return brain_areas, brain_areas_color, brain_areas_transparency
 
 
-def plot_brain_schematic(atlas, slice_idx, plotting_params, unilateral_target=False, transparent=True):
+def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilateral_target=False, transparent=True):
     """
     # todo orientation for plot
     Function to plot brain schematics as colored plots
@@ -191,7 +192,13 @@ def plot_brain_schematic(atlas, slice_idx, plotting_params, unilateral_target=Fa
     :return: annot_section in RGBA values on x-y coordintaes for plotting
     """
 
-    annot_section = atlas.annotation[slice_idx, :, :].copy()
+    if orient_idx == 0:
+        annot_section = atlas.annotation[slice_idx, :, :].copy()
+    elif orient_idx == 1:
+        annot_section = atlas.annotation[:, slice_idx, :].copy()
+    else:
+        annot_section = atlas.annotation[:, :, slice_idx].copy()
+
     annot_section[annot_section > 0] = 1  # set all brain areas to 1
 
     cmap_brain = ['white', 'linen', 'lightgray',
@@ -219,7 +226,12 @@ def plot_brain_schematic(atlas, slice_idx, plotting_params, unilateral_target=Fa
     if transparent:
         cmap_brain[0][-1] = 0  # set alpha on white pixels transparent
     for n, tgt in enumerate(tgt_list):
-        tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
+        if orient_idx == 0:
+            tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
+        elif orient_idx == 1:
+            tgt_mask = atlas.get_structure_mask(tgt)[:, slice_idx, :]
+        else:
+            tgt_mask = atlas.get_structure_mask(tgt)[:, :, slice_idx]
         annot_section[tgt_mask > 0] = n + 2  # for setting color, 0 = background, 1 = non target brain, 2 = fibers, 3 = ventricles, >3 tgt structures
     #
     #
