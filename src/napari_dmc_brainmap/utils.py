@@ -233,6 +233,7 @@ def create_regi_dict(input_path, regi_chan):
     return regi_dict
 
 def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
+    # change indices of xyz triplet tuple to match atlas
     # list with [x,y,z] triplet
     xyz_tuple = tuple([regi_dict['xyz_dict']['x'][0], regi_dict['xyz_dict']['y'][0], regi_dict['xyz_dict']['z'][0]])
     index_match = [xyz_tuple.index(e) for e in atlas_tuple]
@@ -255,6 +256,7 @@ def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord = False):
         return triplet_new
 
 def sort_ap_dv_ml(triplet, atlas_tuple):
+    # sort input triplet in respective atlas convention to new tipled in [ap, dv, ml] order
     tgt_tuple = ('ap', 'si', 'rl')  # bg naming convention
     index_match = [atlas_tuple.index(e) for e in tgt_tuple]
     triplet_new = [triplet[i] for i in index_match]

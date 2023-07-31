@@ -21,22 +21,26 @@ class ProbeVisualizer(QMainWindow):
         self.app = app
         self.params_dict = params_dict
         self.setWindowTitle("Probe Visualizer")
-        self.setFixedSize(1900,1200) # todo : adjust later for HD screen, for 2k or 4k screen 1400*1200
+        # todo change window size matching screen size as in sharpy track
+        self.setFixedSize(1900,1200) # int(self.annot.shape[0]*1.5), int(self.annot.shape[1]*1.05))
         # do not create status object, handle DV information by self
         self.createActions()
         self.createMenus()
         print("loading reference atlas...")
-
         self.atlas = BrainGlobeAtlas(self.params_dict['atlas_info']['atlas'])
+        self.ori_idx = [self.atlas.space.axes_description.index(o) for o in
+                        ['ap', 'si', 'rl']]  # get orientation indices for [ap, dv, ml] order
         self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()
         self.calculateImageGrid()
-        self.currentAP = 540 # bregma AP
-        self.currentDV = 400 # half depth DV
-        self.currentML = 570 # midline ML
+        self.currentAP = int(self.annot.shape[0]/2)  # half AP
+        self.currentDV = int(self.annot.shape[1]/2) # half depth DV
+        self.currentML = int(self.annot.shape[2]/2) # midline ML
         self.viewerID = 1 # axial view by default
-        self.widget = MainWidget(self)
+        shape = [self.atlas.shape[i] for i in self.ori_idx]
+        resolution = [self.atlas.resolution[i]/1000 for i in self.ori_idx]
+        self.widget = MainWidget(self, shape, resolution)
         self.setCentralWidget(self.widget.widget)
 
     def loadTemplate(self):
@@ -46,30 +50,33 @@ class ProbeVisualizer(QMainWindow):
         self.template = do_8bit(self.template)
 
     def loadAnnot(self):
-        self.annot = self.atlas.annotation
+        self.annot = self.atlas.annotation.transpose(self.ori_idx)  # change axis of atlas to match [ap, dv, ml] order
 
     def loadStructureTree(self):
         self.sTree = self.atlas.structures
         self.bregma = get_bregma(self.params_dict['atlas_info']['atlas'])
+        self.bregma = [self.bregma[o] for o in self.ori_idx]
 
     def calculateImageGrid(self):
-        dv = np.arange(800)
-        ml = np.arange(1140)
+        dv = np.arange(self.annot.shape[1])
+        ml = np.arange(self.annot.shape[2])
         grid_x,grid_y = np.meshgrid(ml,dv)
         self.r_grid_x = grid_x.ravel()
         self.r_grid_y = grid_y.ravel()
         self.grid = np.stack([grid_y,grid_x],axis=2)
     
     def getContourIndex(self):
+
+        # todo here sth with thte idx of annot
         if self.viewerID == 1: # axial view
             self.sliceAnnot = self.annot[:,self.currentDV,:].copy().astype(np.int32).T # rotate image by 90 degrees
-            empty = np.zeros((1140,1320),dtype=np.uint8)
+            empty = np.zeros((self.annot.shape[2],self.annot.shape[0]),dtype=np.uint8)
         elif self.viewerID == 0: # coronal view
             self.sliceAnnot = self.annot[self.currentAP,:,:].copy().astype(np.int32)
-            empty = np.zeros((800,1140),dtype=np.uint8)
+            empty = np.zeros((self.annot.shape[1],self.annot.shape[2]),dtype=np.uint8)
         else: # sagital view
             self.sliceAnnot = self.annot[:,:,self.currentML].copy().astype(np.int32).T # rotate image by 90 degrees
-            empty = np.zeros((800,1320),dtype=np.uint8)
+            empty = np.zeros((self.annot.shape[1],self.annot.shape[0]),dtype=np.uint8)
         # get contours
         contours,_ = cv2.findContours(self.sliceAnnot, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
         # draw contours on canvas
@@ -148,20 +155,20 @@ class ProbeVisualizer(QMainWindow):
         windowWidth = self.size().width()
 
         if self.viewerID == 0: # switch QLabel size
-            self.move(self.pos().x()+(windowWidth-1720),self.pos().y()) # pin to top-right of window
-            self.setFixedSize(1720,860)
-            self.widget.viewer.setFixedSize(1140,800) 
-            self.widget.labelContour.setFixedSize(1140,800)
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[2] * 1.5)),self.pos().y()) # pin to top-right of window
+            self.setFixedSize(int(self.annot.shape[2] * 1.5),int(self.annot.shape[1]*1.05))
+            self.widget.viewer.setFixedSize(self.annot.shape[2],self.annot.shape[1])
+            self.widget.labelContour.setFixedSize(self.annot.shape[2],self.annot.shape[1])
         elif self.viewerID == 1:
-            self.move(self.pos().x()+(windowWidth-1900),self.pos().y())
-            self.setFixedSize(1900,1200)
-            self.widget.viewer.setFixedSize(1320,1140)
-            self.widget.labelContour.setFixedSize(1320,1140)
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5)),self.pos().y())
+            self.setFixedSize(int(self.annot.shape[0]*1.5), int(self.annot.shape[2]*1.05))
+            self.widget.viewer.setFixedSize(self.annot.shape[0],self.annot.shape[2])
+            self.widget.labelContour.setFixedSize(self.annot.shape[0],self.annot.shape[2])
         else:
-            self.move(self.pos().x()+(windowWidth-1900),self.pos().y())
-            self.setFixedSize(1900,860)
-            self.widget.viewer.setFixedSize(1320,800)
-            self.widget.labelContour.setFixedSize(1320,800)
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5)),self.pos().y())
+            self.setFixedSize(int(self.annot.shape[0]*1.5), int(self.annot.shape[1]*1.05))
+            self.widget.viewer.setFixedSize(self.annot.shape[0],self.annot.shape[1])
+            self.widget.labelContour.setFixedSize(self.annot.shape[0],self.annot.shape[1])
 
         self.widget.updateSlider(self)
         self.widget.loadSlice(self)
@@ -198,9 +205,12 @@ class ProbeVisualizer(QMainWindow):
     
     def getCoordMM(self,vox_index):
         vox_ap,vox_dv,vox_ml = vox_index
-        ap_mm = np.round((self.bregma[0] - vox_ap) * 0.01,2)
-        dv_mm = np.round((self.bregma[1] - vox_dv) * 0.01,2)
-        ml_mm = np.round((self.bregma[2] - vox_ml) * 0.01,2)
+        ap_mm = np.round((self.bregma[0] - vox_ap) *
+                         (self.atlas.resolution[self.atlas.space.axes_description.index('ap')]/1000),2)
+        dv_mm = np.round((self.bregma[1] - vox_dv) *
+                         (self.atlas.resolution[self.atlas.space.axes_description.index('si')] / 1000), 2)
+        ml_mm = np.round((self.bregma[2] - vox_ml) *
+                         (self.atlas.resolution[self.atlas.space.axes_description.index('rl')] / 1000), 2)
         return [ap_mm,dv_mm,ml_mm]
 
     def createMenus(self):

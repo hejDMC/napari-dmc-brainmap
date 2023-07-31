@@ -6,71 +6,92 @@ import matplotlib.pyplot as plt
 
 from napari_dmc_brainmap.utils import get_animal_id
 
-def get_primary_axis(direction_vector): # get primary axis from direction vector
+def get_primary_axis_idx(direction_vector): # get primary axis from direction vector
     direction_comp = np.abs(direction_vector) # get component absolute value
     direction_comp[1] += 1e-10 # 1st default, DV axis
     direction_comp[0] += 1e-11 # 2nd default, AP axis
 
-    primary_axis = direction_comp.argmax() # select biggest component as primary axis
+    primary_axis_idx = direction_comp.argmax() # select biggest component as primary axis
     # axis_name = ['zpixel', 'ypixel', 'xpixel']
     # print('Insertion axis is: ', axis_name[primary_axis])
-    return(primary_axis)  # 0:AP, 1:DV, 2:ML
+    return primary_axis_idx  # 0:a, 1:b, 2:c
 
 
-def get_voxelized_coord(ax_primary, line_object): # get voxelized line from primary axis, line fit
-    # todo do I need to change stuff here?
-    if ax_primary == 1: # DV-axis
-        dv = np.arange(800) # estimate along DV-axis
-        lamb = (dv - line_object.point[1])/line_object.direction[1] # DV = dv_point + lambda * dv_direction, get lambda
-        ap = (line_object.point[0] + lamb * line_object.direction[0]).astype(int) # AP = ap_point + lambda * ap_direction, get AP
-        ml = (line_object.point[2] + lamb * line_object.direction[2]).astype(int) # ML = ml_point + lambda * ml_direction, get ML
+def get_voxelized_coord(primary_axis_idx, line_object, atlas): # get voxelized line from primary axis, line fit
 
-    elif ax_primary == 0: # AP-axis
-        ap = np.arange(1320)
-        lamb = (ap - line_object.point[0])/line_object.direction[0] # AP = ap_point + lambda * ap_direction, get lambda
-        ml = (line_object.point[2] + lamb * line_object.direction[2]).astype(int) # ML = ml_point + lambda * ml_direction, get ML
-        dv = (line_object.point[1] + lamb * line_object.direction[1]).astype(int) # DV = dv_point + lambda * dv_direction, get DV
+    z = np.arange(atlas.shape[primary_axis_idx])
+    lamb = (z - line_object.point[primary_axis_idx])/line_object.direction[primary_axis_idx]
 
-    else: # ML-axis
-        ml = np.arange(1140)
-        lamb = (ml - line_object.point[2])/line_object.direction[2] # ML = ml_point + lambda * ml_direction, get lambda
-        dv = (line_object.point[1] + lamb * line_object.direction[1]).astype(int) # DV = dv_point + lambda * dv_direction, get DV
-        ap = (line_object.point[0] + lamb * line_object.direction[0]).astype(int) # AP = ap_point + lambda * ap_direction, get AP
+    y_idx, x_idx = atlas.space.index_pairs[primary_axis_idx]
+    x = (line_object.point[x_idx] + lamb * line_object.direction[x_idx]).astype(int)
+    y = (line_object.point[y_idx] + lamb * line_object.direction[y_idx]).astype(int)
+    # todo this is weird
+    if primary_axis_idx == 0:
+        a = z
+        b = y
+        c = x
+    elif primary_axis_idx == 1:
+        a = y
+        b = z
+        c = x
+    else:
+        a = y
+        b = x
+        c = z
 
-    return ap ,dv, ml
+    return a, b, c  # return points in order of atlas
+    # if primary_axis_idx == 1: # DV-axis
+    #     dv = np.arange(800) # estimate along DV-axis
+    #     lamb = (dv - line_object.point[1])/line_object.direction[1] # DV = dv_point + lambda * dv_direction, get lambda
+    #     ap = (line_object.point[0] + lamb * line_object.direction[0]).astype(int) # AP = ap_point + lambda * ap_direction, get AP
+    #     ml = (line_object.point[2] + lamb * line_object.direction[2]).astype(int) # ML = ml_point + lambda * ml_direction, get ML
+    #
+    # elif primary_axis_idx == 0: # AP-axis
+    #     ap = np.arange(1320)
+    #     lamb = (ap - line_object.point[0])/line_object.direction[0] # AP = ap_point + lambda * ap_direction, get lambda
+    #     ml = (line_object.point[2] + lamb * line_object.direction[2]).astype(int) # ML = ml_point + lambda * ml_direction, get ML
+    #     dv = (line_object.point[1] + lamb * line_object.direction[1]).astype(int) # DV = dv_point + lambda * dv_direction, get DV
+    #
+    # else: # ML-axis
+    #     ml = np.arange(1140)
+    #     lamb = (ml - line_object.point[2])/line_object.direction[2] # ML = ml_point + lambda * ml_direction, get lambda
+    #     dv = (line_object.point[1] + lamb * line_object.direction[1]).astype(int) # DV = dv_point + lambda * dv_direction, get DV
+    #     ap = (line_object.point[0] + lamb * line_object.direction[0]).astype(int) # AP = ap_point + lambda * ap_direction, get AP
+    #
+    # return ap ,dv, ml
 
 
-def get_certainty_list(probe_tract, annot):
+def get_certainty_list(probe_tract, annot, col_names):
     # calculate certainty value
     check_size = 3  # [-3,-2,-1,0,1,2,3] # check neibouring (n*2+1)**3 voxels , only odd numbers here
 
-    d_ap, d_dv, d_ml = np.meshgrid(np.arange(-check_size, check_size + 1, 1),
+    d_a, d_b, d_c = np.meshgrid(np.arange(-check_size, check_size + 1, 1),
                                 np.arange(-check_size, check_size + 1, 1),
                                 np.arange(-check_size, check_size + 1, 1))
 
     certainty_list = []
 
     for row in range(len(probe_tract)):
-        nAP = probe_tract['Voxel_AP'][row] + d_ap.ravel()
-        nDV = probe_tract['Voxel_DV'][row] + d_dv.ravel()
-        nML = probe_tract['Voxel_ML'][row] + d_ml.ravel()
+        nA = probe_tract[col_names[0]][row] + d_a.ravel()
+        nB = probe_tract[col_names[1]][row] + d_b.ravel()
+        nC = probe_tract[col_names[2]][row] + d_c.ravel()
         # handle outlier voxels
-        outlierAP = np.where((nAP < 0) | (nAP > 1319))[0].tolist()
-        outlierDV = np.where((nDV < 0) | (nDV > 799))[0].tolist()
-        outlierML = np.where((nML < 0) | (nML > 1139))[0].tolist()
-        if len(outlierAP) + len(outlierDV) + len(outlierML) == 0:  # no outlier voxel
+        outlierA = np.where((nA < 0) | (nA > (annot.shape[0]-1)))[0].tolist()
+        outlierB = np.where((nB < 0) | (nB > (annot.shape[1]-1)))[0].tolist()
+        outlierC = np.where((nC < 0) | (nC > (annot.shape[2]-1)))[0].tolist()
+        if len(outlierA) + len(outlierB) + len(outlierC) == 0:  # no outlier voxel
             voxel_reduce = 0
         else:  # has out of range voxels
-            i_to_remove = np.unique(outlierAP + outlierDV + outlierML)  # get voxel to remove index
-            nAP = np.delete(nAP, i_to_remove)  # remove
-            nDV = np.delete(nDV, i_to_remove)  # from
-            nML = np.delete(nML, i_to_remove)  # index lists
+            i_to_remove = np.unique(outlierA + outlierB + outlierC)  # get voxel to remove index
+            nA = np.delete(nA, i_to_remove)  # remove
+            nB = np.delete(nB, i_to_remove)  # from
+            nC = np.delete(nC, i_to_remove)  # index lists
             voxel_reduce = len(i_to_remove)  # reduce demoninator at certainty
 
-        structures_neighbor = annot[nAP, nDV, nML]  # get structure_ids of all neighboring voxels, except outliers
-        structure_id = annot[probe_tract['Voxel_AP'][row],
-                         probe_tract['Voxel_DV'][row],
-                         probe_tract['Voxel_ML'][row]]  # center voxel
+        structures_neighbor = annot[nA, nB, nC]  # get structure_ids of all neighboring voxels, except outliers
+        structure_id = annot[probe_tract[col_names[0]][row],
+                         probe_tract[col_names[1]][row],
+                         probe_tract[col_names[2]][row]]  # center voxel
         uni, count = np.unique(structures_neighbor, return_counts=True)  # summarize neibouring structures
         try:
             certainty = dict(zip(uni, count))[structure_id] / (
@@ -82,34 +103,32 @@ def get_certainty_list(probe_tract, annot):
     return certainty_list
 
 
-def check_probe_insert(probe_insert, linefit, surface_vox):
+def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution):
 
     # get probe tip coordinate
     # get direction unit vector
     direction_vec = linefit['direction'].values  # line direction vector
     direction_unit = direction_vec / np.linalg.norm(direction_vec)  # scale direction vector to length 1
 
-    # # read probe depth from histology evidence  todo delete this?
-    # if probe_insert is None:
-    #     print('manipulator readout not provided, using histology.')
-    #     df_3Dscatter = pd.read_csv('step2_output_probevoxelcoordinates.csv',
-    #                                index_col=0)  # read probe 3D coordinates from step2
-    #     scatter_vox = np.array(df_3Dscatter[['AP', 'DV', 'ML']].values)
-    #
-    #     # calculate scatter projection on fit line
-    #     projection_online = np.matmul(
-    #         np.expand_dims(np.dot(scatter_vox - linefit['point'].values, direction_unit), 1),
-    #         np.expand_dims(direction_unit, 0)) + linefit['point'].values
-    #
-    #     # calculate distance of projection from surface
-    #     dist_to_surface = ((projection_online.T[0] - surface_vox[0]) ** 2 + \
-    #                        (projection_online.T[1] - surface_vox[1]) ** 2 + \
-    #                        (projection_online.T[2] - surface_vox[2]) ** 2) ** 0.5
-    #
-    #     furthest_um = np.max(dist_to_surface) * 10  # convert voxel to um, 10um/voxel
-    #     probe_insert = int(furthest_um)
-    # else:
-    #     pass
+    # read probe depth from histology evidence  todo delete this?
+    if probe_insert is None:
+        print('manipulator readout not provided, using histology.')
+        scatter_vox = np.array(probe_df[['a_coord', 'b_coord', 'c_coord']].values)
+
+        # calculate scatter projection on fit line
+        projection_online = np.matmul(
+            np.expand_dims(np.dot(scatter_vox - linefit['point'].values, direction_unit), 1),
+            np.expand_dims(direction_unit, 0)) + linefit['point'].values
+
+        # calculate distance of projection from surface
+        dist_to_surface = ((projection_online.T[0] - surface_vox[0]) ** 2 +
+                           (projection_online.T[1] - surface_vox[1]) ** 2 +
+                           (projection_online.T[2] - surface_vox[2]) ** 2) ** 0.5
+
+        furthest_um = np.max(dist_to_surface) * resolution  # convert voxel to um, 10um/voxel
+        probe_insert = int(furthest_um)
+    else:
+        pass
 
     return probe_insert, direction_unit
 

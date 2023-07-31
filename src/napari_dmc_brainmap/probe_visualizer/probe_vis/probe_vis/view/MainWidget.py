@@ -8,9 +8,10 @@ import functools
 import distinctipy as dc
 
 class MainWidget():
-    def __init__(self,probeV):
+    def __init__(self,probeV, shape, resolution):
         self.widget = QWidget()
-        
+        self.shape = shape
+        self.resolution = resolution
         self.mainLayout = QHBoxLayout()
         self.widget.setLayout(self.mainLayout)
         
@@ -18,11 +19,11 @@ class MainWidget():
         self.labelBox.setAlignment(Qt.AlignTop)
 
         self.viewer = QLabel()
-        self.viewer.setFixedSize(1320,1140)
+        self.viewer.setFixedSize(self.shape[0],self.shape[2])
         self.labelBox.addWidget(self.viewer,0,0,Qt.AlignLeft,Qt.AlignTop)
 
         self.labelContour = QLabelMT()
-        self.labelContour.setFixedSize(1320,1140)
+        self.labelContour.setFixedSize(self.shape[0],self.shape[2])
         self.labelBox.addWidget(self.labelContour,0,0,Qt.AlignLeft,Qt.AlignTop)
 
         self.mainLayout.addLayout(self.labelBox)
@@ -40,20 +41,20 @@ class MainWidget():
     def loadSlice(self,probeV):
 
         if probeV.viewerID == 0: # coronal
-            self.slice = probeV.template[probeV.current_z, :, :].copy()
-            cv2.putText(self.slice, "AP: " + str(probeV.current_z), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
-            cv2.putText(self.slice, "(" + str(np.round((540 - probeV.current_z) * 0.01, 2)) + " mm)", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            self.slice = probeV.template[probeV.currentAP, :, :].copy()
+            cv2.putText(self.slice, "AP: " + str(probeV.currentAP), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
+            cv2.putText(self.slice, "(" + str(np.round((self.shape[0]/2 - probeV.currentAP) * self.resolution[0], 2)) + " mm)", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 
         elif probeV.viewerID == 1: # axial
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, probeV.currentDV, :].T.copy()
             cv2.putText(self.slice, "DV: "+str(probeV.currentDV), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((0-probeV.currentDV)*0.01,2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "("+str(np.round((0-probeV.currentDV)*self.resolution[1],2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
         else: # sagittal
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, :, probeV.currentML].T.copy()
             cv2.putText(self.slice, "ML: "+str(probeV.currentML), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((570-probeV.currentML)*0.01,2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "("+str(np.round((self.shape[2]/2-probeV.currentML) * self.resolution[2],2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 
         # add active probe to slice
         if hasattr(self,'probeDisplayList'):
@@ -71,8 +72,8 @@ class MainWidget():
                             pass # probe not going through this axial plane
 
                     elif probeV.viewerID == 0: # coronal plane
-                        if probeV.current_z in vox_this_probe[:, 0]:
-                            probe_coord_2d = vox_this_probe[np.where(vox_this_probe[:,0] == probeV.current_z)[0]][:, [1, 2]]
+                        if probeV.currentAP in vox_this_probe[:, 0]:
+                            probe_coord_2d = vox_this_probe[np.where(vox_this_probe[:,0] == probeV.currentAP)[0]][:, [1, 2]]
                             # draw dot
                             for coord in probe_coord_2d:
                                 cv2.circle(self.slice, (coord[1],coord[0]), 3, self.probeColor[p], -1) # transpost XY here
@@ -100,7 +101,7 @@ class MainWidget():
     def createSliderGeneral(self,probeV):
         self.gSlider = QSlider(Qt.Vertical)
         self.gSlider.setMinimum(0)
-        self.gSlider.setMaximum(799) # change maximum value according to viewerID
+        self.gSlider.setMaximum(self.shape[1]) # change maximum value according to viewerID
         self.gSlider.setSingleStep(1)
         self.gSlider.setInvertedAppearance(True)
         self.gSlider.setSliderPosition(probeV.currentDV) # set slider position to current AP/DV/ML
@@ -109,16 +110,16 @@ class MainWidget():
     
     def updateSlider(self,probeV):
         if probeV.viewerID == 0:
-            currentAP = probeV.current_z # save current_z copy
-            self.gSlider.setMaximum(1319) # current_z reset
+            currentAP = probeV.currentAP # save current_z copy
+            self.gSlider.setMaximum(self.shape[0]-1) # current_z reset
             self.gSlider.setSliderPosition(currentAP) # restore current_z
         elif probeV.viewerID == 1:
             currentDV = probeV.currentDV
-            self.gSlider.setMaximum(799)
+            self.gSlider.setMaximum(self.shape[1]-1)
             self.gSlider.setSliderPosition(currentDV)
         else:
             currentML = probeV.currentML
-            self.gSlider.setMaximum(1139)
+            self.gSlider.setMaximum(self.shape[2]-1)
             self.gSlider.setSliderPosition(currentML)
 
 
@@ -146,7 +147,7 @@ class MainWidget():
         self.viewSwitchLayout.setAlignment(Qt.AlignTop)
 
         self.radioAP = QRadioButton("Coronal") # viewer id 0 # todo: make font bigger
-        self.radioDV = QRadioButton("Axial") # viewer id 1
+        self.radioDV = QRadioButton("Horizontal") # viewer id 1
         self.radioML = QRadioButton("Sagittal") # viewer id 2
         # set fixed height
         self.radioAP.setFixedHeight(100)
