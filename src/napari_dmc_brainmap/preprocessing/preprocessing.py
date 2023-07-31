@@ -10,7 +10,7 @@ from napari.qt.threading import thread_worker
 import json
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict
+from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, load_params
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
 from magicgui import magicgui
@@ -224,20 +224,24 @@ def footer_widget(
     return footer_widget
 
 @thread_worker
-def do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, save_dirs):
+def do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params, resolution, save_dirs):
 
     # if num_cores > multiprocessing.cpu_count():
     #     print("maximum available cores = " + str(multiprocessing.cpu_count()))
     #     num_cores = multiprocessing.cpu_count()
-    if params_dict['operations']['sharpy_track']:
-        resolution_tuple = tuple(params_dict['atlas_info']['resolution'])
+
+    if preprocessing_params['operations']['sharpy_track']:
+        resolution_tuple = tuple(resolution)
     else:
         resolution_tuple = False
-    if any(params_dict['operations'].values()):
+
+    if any(preprocessing_params['operations'].values()):
         if num_cores > 1:
             print("parallel processing not implemented yet")
         Parallel(n_jobs=num_cores)(delayed(preprocess_images)
-                                   (im, filter_list, input_path, params_dict, save_dirs, resolution_tuple) for im in tqdm(img_list))
+                                   (im, filter_list, input_path, preprocessing_params, save_dirs, resolution_tuple) for im in tqdm(img_list))
+        preprocessing_params = clean_params_dict(preprocessing_params, "operations")
+        update_params_dict(input_path, preprocessing_params)
         print("DONE!")
     else:
         print("No preprocessing operations selected, expand the respective windows and tick check box")
@@ -339,14 +343,16 @@ class PreprocessingWidget(QWidget):
 
     def _do_preprocessing(self):
         input_path = header_widget.input_path.value
-        params_dict = self._get_preprocessing_params()
-        params_dict = clean_params_dict(params_dict, "operations")
-        params_dict = update_params_dict(input_path, params_dict)
-        save_dirs = create_dirs(params_dict, input_path)
-        filter_list = params_dict['general']['chans_imaged']
+        preprocessing_params = self._get_preprocessing_params()
+
+        save_dirs = create_dirs(preprocessing_params, input_path)
+        filter_list = preprocessing_params['general']['chans_imaged']
         img_list = get_im_list(input_path)
         num_cores = footer_widget.num_cores.value
-        preprocessing_worker = do_preprocessing(num_cores, input_path, filter_list, img_list, params_dict, save_dirs)
+        params_dict = load_params(input_path)
+        resolution = params_dict['atlas_info']['resolution']
+        preprocessing_worker = do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params,
+                                                resolution, save_dirs)
         preprocessing_worker.start()
 
 

@@ -10,7 +10,7 @@ from skspatial.objects import Line, Points # scikit-spatial package: https://sci
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from napari_dmc_brainmap.probe_visualizer.probe_visualizer_tools import get_primary_axis, get_voxelized_coord, \
     get_certainty_list, check_probe_insert, save_probe_tract_fig
-from napari_dmc_brainmap.utils import get_info
+from napari_dmc_brainmap.utils import get_info, load_params, create_regi_dict
 
 from bg_atlasapi import BrainGlobeAtlas
 
@@ -26,17 +26,17 @@ def load_probe_data(results_dir, probe):
 
 def get_linefit3d(probe_df):
 
-    points = Points(probe_df[['zpixel', 'ypixel', 'xpixel']].values)  # AP, DV,  ML
+    points = Points(probe_df[['ap_coords', 'dv_coords', 'ml_coords']].values)
     line = Line.best_fit(points)  # fit 3D line
 
     linefit = pd.DataFrame()
     linefit['point'] = line.point  # add point coordinates to dataframe
     linefit['direction'] = line.direction  # add direction vector coordinates to dataframe
 
-    ax_primary = get_primary_axis(line.direction)  # get primary axis
+    ax_primary = get_primary_axis(line.direction)  # get primary axis: 0:AP, 1:DV, 2:ML
 
     voxel_line = np.array(get_voxelized_coord(ax_primary, line)).T  # voxelize
-    linevox = pd.DataFrame(voxel_line, columns=['xpixel', 'ypixel', 'zpixel'])  # add to dataframe  # todo here I swapped z and x
+    linevox = pd.DataFrame(voxel_line, columns=['xpixel', 'ypixel', 'zpixel'])  # add to dataframe  todo
 
     return linefit, linevox, ax_primary
 
@@ -46,7 +46,7 @@ def get_probe_tract(input_path, save_path, atlas, probe, probe_insert, linefit, 
     annot = atlas.annotation
     structure_id_list = annot[linevox['zpixel'], linevox['ypixel'], linevox['xpixel']]
     structure_split = np.split(structure_id_list, np.where(np.diff(structure_id_list))[0] + 1)
-    surface_index = len(structure_split[0])  # get index of first non-root structure
+    surface_index = len(structure_split[0])  # gaet index of first non-root structure
     surface_vox = linevox.iloc[surface_index, :].values  # get brain surface voxel coordinates
 
     probe_insert, direction_unit = check_probe_insert(probe_insert, linefit, surface_vox)
@@ -82,7 +82,7 @@ def get_probe_tract(input_path, save_path, atlas, probe, probe_insert, linefit, 
 
 
 @thread_worker
-def calculate_probe_tract(input_path, save_path, probe_insert):
+def calculate_probe_tract(input_path, save_path, params_dict, probe_insert):
     # get number of probes
     results_dir = get_info(input_path, 'results', seg_type='neuropixels_probe', only_dir=True)
     probes_list = natsorted([p.parts[-1] for p in results_dir.iterdir() if p.is_dir()])
@@ -95,7 +95,7 @@ def calculate_probe_tract(input_path, save_path, probe_insert):
     #         for d in range(diff):
     #             probe_insert.append(4000)
     print("loading reference atlas...")
-    atlas = BrainGlobeAtlas("allen_mouse_10um")
+    atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
     print("calculating probe tract for...")
     for probe in probes_list:
         print("... " + probe)
@@ -125,9 +125,6 @@ def calculate_probe_tract(input_path, save_path, probe_insert):
                    tooltip='select a folder for saving plots, default will save in *input path*'),
     probe_insert=dict(widget_type='LineEdit', label='insertion depth of probe (um)', value='4000',
                     tooltip='specifiy the depth of neuropixels probe in brain in um'),
-    # ax_primary=dict(widget_type='ComboBox', label='insertion axis',
-    #               choices=['AP', 'DV', 'ML'], value='DV',
-    #               tooltip=""),
     call_button=False
 )
 def probe_visualizer(
@@ -166,11 +163,14 @@ class ProbeVisualizerWidget(QWidget):
         else:
             save_path = probe_visualizer.save_path.value
         probe_insert = int(probe_visualizer.probe_insert.value)  # [int(i) for i in probe_visualizer.probe_insert.value.split(',')]
-        pt_worker = calculate_probe_tract(input_path, save_path, probe_insert)
+        params_dict = load_params(input_path)
+        pt_worker = calculate_probe_tract(input_path, save_path, params_dict, probe_insert)
         pt_worker.start()
 
 
     def _start_probe_visualizer(self):
 
-        probe_vis = ProbeVisualizer(self.viewer)
+        input_path = probe_visualizer.input_path.value
+        params_dict = load_params(input_path)
+        probe_vis = ProbeVisualizer(self.viewer, params_dict)
         probe_vis.show()

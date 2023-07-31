@@ -14,10 +14,11 @@ def get_primary_axis(direction_vector): # get primary axis from direction vector
     primary_axis = direction_comp.argmax() # select biggest component as primary axis
     # axis_name = ['zpixel', 'ypixel', 'xpixel']
     # print('Insertion axis is: ', axis_name[primary_axis])
-    return(primary_axis) # 0:AP, 1:DV, 2:ML
+    return(primary_axis)  # 0:AP, 1:DV, 2:ML
 
 
-def get_voxelized_coord(ax_primary,line_object): # get voxelized line from primary axis, line fit
+def get_voxelized_coord(ax_primary, line_object): # get voxelized line from primary axis, line fit
+    # todo do I need to change stuff here?
     if ax_primary == 1: # DV-axis
         dv = np.arange(800) # estimate along DV-axis
         lamb = (dv - line_object.point[1])/line_object.direction[1] # DV = dv_point + lambda * dv_direction, get lambda

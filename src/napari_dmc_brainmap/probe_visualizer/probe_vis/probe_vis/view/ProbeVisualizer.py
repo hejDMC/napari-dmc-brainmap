@@ -16,17 +16,18 @@ from bg_atlasapi import BrainGlobeAtlas
 # todo merge this with atlas model
 
 class ProbeVisualizer(QMainWindow):
-    def __init__(self, app):
+    def __init__(self, app, params_dict):
         super().__init__()
         self.app = app
-        self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))  # todo change this across Sharpy and ProbeVis
+        self.params_dict = params_dict
         self.setWindowTitle("Probe Visualizer")
         self.setFixedSize(1900,1200) # todo : adjust later for HD screen, for 2k or 4k screen 1400*1200
         # do not create status object, handle DV information by self
         self.createActions()
         self.createMenus()
         print("loading reference atlas...")
-        self.atlas = BrainGlobeAtlas("allen_mouse_10um")
+
+        self.atlas = BrainGlobeAtlas(self.params_dict['atlas_info']['atlas'])
         self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()
@@ -49,7 +50,7 @@ class ProbeVisualizer(QMainWindow):
 
     def loadStructureTree(self):
         self.sTree = self.atlas.structures
-        self.bregma = get_bregma()
+        self.bregma = get_bregma(self.params_dict['atlas_info']['atlas'])
 
     def calculateImageGrid(self):
         dv = np.arange(800)

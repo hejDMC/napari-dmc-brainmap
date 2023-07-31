@@ -173,6 +173,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
             ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
             tiff.imwrite(str(ds_image_path), downsampled_image)
             # use tifffile to write images, cv2.imwrite resulted in some errors
+
     if params['operations']['rgb']:
         chans = select_chans(params['rgb_params']['channels'], filter_list, 'rgb')
         rgb_dict = dict((c, stack_dict[c]) for c in chans)
@@ -205,3 +206,6 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
             binary_image_name = im + '_binary.tif'
             binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
             tiff.imwrite(str(binary_image_path), binary_image)
+
+
+

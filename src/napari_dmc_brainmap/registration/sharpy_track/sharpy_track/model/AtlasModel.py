@@ -19,7 +19,7 @@ class AtlasModel():
         self.imgStack = None
         print("loading reference atlas...")
         self.atlas = BrainGlobeAtlas(self.regi_dict['atlas'])
-        self.xyz_dict = regi_dict['xyz_dict']
+        self.xyz_dict = self.regi_dict['xyz_dict']
         self.z_idx = self.atlas.space.axes_description.index(self.xyz_dict['z'][0])
         self.calculateImageGrid()
         self.loadTemplate()
