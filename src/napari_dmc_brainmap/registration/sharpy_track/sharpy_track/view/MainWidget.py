@@ -36,16 +36,16 @@ class MainWidget():
 
     def create_x_slider(self, regViewer, x_size):
         self.x_slider = QSlider(Qt.Horizontal)
-        self.x_slider.setMinimum(-x_size / 2)
-        self.x_slider.setMaximum(x_size / 2)
+        self.x_slider.setMinimum(int(-x_size / 2))
+        self.x_slider.setMaximum(int(x_size / 2))
         self.x_slider.setSingleStep(1)
         self.x_slider.valueChanged.connect(lambda: regViewer.status.x_changed(regViewer))
         self.layoutGrid.addWidget(self.x_slider, 0, 1)
 
     def create_y_slider(self, regViewer, y_size):
         self.y_slider = QSlider(Qt.Vertical)
-        self.y_slider.setMinimum(-y_size / 2)
-        self.y_slider.setMaximum(y_size / 2)
+        self.y_slider.setMinimum(int(-y_size / 2))
+        self.y_slider.setMaximum(int(y_size / 2))
         self.y_slider.setSingleStep(1)
         self.y_slider.valueChanged.connect(lambda: regViewer.status.y_changed(regViewer))
         self.layoutGrid.addWidget(self.y_slider, 1, 0)
