@@ -38,7 +38,8 @@ def get_voxelized_coord(primary_axis_idx, line_object, atlas): # get voxelized l
         a = y
         b = x
         c = z
-
+    x[x >= atlas.shape[x_idx]] = atlas.shape[x_idx] - 1 # todo check if necessary?
+    y[y >= atlas.shape[y_idx]] = atlas.shape[y_idx] - 1
     return a, b, c  # return points in order of atlas
     # if primary_axis_idx == 1: # DV-axis
     #     dv = np.arange(800) # estimate along DV-axis
@@ -111,7 +112,7 @@ def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution)
     direction_unit = direction_vec / np.linalg.norm(direction_vec)  # scale direction vector to length 1
 
     # read probe depth from histology evidence  todo delete this?
-    if probe_insert is None:
+    if not probe_insert:
         print('manipulator readout not provided, using histology.')
         scatter_vox = np.array(probe_df[['a_coord', 'b_coord', 'c_coord']].values)
 
@@ -137,7 +138,7 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
 
 
     animal_id = get_animal_id(input_path)
-
+    df_plot = probe_tract.iloc[:192].copy()
     fig, ax = plt.subplots(ncols=5, nrows=1, figsize=(5, 20))
     # plot probe tip
     ax[0].fill([32, 64, 0, 32], [0, 175, 175, 0], 'k', zorder=0)  # bottom layer
@@ -147,7 +148,7 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
     electrode_x = np.tile(np.array([8, 40, 24, 56]), 96)
     electrode_y = np.repeat(np.arange(0, 192 * 20, 20) + 185, 2)
     # mark outside of brain electrodes
-    inside_brain_bool = np.repeat(probe_tract['Inside_Brain'].values, 2)
+    inside_brain_bool = np.repeat(df_plot['Inside_Brain'].values, 2)
     # skip electrodes outside of brain
     ax[0].scatter(electrode_x[inside_brain_bool], electrode_y[inside_brain_bool], marker='s', s=10, c='yellow',
                   zorder=2)  # top layer
@@ -170,9 +171,9 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
     ax[1].set_aspect(1)
 
     # get electrode brain reigon
-    for row in range(len(probe_tract)):
-        acro_y = probe_tract.iloc[row, :]['Distance_To_Tip(um)']
-        acro_text = probe_tract.iloc[row, :]['Acronym']
+    for row in range(len(df_plot)):
+        acro_y = df_plot.iloc[row, :]['Distance_To_Tip(um)']
+        acro_text = df_plot.iloc[row, :]['Acronym']
         ax[2].text(0, acro_y - 5, acro_text, fontsize=8)
 
     ax[2].set_xlim(0, 100)
@@ -181,21 +182,21 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
 
     ## get certainty value, color code with each brain region
     # get unique regions
-    region_unique = np.unique(probe_tract['structure_id'].values)
+    region_unique = np.unique(df_plot['structure_id'].values)
     # generate visually distinct colors
     colors = distinctipy.get_colors(len(region_unique))
     reg_color_dict = dict(zip(region_unique, colors))
 
-    region_split = np.split(probe_tract['structure_id'].values, np.where(np.diff(probe_tract['structure_id'].values))[0] + 1)
+    region_split = np.split(df_plot['structure_id'].values, np.where(np.diff(df_plot['structure_id'].values))[0] + 1)
 
     chan_row_n = 0
     for r in region_split:
-        acro_text = probe_tract['Acronym'].values[chan_row_n]
+        acro_text = df_plot['Acronym'].values[chan_row_n]
         # fill color
-        ax[3].fill_betweenx(probe_tract['Distance_To_Tip(um)'].values[chan_row_n:chan_row_n + len(r)] + 5,
-                            probe_tract['Certainty'].values[chan_row_n:chan_row_n + len(r)], color=reg_color_dict[r[0]])
+        ax[3].fill_betweenx(df_plot['Distance_To_Tip(um)'].values[chan_row_n:chan_row_n + len(r)] + 5,
+                            df_plot['Certainty'].values[chan_row_n:chan_row_n + len(r)], color=reg_color_dict[r[0]])
         # add text
-        ax[4].text(0, (probe_tract['Distance_To_Tip(um)'].values[chan_row_n] + probe_tract['Distance_To_Tip(um)'].values[
+        ax[4].text(0, (df_plot['Distance_To_Tip(um)'].values[chan_row_n] + df_plot['Distance_To_Tip(um)'].values[
             chan_row_n + len(r) - 1]) / 2 - 5, acro_text)
 
         chan_row_n += len(r)

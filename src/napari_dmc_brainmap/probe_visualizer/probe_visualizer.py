@@ -29,7 +29,7 @@ def load_probe_data(results_dir, probe, atlas):
     # append columns (a,b,c) in case atlas ordering is different that ap, dv, ml (e.g. dv, ml, ap)
     for atlas_ax, abc_name in zip(atlas.space.axes_description, abc_list):
         probe_df[abc_name] = probe_df[name_dict[atlas_ax]].copy()
-
+    print(probe_df)
     return probe_df
 
 
@@ -38,17 +38,13 @@ def get_linefit3d(probe_df, atlas):
 
     points = Points(probe_df[['a_coord', 'b_coord', 'c_coord']].values)
     line = Line.best_fit(points)  # fit 3D line
-
     linefit = pd.DataFrame()
     linefit['point'] = line.point  # add point coordinates to dataframe
     linefit['direction'] = line.direction  # add direction vector coordinates to dataframe
-
     primary_axis_idx = get_primary_axis_idx(line.direction)  # get primary axis index: 0:a, 1:b, 2:c
-
     voxel_line = np.array(get_voxelized_coord(primary_axis_idx, line, atlas)).T  # voxelize
 
     linevox = pd.DataFrame(voxel_line, columns=['a_coord', 'b_coord', 'c_coord'])  # add to dataframe
-
     return linefit, linevox, primary_axis_idx
 
 
@@ -56,7 +52,6 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
 
     # find brain surface
     annot = atlas.annotation
-
     structure_id_list = annot[linevox['a_coord'], linevox['b_coord'], linevox['c_coord']]
     structure_split = np.split(structure_id_list, np.where(np.diff(structure_id_list))[0] + 1)
     surface_index = len(structure_split[0])  # get index of first non-root structure
@@ -66,9 +61,21 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
     # create probe information dataframe
     probe_tract = pd.DataFrame()
     # create electrode left and right channel columns
-    probe_tract['Channel_L'] = np.arange(1, 384, 2)
-    probe_tract['Channel_R'] = np.arange(2, 385, 2)
-    probe_tract['Distance_To_Tip(um)'] = np.arange(0, 192 * 20, 20) + 185  # 185 = 175 + 10 (electrode center to bottom)
+    in_brain_chan = round(probe_insert/10)
+    if in_brain_chan < 385:
+        l_chan = 384
+        r_chan = 385
+    else:
+        if in_brain_chan % 2 == 0:
+            l_chan = in_brain_chan
+            r_chan = l_chan + 1
+        else:
+            r_chan = in_brain_chan
+            l_chan = r_chan - 1
+    probe_tract['Channel_L'] = np.arange(1, l_chan, 2)
+    probe_tract['Channel_R'] = np.arange(2, r_chan, 2)
+    probe_tract['Distance_To_Tip(um)'] = np.arange(0, int(l_chan/2) * 20, 20) + 185  # 185 = 175 + 10 (electrode center to bottom)
+    probe_tract['Recorded_Channels'] = [True] * int(384/2) + [False] * (int(l_chan/2)-int(384/2))
     probe_tract['Inside_Brain'] = probe_tract[
                                  'Distance_To_Tip(um)'] <= probe_insert  # change according to manipulator readout
     name_dict = {
@@ -94,8 +101,8 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
     probe_tract['Acronym'] = [df_tree.data[i]['acronym'] if i > 0 else 'root' for i in probe_tract['structure_id']]
     probe_tract['Name'] = [df_tree.data[i]['name'] if i > 0 else 'root' for i in probe_tract['structure_id']]
 
-    certainty_list = get_certainty_list(probe_tract, annot, col_names)
-    probe_tract['Certainty'] = certainty_list
+    #certainty_list = get_certainty_list(probe_tract, annot, col_names)
+    probe_tract['Certainty'] = [1] * len(probe_tract)
     save_probe_tract_fig(input_path, probe, save_path, probe_tract)
     return probe_tract, col_names
 
@@ -126,7 +133,7 @@ def calculate_probe_tract(input_path, save_path, params_dict, probe_insert):
         probe_df = load_probe_data(results_dir, probe, atlas)
 
         linefit, linevox, ax_primary = get_linefit3d(probe_df, atlas)
-
+        print(p_insert)
         probe_tract, col_names = get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe,
                                                  p_insert, linefit, linevox)
         # save probe tract data
