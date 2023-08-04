@@ -1,4 +1,4 @@
-import cv2
+import cv2, os, glob
 import numpy as np
 from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
@@ -28,10 +28,23 @@ class AtlasModel():
 
 
     def loadTemplate(self):
-        print('loading template volume...')
-        self.template = self.atlas.reference
-        self.template = adjust_contrast(self.template, (0, self.template.max()))
-        self.template = do_8bit(self.template)
+        print('checking template volume...')
+        brainglobe_dir = Path.home() / ".brainglobe"
+        atlas_name_general  = f"{self.regi_dict['atlas']}_v*"
+        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # if error: could be multiple local versions
+
+        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')):
+            print('loading template volume...')
+            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
+
+        else: # not found 8 bit template
+            print('loading template volume...')
+            self.template = self.atlas.reference
+            # self.template = adjust_contrast(self.template, (0, self.template.max()))
+            # self.template = do_8bit(self.template)
+            print('creating 8-bit reference volume...')
+            self.template = (self.template / 516 * 255).astype(np.uint8) # for allen mouse atlas v3 : 516; if atlas overexposed/underexposed, change here
+            np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) 
 
 
     def loadAnnot(self):
