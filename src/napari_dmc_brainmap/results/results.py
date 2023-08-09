@@ -76,10 +76,10 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
     else:
         coords = np.stack([x_scaled, y_scaled], axis=1)
 
-    slice_idx = list(regi_data['imgName'].values()).index(curr_im + regi_suffix)
+    # slice_idx = list(regi_data['imgName'].values()).index(curr_im + regi_suffix)
     s.setImgFolder(regi_dir)
     # set which slice in there
-    s.setSlice(slice_idx)
+    s.setSlice(curr_im + regi_suffix)
     section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
     return section_data
 

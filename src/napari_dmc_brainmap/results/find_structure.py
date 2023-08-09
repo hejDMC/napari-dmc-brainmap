@@ -36,16 +36,30 @@ class sliceHandle():
         self.bregma = get_bregma(self.regi_dict['atlas'])
 
     def setSlice(self, slice_n):
-        self.currentSlice = slice_n
+        if type(slice_n) is int: # if slice number identifier is integer
+            self.currentSlice = slice_n
+        elif type(slice_n) is str: # if slice number identifier is string
+            try:
+                self.currentSlice = int(slice_n) # convert string number to integer number
+            except ValueError:
+                for k in self.regData['imgName'].keys():
+                    if self.regData['imgName'][k] == slice_n:
+                        self.currentSlice = int(k)
+                        print("Slice Index Found")
+                    else:
+                        pass
+        else:
+            print('Unknown Identifier for Slice Number!')
+            print('Slice Number not updated!')
         self.loadImg()
 
     def setImgFolder(self, ImgFolder):
         self.ImgFolder = ImgFolder
 
     def loadImg(self):
-        self.sampleImgFiles = natsorted([f.parts[-1] for f in self.ImgFolder.glob('*.tif')])
-        self.currentSampleImg = tifffile.imread((self.ImgFolder.joinpath(self.sampleImgFiles[self.currentSlice])))
-        print('Working on: ', self.sampleImgFiles[self.currentSlice])
+        # self.sampleImgFiles = natsorted([f.parts[-1] for f in self.ImgFolder.glob('*.tif')])
+        # self.currentSampleImg = tifffile.imread((self.ImgFolder.joinpath(self.sampleImgFiles[self.currentSlice])))
+        print('Working on: ', self.regData['imgName'][str(self.currentSlice)])
 
     def parseJSON(self):
         with open(self.jsonPath, "r") as f:
@@ -67,8 +81,11 @@ class sliceHandle():
             x_post, y_post = mapPointTransform(x_pre, y_pre, self.tforms[slice_n])
             y = int(y_post)
             x = int(x_post)
-            z = int(z_plane[y, x])
-            volIndex_list.append([x, y, z])
+            try:
+                z = int(z_plane[y, x])
+                volIndex_list.append([x, y, z])
+            except IndexError:
+                print(s_coord," mapping out of bound, skipping!")
         return volIndex_list
 
     def get_z_plane(self, slice_n):
