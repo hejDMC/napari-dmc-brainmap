@@ -104,12 +104,20 @@ def get_certainty_list(probe_tract, annot, col_names):
     return certainty_list
 
 
-def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution):
+def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution,ax_primary):
 
     # get probe tip coordinate
     # get direction unit vector
     direction_vec = linefit['direction'].values  # line direction vector
     direction_unit = direction_vec / np.linalg.norm(direction_vec)  # scale direction vector to length 1
+    # Rules to flip direction unit
+    if ax_primary == 1: # DV axis is primary axis
+        if direction_unit[1] < 0:
+            direction_unit = -direction_unit
+        else: # future add more here
+            pass
+    else:
+        pass 
 
     # read probe depth from histology evidence  todo delete this?
     if not probe_insert:

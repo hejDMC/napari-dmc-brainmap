@@ -57,7 +57,7 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
     surface_index = len(structure_split[0])  # get index of first non-root structure
     surface_vox = linevox.iloc[surface_index, :].values  # get brain surface voxel coordinates
     probe_insert, direction_unit = check_probe_insert(probe_df, probe_insert, linefit, surface_vox,
-                                                      atlas.resolution[ax_primary])
+                                                      atlas.resolution[ax_primary],ax_primary)
     # create probe information dataframe
     probe_tract = pd.DataFrame()
     # create electrode left and right channel columns
