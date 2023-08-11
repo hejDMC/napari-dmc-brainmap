@@ -28,23 +28,39 @@ class AtlasModel():
 
 
     def loadTemplate(self):
-        print('checking template volume...')
         brainglobe_dir = Path.home() / ".brainglobe"
         atlas_name_general  = f"{self.regi_dict['atlas']}_v*"
         atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # if error: could be multiple local versions
 
-        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')):
-            print('loading template volume...')
-            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
+        if self.regi_dict['atlas'] == "allen_mouse_10um": # when atlas is allen mouse 100um, downsample and save a reference volume 8-bit copy
+            print('checking template volume...')
+            if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')): # when directory has 8-bit template volume, load it
+                print('loading template volume...')
+                self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
 
-        else: # not found 8 bit template
-            print('loading template volume...')
-            self.template = self.atlas.reference
-            # self.template = adjust_contrast(self.template, (0, self.template.max()))
-            # self.template = do_8bit(self.template)
-            print('creating 8-bit reference volume...')
-            self.template = (self.template / 516 * 255).astype(np.uint8) # for allen mouse atlas v3 : 516; if atlas overexposed/underexposed, change here
-            np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) 
+            else: # when 8-bit template not found
+                print('loading template volume...')
+                self.template = self.atlas.reference # load 16-bit template
+                print('creating 8-bit reference volume...')
+                self.template = (self.template / 516 * 255).astype(np.uint8) # adjust brightness and downsample to 8-bit
+                np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) # save volume for next time loading
+        
+        elif self.regi_dict['atlas'] == "whs_sd_rat_39um": # when atlas is whs sd rat 39um, downsample and save a reference volume 8-bit copy
+            # other atlas save downsampled reference atlas here, if needed
+            print('checking template volume...')
+            if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')):
+                print('loading template volume...')
+                self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
+            else:
+                print('loading template volume...')
+                self.template = self.atlas.reference
+                print('creating 8-bit reference volume...')
+                self.template = (self.template / 20000 * 255).astype(np.uint8)
+                np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) 
+        
+
+
+
 
 
     def loadAnnot(self):
