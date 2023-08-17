@@ -144,7 +144,11 @@ class AtlasModel():
         cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
 
         self.slice = cv2.resize(self.slice,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])) # resize to single window size
-        self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
+        if regViewer.status.imageRGB is False:
+            self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
+        else:
+            self.slice = cv2.cvtColor(self.slice, cv2.COLOR_GRAY2BGR)
+            self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_BGR888)
 
     def getSample(self,regViewer):
         if regViewer.status.sliceNum == 0:
@@ -154,7 +158,11 @@ class AtlasModel():
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888)
         else:
             self.sample = cv2.resize(self.imgStack[regViewer.status.currentSliceNumber],(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
-            self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8)
+            if regViewer.status.imageRGB is False:
+                self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8) # if grayscale sample
+            else:
+                self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888) # if RGB sample
+
 
     def simpleSlice(self,regViewer):
         z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
@@ -191,12 +199,25 @@ class AtlasModel():
             cv2.putText(self.slice, "Slice out of volume!", (400,400), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
     
     def getStack(self,regViewer):
-        self.imgStack = np.full((regViewer.status.sliceNum,self.xyz_dict['y'][1],self.xyz_dict['x'][1]),-1,dtype=np.uint8)
-        # copy slices to stack
-        for i in range(regViewer.status.sliceNum):
-            full_path = Path(regViewer.status.folderPath).joinpath(regViewer.status.imgFileName[i])
-            img_data = cv2.imread(str(full_path), cv2.IMREAD_GRAYSCALE)
-            self.imgStack[i, :, :] = img_data
+        # check image grayscale or RGB, only check first image, assume all grayscale/all RGB
+        image_0 = cv2.imread(os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[0]),cv2.IMREAD_UNCHANGED)
+        if len(image_0.shape) == 2: # gray scale [0-255]
+            self.imgStack = np.full((regViewer.status.sliceNum,800,1140),-1,dtype=np.uint8)
+            # copy slices to stack
+            for i in range(regViewer.status.sliceNum):
+                full_path = os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[i])
+                img_data = cv2.imread(full_path,cv2.IMREAD_GRAYSCALE)
+                self.imgStack[i,:,:] = img_data
+
+        else: # 3 channel RGB/BGR or 4 channel RGBA
+            regViewer.status.imageRGB = True
+            self.imgStack = np.full((regViewer.status.sliceNum,800,1140,3),-1,dtype=np.uint8) # for RGBA also just keep RGB channels in stack
+            # copy slices to stack
+            for i in range(regViewer.status.sliceNum):
+                full_path = os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[i])
+                img_data = cv2.imread(full_path,cv2.IMREAD_UNCHANGED)
+                self.imgStack[i,:,:,:] = img_data[:,:,:3] # load first 3 channels of sample image to stack
+
         print(regViewer.status.sliceNum, "Slice(s) loaded")
 
 
@@ -255,8 +276,13 @@ class AtlasModel():
         self.sampleWarp = cv2.warpPerspective(self.sample,transform,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
         self.sampleBlend = cv2.addWeighted(self.slice, 0.5, self.sampleWarp, 0.5, 0)
 
-        self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_Grayscale8)
-        self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_Grayscale8)
+        if regViewer.status.imageRGB is False:
+            self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_Grayscale8)
+            self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_Grayscale8)
+        else:
+            self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_BGR888)
+            self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_BGR888)
+
         if not(regViewer.status.currentSliceNumber in regViewer.status.blendMode):
             regViewer.status.blendMode[regViewer.status.currentSliceNumber] = 1 # overlay
         else:

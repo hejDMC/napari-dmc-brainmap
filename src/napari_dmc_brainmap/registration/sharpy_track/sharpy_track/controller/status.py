@@ -28,6 +28,7 @@ class StatusContainer():
         self.applySizePolicy()
         self.imgFileName = None
         self.folderPath = None
+        self.imageRGB = False
 
     def applySizePolicy(self):
         if self.screenSize[0] > round(self.atlas_resolution[0]*2.2) and self.screenSize[1] > round(self.atlas_resolution[1] * 1.1):  # 2x width (plus margin) and 1x height (plus margin)
