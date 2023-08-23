@@ -41,12 +41,22 @@ class ViewerLeft(ViewerGeneral):
     def highlightArea(self,regViewer,listCoordMM,activeArea,structureName):
         contourHighlight = regViewer.atlasModel.outline.copy()
         contourHighlight[activeArea[0],activeArea[1],:] = [255,0,0,50] # change active area to 50% red
-        # add mm coordinates, structureName todo: change coordinates of text according to atlas
-        cv2.putText(contourHighlight, "AP:"+str(listCoordMM[0])+" mm", (970,730), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
-        cv2.putText(contourHighlight, "ML:"+str(listCoordMM[2])+" mm", (970,760), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
-        cv2.putText(contourHighlight, "DV:"+str(listCoordMM[1])+" mm", (970,790), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
+        # add mm coordinates, structureName
+        text_w, text_h = cv2.getTextSize("AP:"+str(listCoordMM[0])+" mm", cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        ap_text_location = [contourHighlight.shape[1]-10-text_w,contourHighlight.shape[0]-10-text_h-10-text_h-10]
 
-        cv2.putText(contourHighlight, structureName, (10,790), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,0,0,255), 2, cv2.LINE_AA)
+        text_w, text_h = cv2.getTextSize("ML:"+str(listCoordMM[2])+" mm", cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        ml_text_location = [contourHighlight.shape[1]-10-text_w,contourHighlight.shape[0]-10-text_h-10]
+
+        text_w, text_h = cv2.getTextSize("DV:"+str(listCoordMM[1])+" mm", cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        dv_text_location = [contourHighlight.shape[1]-10-text_w,contourHighlight.shape[0]-10]
+
+        cv2.putText(contourHighlight, "AP:"+str(listCoordMM[0])+" mm", (ap_text_location[0],ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
+        cv2.putText(contourHighlight, "ML:"+str(listCoordMM[2])+" mm", (ml_text_location[0],ml_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
+        cv2.putText(contourHighlight, "DV:"+str(listCoordMM[1])+" mm", (dv_text_location[0],dv_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
+
+        structure_text_location = [10,contourHighlight.shape[0]-10]
+        cv2.putText(contourHighlight, structureName, (structure_text_location[0],structure_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,0,0,255), 2, cv2.LINE_AA)
         
         contourHighlight = cv2.resize(contourHighlight,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
         contourHighlight = QImage(contourHighlight.data, contourHighlight.shape[1],contourHighlight.shape[0],contourHighlight.strides[0],QImage.Format_RGBA8888)

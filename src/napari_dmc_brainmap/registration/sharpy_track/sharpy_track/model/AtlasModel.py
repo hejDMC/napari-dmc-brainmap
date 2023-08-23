@@ -139,9 +139,19 @@ class AtlasModel():
         z_str = name_dict[self.xyz_dict['z'][0]]
         x_str = name_dict[self.xyz_dict['x'][0]]
         y_str = name_dict[self.xyz_dict['y'][0]]
-        cv2.putText(self.slice, z_str + " mm : " + str(regViewer.status.current_z), (950, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)  # todo positions need to be fixed
-        cv2.putText(self.slice, x_str + " Angle: " + str(regViewer.status.x_angle), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-        cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        # get textbox size and calculate textbox coordinates
+        text_w, text_h = cv2.getTextSize(z_str + ": " + str(regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
+        ap_text_location = [self.slice.shape[1]-10-text_w,text_h+10]
+
+        text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
+        xangle_text_location = [10,text_h+10]
+
+        text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
+        yangle_text_location = [10,10+text_h+10+text_h]
+        # put text
+        cv2.putText(self.slice, z_str + ": " + str(regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        cv2.putText(self.slice, x_str + " Angle: " + str(regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
 
         self.slice = cv2.resize(self.slice,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])) # resize to single window size
         if regViewer.status.imageRGB is False:
