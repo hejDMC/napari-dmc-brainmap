@@ -19,11 +19,11 @@ class MainWidget():
         self.labelBox.setAlignment(Qt.AlignTop)
 
         self.viewer = QLabel()
-        self.viewer.setFixedSize(self.shape[0],self.shape[2])
+        self.viewer.setFixedSize(int(self.shape[0]*probeV.scaleFactor),int(self.shape[2]*probeV.scaleFactor))
         self.labelBox.addWidget(self.viewer,0,0,Qt.AlignLeft,Qt.AlignTop)
 
         self.labelContour = QLabelMT()
-        self.labelContour.setFixedSize(self.shape[0],self.shape[2])
+        self.labelContour.setFixedSize(int(self.shape[0]*probeV.scaleFactor),int(self.shape[2]*probeV.scaleFactor))
         self.labelBox.addWidget(self.labelContour,0,0,Qt.AlignLeft,Qt.AlignTop)
 
         self.mainLayout.addLayout(self.labelBox)
@@ -39,23 +39,24 @@ class MainWidget():
         self.loadSlice(probeV)
     
     def loadSlice(self,probeV):
-
+        # get text height
+        _, text_h = cv2.getTextSize("AP", cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
         if probeV.viewerID == 0: # coronal
             self.slice = probeV.template[probeV.currentAP, :, :].copy()
-            cv2.putText(self.slice, "AP: " + str(probeV.currentAP), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
-            cv2.putText(self.slice, "(" + str(np.round((self.shape[0]/2 - probeV.currentAP) * self.resolution[0], 2)) + " mm)", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "AP: " + str(probeV.currentAP), (10, text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
+            cv2.putText(self.slice, "(" + str(np.round((self.shape[0]/2 - probeV.currentAP) * self.resolution[0], 2)) + " mm)", (10, text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 
         elif probeV.viewerID == 1: # axial
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, probeV.currentDV, :].T.copy()
-            cv2.putText(self.slice, "DV: "+str(probeV.currentDV), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((0-probeV.currentDV)*self.resolution[1],2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "DV: "+str(probeV.currentDV), (10,text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+            cv2.putText(self.slice, "("+str(np.round((0-probeV.currentDV)*self.resolution[1],2))+" mm)" , (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
         else: # sagittal
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, :, probeV.currentML].T.copy()
-            cv2.putText(self.slice, "ML: "+str(probeV.currentML), (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((self.shape[2]/2-probeV.currentML) * self.resolution[2],2))+" mm)" , (50,100), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
-
+            cv2.putText(self.slice, "ML: "+str(probeV.currentML), (10,text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+            cv2.putText(self.slice, "("+str(np.round((self.shape[2]/2-probeV.currentML) * self.resolution[2],2))+" mm)" , (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+        
         # add active probe to slice
         if hasattr(self,'probeDisplayList'):
             self.slice = cv2.cvtColor(self.slice, cv2.COLOR_GRAY2BGR) # prepare BGR image for colorful probes
@@ -91,9 +92,12 @@ class MainWidget():
 
             else:
                 pass # no active probe
-                
+            
+            # scaling image according to scaleFactor
+            self.slice = cv2.resize(self.slice,(int(self.slice.shape[1]*probeV.scaleFactor),int(self.slice.shape[0]*probeV.scaleFactor)))
             self.sliceQ = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_BGR888)
         else:
+            self.slice = cv2.resize(self.slice,(int(self.slice.shape[1]*probeV.scaleFactor),int(self.slice.shape[0]*probeV.scaleFactor)))
             self.sliceQ = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
         self.viewer.setPixmap(QPixmap.fromImage(self.sliceQ))
 
@@ -101,7 +105,7 @@ class MainWidget():
     def createSliderGeneral(self,probeV):
         self.gSlider = QSlider(Qt.Vertical)
         self.gSlider.setMinimum(0)
-        self.gSlider.setMaximum(self.shape[1]) # change maximum value according to viewerID
+        self.gSlider.setMaximum(self.shape[1]-1) # change maximum value according to viewerID
         self.gSlider.setSingleStep(1)
         self.gSlider.setInvertedAppearance(True)
         self.gSlider.setSliderPosition(probeV.currentDV) # set slider position to current AP/DV/ML

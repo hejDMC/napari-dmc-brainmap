@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QFileDialog
+from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QFileDialog, QApplication
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.MainWidget import MainWidget
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils import get_bregma
@@ -12,6 +12,7 @@ from PyQt5.QtGui import QPixmap,QImage
 from pathlib import Path
 from pkg_resources import resource_filename
 from bg_atlasapi import BrainGlobeAtlas
+import os
 
 # todo merge this with atlas model
 
@@ -21,8 +22,10 @@ class ProbeVisualizer(QMainWindow):
         self.app = app
         self.params_dict = params_dict
         self.setWindowTitle("Probe Visualizer")
-        # todo change window size matching screen size as in sharpy track
-        self.setFixedSize(1900,1200) # int(self.annot.shape[0]*1.5), int(self.annot.shape[1]*1.05))
+        # get primary screen size
+        QAppInstance = QApplication.instance()
+        self.screenSize = [QAppInstance.primaryScreen().size().width(),QAppInstance.primaryScreen().size().height()]
+
         # do not create status object, handle DV information by self
         self.createActions()
         self.createMenus()
@@ -39,15 +42,26 @@ class ProbeVisualizer(QMainWindow):
         self.currentML = int(self.annot.shape[2]/2) # midline ML
         self.viewerID = 1 # axial view by default
         shape = [self.atlas.shape[i] for i in self.ori_idx]
-        resolution = [self.atlas.resolution[i]/1000 for i in self.ori_idx]
+        resolution = [self.atlas.resolution[i]/1000 for i in self.ori_idx]    
+        self.applySizePolicy(shape)
         self.widget = MainWidget(self, shape, resolution)
         self.setCentralWidget(self.widget.widget)
-
+        
+    
     def loadTemplate(self):
         print('loading template volume...')
-        self.template = self.atlas.reference
-        self.template = adjust_contrast(self.template, (0, self.template.max()))
-        self.template = do_8bit(self.template)
+        # check if there is downsampled 8 bit volume, otherwise do realtime 8 bit conversion
+        brainglobe_dir = Path.home() / ".brainglobe"
+        atlas_name_general  = f"{self.params_dict['atlas_info']['atlas']}_v*"
+        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0]
+
+        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')): # if there is 8-bit volume, load this
+            print("local 8-bit volume found, loading 8-bit volume...")
+            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
+        else: # otherwise convert from brainglobe 16 bit volume
+            self.template = self.atlas.reference
+            self.template = adjust_contrast(self.template, (0, self.template.max()))
+            self.template = do_8bit(self.template)
 
     def loadAnnot(self):
         self.annot = self.atlas.annotation.transpose(self.ori_idx)  # change axis of atlas to match [ap, dv, ml] order
@@ -83,10 +97,15 @@ class ProbeVisualizer(QMainWindow):
         self.outline = cv2.drawContours(empty,contours,-1,color=255) # grayscale, 8bit
         self.outline= cv2.cvtColor(self.outline, cv2.COLOR_GRAY2RGBA) # convert to RGBA
         self.outline[:,:,3][np.where(self.outline[:,:,0]==0)] = 0 # set black background transparent
+        # scale outline RGBA layer according to scale factor
+        self.outline = cv2.resize(self.outline,(int(empty.shape[1]*self.scaleFactor),int(empty.shape[0]*self.scaleFactor)))
 
     def treeFindArea(self):
         # get coordinates in mm
         # from cursor position get annotation index
+        
+        # scale cursorPos
+        self.widget.labelContour.cursorPos = [int(self.widget.labelContour.cursorPos[0]/self.scaleFactor),int(self.widget.labelContour.cursorPos[1]/self.scaleFactor)]
         if self.viewerID == 0: # coronal
             structure_id = self.annot[self.currentAP,self.widget.labelContour.cursorPos[1],self.widget.labelContour.cursorPos[0]]
             coord_mm = self.getCoordMM([self.currentAP,self.widget.labelContour.cursorPos[1],self.widget.labelContour.cursorPos[0]])
@@ -105,30 +124,25 @@ class ProbeVisualizer(QMainWindow):
 
     def highlightArea(self,listCoordMM,activeArea,structureName):
         contourHighlight = self.outline.copy()
-        contourHighlight[activeArea[0],activeArea[1],:] = [255,0,0,50] # change active area to 50% red
+        # scale activeArea
+        contourHighlight[(activeArea[0]*self.scaleFactor).astype(int),(activeArea[1]*self.scaleFactor).astype(int),:] = [255,0,0,50] # change active area to 50% red
         # add mm coordinates, structureName
-        
-        if self.viewerID == 0:
-            text_x1 = 1150 - 180
-            text_y1 = 1050 - 340
-            text_y2 = 1080 - 340
-            text_y3 = 1110 - 340
-            
-        elif self.viewerID == 1:
-            text_x1 = 1150
-            text_y1 = 1050
-            text_y2 = 1080
-            text_y3 = 1110
-        else:
-            text_x1 = 1150
-            text_y1 = 1050 - 340
-            text_y2 = 1080 - 340
-            text_y3 = 1110 - 340
+        text_w, text_h = cv2.getTextSize("AP:"+str(listCoordMM[0])+" mm", cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        text_x = contourHighlight.shape[1] - text_w - 10
+        text_y = contourHighlight.shape[0] - 2*text_h - 20
+        cv2.putText(contourHighlight, "AP:"+str(listCoordMM[0])+" mm", (text_x,text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
 
-        cv2.putText(contourHighlight, "AP:"+str(listCoordMM[0])+" mm", (text_x1,text_y1), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
-        cv2.putText(contourHighlight, "ML:"+str(listCoordMM[2])+" mm", (text_x1,text_y2), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
-        cv2.putText(contourHighlight, "DV:"+str(listCoordMM[1])+" mm", (text_x1,text_y3), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
-        cv2.putText(contourHighlight, structureName, (10,text_y3), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,0,0,255), 2, cv2.LINE_AA)
+        text_w, text_h = cv2.getTextSize("ML:"+str(listCoordMM[2])+" mm", cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        text_x = contourHighlight.shape[1] - text_w - 10
+        text_y = contourHighlight.shape[0] - text_h - 15
+        cv2.putText(contourHighlight, "ML:"+str(listCoordMM[2])+" mm", (text_x,text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
+
+        text_w, text_h = cv2.getTextSize("DV:"+str(listCoordMM[1])+" mm", cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
+        text_x = contourHighlight.shape[1] - text_w - 10
+        text_y = contourHighlight.shape[0] - 10
+        cv2.putText(contourHighlight, "DV:"+str(listCoordMM[1])+" mm", (text_x,text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
+
+        cv2.putText(contourHighlight, structureName, (10,text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,0,0,255), 2, cv2.LINE_AA)
 
         contourHighlight = QImage(contourHighlight.data, contourHighlight.shape[1],contourHighlight.shape[0],contourHighlight.strides[0],QImage.Format_RGBA8888)
         self.widget.labelContour.setPixmap(QPixmap.fromImage(contourHighlight)) # update contour label
@@ -150,25 +164,25 @@ class ProbeVisualizer(QMainWindow):
         else:
             pass
     
-    def switchViewer(self,new_viewerID):
+    def switchViewer(self,new_viewerID): # adapt this function when clicking on view radio button
         self.viewerID = new_viewerID
         windowWidth = self.size().width()
 
         if self.viewerID == 0: # switch QLabel size
-            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[2] * 1.5)),self.pos().y()) # pin to top-right of window
-            self.setFixedSize(int(self.annot.shape[2] * 1.5),int(self.annot.shape[1]*1.05))
-            self.widget.viewer.setFixedSize(self.annot.shape[2],self.annot.shape[1])
-            self.widget.labelContour.setFixedSize(self.annot.shape[2],self.annot.shape[1])
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[2] * 1.5 * self.scaleFactor)),self.pos().y()) # pin to top-right of window
+            self.setFixedSize(int(self.annot.shape[2] * 1.5 * self.scaleFactor),int(self.annot.shape[1]*1.1*self.scaleFactor))
+            self.widget.viewer.setFixedSize(self.annot.shape[2]*self.scaleFactor,self.annot.shape[1]*self.scaleFactor)
+            self.widget.labelContour.setFixedSize(self.annot.shape[2]*self.scaleFactor,self.annot.shape[1]*self.scaleFactor)
         elif self.viewerID == 1:
-            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5)),self.pos().y())
-            self.setFixedSize(int(self.annot.shape[0]*1.5), int(self.annot.shape[2]*1.05))
-            self.widget.viewer.setFixedSize(self.annot.shape[0],self.annot.shape[2])
-            self.widget.labelContour.setFixedSize(self.annot.shape[0],self.annot.shape[2])
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5 * self.scaleFactor)),self.pos().y())
+            self.setFixedSize(int(self.annot.shape[0]*1.5*self.scaleFactor), int(self.annot.shape[2]*1.1*self.scaleFactor))
+            self.widget.viewer.setFixedSize(self.annot.shape[0]*self.scaleFactor,self.annot.shape[2]*self.scaleFactor)
+            self.widget.labelContour.setFixedSize(self.annot.shape[0]*self.scaleFactor,self.annot.shape[2]*self.scaleFactor)
         else:
-            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5)),self.pos().y())
-            self.setFixedSize(int(self.annot.shape[0]*1.5), int(self.annot.shape[1]*1.05))
-            self.widget.viewer.setFixedSize(self.annot.shape[0],self.annot.shape[1])
-            self.widget.labelContour.setFixedSize(self.annot.shape[0],self.annot.shape[1])
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5 * self.scaleFactor)),self.pos().y())
+            self.setFixedSize(int(self.annot.shape[0]*1.5*self.scaleFactor), int(self.annot.shape[1]*1.1*self.scaleFactor))
+            self.widget.viewer.setFixedSize(self.annot.shape[0]*self.scaleFactor,self.annot.shape[1]*self.scaleFactor)
+            self.widget.labelContour.setFixedSize(self.annot.shape[0]*self.scaleFactor,self.annot.shape[1]*self.scaleFactor)
 
         self.widget.updateSlider(self)
         self.widget.loadSlice(self)
@@ -232,5 +246,32 @@ class ProbeVisualizer(QMainWindow):
             self.organizeProbe()
             self.widget.createProbeSelector(self)
             self.widget.loadSlice(self)
+    
+
+    def applySizePolicy(self,template_shape):
+        if np.min(self.screenSize) < np.max(template_shape): # if the biggest axis of volume exceeds the smallest length of screen, downscale
+            self.scaleFactor = np.round((np.min(self.screenSize) / np.max(template_shape)) * 0.8, 2)
+        else:
+            self.scaleFactor = 1 
+
+        self.setFixedSize(int(self.annot.shape[0]*1.5 * self.scaleFactor) # viewerID=1 at initiation
+                            ,int(self.annot.shape[2]*1.1 * self.scaleFactor))
+
+        
+
+
+
+        # if self.screenSize[0] > round(atlas_resolution[0]*2.2) and self.screenSize[1] > round(atlas_resolution[1] * 1.1):  # 2x width (plus margin) and 1x height (plus margin)
+        #     self.scaleFactor = 1
+        #     self.fullWindowSizeNarrow = [2350,940]  # todo delete this
+        #     self.fullWindowSizeWide = [int(round(atlas_resolution[0]*2.2)), int(round(atlas_resolution[1]*1.1))]
+        #     self.singleWindowSize = atlas_resolution
+
+        # else: # [1920,1080] resolution
+        #     self.scaleFactor = round(self.screenSize[0]/(atlas_resolution[0] * 2.5), 2)
+        #     self.fullWindowSizeNarrow = [1762,705]
+        #     self.fullWindowSizeWide = [int(round((atlas_resolution[0]*2.2) * self.scaleFactor)),
+        #                                int(round((atlas_resolution[1]*1.25) * self.scaleFactor))]
+        #     self.singleWindowSize = [int(i*self.scaleFactor) for i in atlas_resolution]
 
 
