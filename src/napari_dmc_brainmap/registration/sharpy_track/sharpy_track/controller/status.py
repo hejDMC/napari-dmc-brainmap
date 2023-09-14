@@ -203,14 +203,14 @@ class StatusContainer():
         elif event.key() == Qt.Key_Z: # ZXC for blendMode
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 0 # all atlas
-                regViewer.atlasModel.updateDotPosition(regViewer)
+                regViewer.atlasModel.updateDotPosition(regViewer,mode='force')
         elif event.key() == Qt.Key_X:
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 1 # overlay
-                regViewer.atlasModel.updateDotPosition(regViewer)
+                regViewer.atlasModel.updateDotPosition(regViewer,mode='force')
         elif event.key() == Qt.Key_C:
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 2 # all sample
-                regViewer.atlasModel.updateDotPosition(regViewer)
+                regViewer.atlasModel.updateDotPosition(regViewer,mode='force')
 
 

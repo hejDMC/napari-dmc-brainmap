@@ -232,7 +232,7 @@ class AtlasModel():
         print(regViewer.status.sliceNum, "Slice(s) loaded")
 
 
-    def updateDotPosition(self,regViewer):
+    def updateDotPosition(self,regViewer,mode='default'):
         # ignore if less than 5 pairs of dots
         if len(regViewer.widget.viewerLeft.itemGroup) < 5:
             # check if has saved coodinates
@@ -244,7 +244,7 @@ class AtlasModel():
             sample_pts = []
             for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
                 sample_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
-            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts): # check if dots changed
+            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
                 pass
             else:
                 self.atlas_pts = atlas_pts
