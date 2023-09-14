@@ -6,7 +6,7 @@ class ViewerGeneral():
         self.labelImg = QLabel()
         self.labelImg.setFixedSize(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])
         self.scene = QGraphicsScene(0,0,regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1],parent=regViewer)
-        self.scene.changed.connect(lambda: regViewer.atlasModel.updateDotPosition(regViewer)) # here update
+        self.scene.changed.connect(lambda: regViewer.atlasModel.updateDotPosition(regViewer)) # using changed signal is not the best, too frequent, change later
         self.scene.addWidget(self.labelImg)
         self.itemGroup = [] # create itemGroup, store DotObjects
         self.view = QGraphicsViewMT(self.scene) # QGraphicsView with mousetracking

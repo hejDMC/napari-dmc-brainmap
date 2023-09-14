@@ -25,7 +25,8 @@ class AtlasModel():
         self.loadTemplate()
         self.loadAnnot()
         self.loadStructureTree()
-
+        self.atlas_pts = []
+        self.sample_pts = []
 
     def loadTemplate(self):
         brainglobe_dir = Path.home() / ".brainglobe"
@@ -243,12 +244,17 @@ class AtlasModel():
             sample_pts = []
             for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
                 sample_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
-            # update dot record in dictionary
-            regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
-            regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
-            regViewer.status.saveRegistration()
-            # apply transformation
-            self.updateTransform(regViewer, np.array(atlas_pts) * regViewer.status.scaleFactor, np.array(sample_pts) * regViewer.status.scaleFactor) # scale coordinates
+            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts): # check if dots changed
+                pass
+            else:
+                self.atlas_pts = atlas_pts
+                self.sample_pts = sample_pts
+                # update dot record in dictionary
+                regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
+                regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
+                regViewer.status.saveRegistration()
+                # apply transformation
+                self.updateTransform(regViewer, np.array(atlas_pts) * regViewer.status.scaleFactor, np.array(sample_pts) * regViewer.status.scaleFactor) # scale coordinates
         
     def checkSaved(self,regViewer):
         # load exist dots if there is any
