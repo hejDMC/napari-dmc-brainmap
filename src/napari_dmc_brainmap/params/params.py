@@ -95,5 +95,5 @@ class ParamsWidget(QWidget):
         params_dict = update_params_dict(input_path, params_dict)
         with open(params_fn, 'w') as fn:
             json.dump(params_dict, fn, indent=4)
-        print('done!')
+        print('params.json file for ' + animal_id + ' created !')
 

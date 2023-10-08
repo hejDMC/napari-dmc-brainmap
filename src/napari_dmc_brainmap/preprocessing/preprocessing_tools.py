@@ -76,12 +76,14 @@ def make_rgb(stack_dict, params):
     if params['rgb_params']['downsampling'] > 1:
         scale_factor = params['rgb_params']['downsampling']
         for f in stack_dict.keys():
-            stack_dict[f] = downsample_image(stack_dict[f], scale_factor)
+            if f in rgb_list:
+                stack_dict[f] = downsample_image(stack_dict[f], scale_factor)
 
     if params['rgb_params']['contrast_adjustment']:
         for f in stack_dict.keys(): # adjust contrast of all filters
-            contrast_tuple = tuple(params['rgb_params'][f])
-            stack_dict[f] = adjust_contrast(stack_dict[f], contrast_tuple)
+            if f in rgb_list:
+                contrast_tuple = tuple(params['rgb_params'][f])
+                stack_dict[f] = adjust_contrast(stack_dict[f], contrast_tuple)
 
     image_size = stack_dict[next(iter(stack_dict))].shape  # get the shape of the images
     # add empty array for missing filters
