@@ -63,7 +63,8 @@ class MainWidget():
         self.imageTitle.setText(str(regViewer.status.currentSliceNumber) +
                                 '---'+regViewer.status.imgFileName[regViewer.status.currentSliceNumber])
         font = self.imageTitle.font()
-        font.setPointSize(20)
+        # adapt title fontscale
+        font.setPointSize(int(regViewer.atlasModel.fontscale*20))
         self.imageTitle.setFont(font)
         self.imageTitle.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.layoutGrid.addWidget(self.imageTitle,0,3)
@@ -71,8 +72,6 @@ class MainWidget():
     def createTransformToggle(self,regViewer):
         self.toggle = ModeToggle()
         self.layoutGrid.addWidget(self.toggle,1,2)
-        # make space for toggle
-        regViewer.setFixedSize(regViewer.status.fullWindowSizeWide[0], regViewer.status.fullWindowSizeWide[1]) # make horizontal space for toggle
         # link click to buttonstate
         self.toggle.clicked.connect(lambda: regViewer.status.toggleChanged(regViewer))
     

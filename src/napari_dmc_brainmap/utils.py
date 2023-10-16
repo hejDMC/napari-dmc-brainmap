@@ -207,7 +207,8 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
 def get_bregma(atlas_id):
 
     bregma_dict = {
-        "allen_mouse_10um": [540, 0, 570]
+        "allen_mouse_10um": [540, 0, 570], # Ref: https://github.com/cortex-lab/allenCCF/blob/master/Browsing%20Functions/allenCCFbregma.m 
+        "whs_sd_rat_39um": [371, 246, 72] # Ref: Papp EA. Neuroimage. 2014 Aug 15;97:374-86. doi: 10.1016/j.neuroimage.2014.04.001.
     }
     if atlas_id in bregma_dict.keys():
         bregma = bregma_dict[atlas_id]

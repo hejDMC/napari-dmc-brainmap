@@ -24,7 +24,7 @@ class RegistrationViewer(QMainWindow):
         # create statusContainer
         self.status = StatusContainer(regi_dict, self.atlasModel.z_idx, self.atlasModel.bregma)
 
-        self.setFixedSize(self.status.fullWindowSizeNarrow[0],self.status.fullWindowSizeNarrow[1])
+        self.setFixedSize(self.status.fullWindowSize[0],self.status.fullWindowSize[1])
         self.setWindowTitle("Registration Viewer")
         # self.createActions()
         # self.createMenus()

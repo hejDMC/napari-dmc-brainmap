@@ -20,6 +20,9 @@ class AtlasModel():
         print("loading reference atlas...")
         self.atlas = BrainGlobeAtlas(self.regi_dict['atlas'])
         self.xyz_dict = self.regi_dict['xyz_dict']
+        # adaptive fontsize
+        self.fontscale = np.round(np.min([self.xyz_dict['x'][1],self.xyz_dict['y'][1]]) / 800,1)
+        self.fontthickness = np.rint(np.min([self.xyz_dict['x'][1],self.xyz_dict['y'][1]]) / 256).astype(int)
         self.z_idx = self.atlas.space.axes_description.index(self.xyz_dict['z'][0])
         self.calculateImageGrid()
         self.loadTemplate()
@@ -141,18 +144,20 @@ class AtlasModel():
         x_str = name_dict[self.xyz_dict['x'][0]]
         y_str = name_dict[self.xyz_dict['y'][0]]
         # get textbox size and calculate textbox coordinates
-        text_w, text_h = cv2.getTextSize(z_str + ": " + str(regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
-        ap_text_location = [self.slice.shape[1]-10-text_w,text_h+10]
+        offset =  int(self.fontscale * 10) # integer
 
-        text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
-        xangle_text_location = [10,text_h+10]
+        text_w, text_h = cv2.getTextSize(z_str + ": " + str(regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        ap_text_location = [self.slice.shape[1]-offset-text_w,text_h+offset]
 
-        text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, 1, 3)[0]
-        yangle_text_location = [10,10+text_h+10+text_h]
+        text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        xangle_text_location = [offset,text_h+offset]
+
+        text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        yangle_text_location = [offset,offset+text_h+offset+text_h]
         # put text
-        cv2.putText(self.slice, z_str + ": " + str(regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-        cv2.putText(self.slice, x_str + " Angle: " + str(regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-        cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+        cv2.putText(self.slice, z_str + ": " + str(regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(self.slice, x_str + " Angle: " + str(regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
 
         self.slice = cv2.resize(self.slice,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])) # resize to single window size
         if regViewer.status.imageRGB is False:
@@ -207,13 +212,13 @@ class AtlasModel():
             self.slice = self.template[z_flat, self.r_grid_y, self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1])
         else: # if not empty, show black image with warning
             self.slice = np.zeros((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),dtype=np.uint8)
-            cv2.putText(self.slice, "Slice out of volume!", (400,400), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
+            cv2.putText(self.slice, "Slice out of volume!", (int(self.xyz_dict['x'][1]/3),int(self.xyz_dict['y'][1]/2)), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
     
     def getStack(self,regViewer):
         # check image grayscale or RGB, only check first image, assume all grayscale/all RGB
         image_0 = cv2.imread(os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[0]),cv2.IMREAD_UNCHANGED)
         if len(image_0.shape) == 2: # gray scale [0-255]
-            self.imgStack = np.full((regViewer.status.sliceNum,800,1140),-1,dtype=np.uint8)
+            self.imgStack = np.full((regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1]),-1,dtype=np.uint8) # adaptive imgStack dimension
             # copy slices to stack
             for i in range(regViewer.status.sliceNum):
                 full_path = os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[i])
