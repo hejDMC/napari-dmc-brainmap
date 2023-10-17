@@ -2,7 +2,7 @@ import numpy as np
 from napari_dmc_brainmap.utils import coord_mm_transform
 from PyQt5.QtCore import Qt
 import json
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication,QMessageBox
 
 class StatusContainer():
     def __init__(self, regi_dict, z_idx, bregma) -> None:
@@ -57,6 +57,9 @@ class StatusContainer():
 
         while len(regViewer.widget.viewerLeft.itemGroup) > 0:
             regViewer.widget.removeRecentDot() # clear dots
+        # clear dots record at atlasmodel
+        regViewer.atlasModel.atlas_pts = []
+        regViewer.atlasModel.sample_pts = []
         regViewer.atlasModel.checkSaved(regViewer)
 
     
@@ -210,5 +213,35 @@ class StatusContainer():
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 2 # all sample
                 regViewer.atlasModel.updateDotPosition(regViewer,mode='force')
+        
+        # press D for deleting all paired dots at current slide
+        elif event.key() == Qt.Key_D:
+            if regViewer.widget.toggle.isChecked():
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Warning)
+                msg.setWindowTitle("Remove all dots")
+                msg.setText("Do you want to delete all paired dots at current slice? \n* Choose 'YES' will delete all dots at current slice.")
+                msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                msg.setDefaultButton(QMessageBox.No)
+                feedback = msg.exec_()
+                if feedback == msg.Yes:
+                    while len(regViewer.widget.viewerLeft.itemGroup) > 0:
+                        # remove dots from scene
+                        regViewer.widget.viewerLeft.scene.removeItem(regViewer.widget.viewerLeft.itemGroup[-1])
+                        regViewer.widget.viewerRight.scene.removeItem(regViewer.widget.viewerRight.itemGroup[-1])
+                        # remove dots from itemGroup storage
+                        regViewer.widget.viewerLeft.itemGroup = regViewer.widget.viewerLeft.itemGroup[:-1]
+                        regViewer.widget.viewerRight.itemGroup = regViewer.widget.viewerRight.itemGroup[:-1]
+                    regViewer.atlasModel.atlas_pts = []
+                    regViewer.atlasModel.sample_pts = []
+                    self.atlasDots[regViewer.status.currentSliceNumber] = []
+                    self.sampleDots[regViewer.status.currentSliceNumber] = []
+                    self.saveRegistration()
+                    del self.blendMode[self.currentSliceNumber]
+
+                else:
+                    pass
+            else:
+                print("To remove all dots, turn on registration mode (T) first!")
 
 

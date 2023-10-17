@@ -239,9 +239,27 @@ class AtlasModel():
 
     def updateDotPosition(self,regViewer,mode='default'):
         # ignore if less than 5 pairs of dots
-        if len(regViewer.widget.viewerLeft.itemGroup) < 5:
-            # check if has saved coodinates
+        if len(regViewer.widget.viewerLeft.itemGroup) == 0:
             pass
+
+        elif 0 < len(regViewer.widget.viewerLeft.itemGroup) < 5:
+            # check if has saved coodinates
+            atlas_pts = [] 
+            for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
+                atlas_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
+            sample_pts = []
+            for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
+                sample_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
+            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
+                pass
+            else:
+                self.atlas_pts = atlas_pts
+                self.sample_pts = sample_pts
+                # update dot record in dictionary
+                regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
+                regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
+                regViewer.status.saveRegistration()
+
         else: # refresh dot coodinate
             atlas_pts = [] 
             for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
