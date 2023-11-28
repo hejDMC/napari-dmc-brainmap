@@ -57,15 +57,24 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
                 for fn in im_list:
                     stack.append(fn)
                 stack.sort()
-                # load stack data
-                whole_stack = []
+
+                # get number of tiles from NDTiff.index file
+                tif_meta = tiff.read_ndtiff_index(in_chan.joinpath("NDTiff.index"))
+                page_count = 0
+                for _ in tif_meta:
+                    page_count += 1
+                # initiate empty numpy array
+                whole_stack = np.zeros((page_count,2048,2048),dtype=np.uint16)
+                page_count = 0
                 for stk in stack:
                     with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
                         for page in tif.pages:  # iterate over pages
                             image = page.asarray()  # convert to array
-                            whole_stack.append(image)  # append to whole_stack container
-                # convert to numpy array
-                whole_stack = np.array(whole_stack)
+                            try:
+                                whole_stack[page_count,:,:] = image
+                            except ValueError:
+                                print("Tile:{} data corrupted. Setting tile pixels value to 0".format(page_count))
+                            page_count += 1
 
                 # load tile location meta data from meta folder
                 meta_json_where = in_obj.joinpath(obj + '_meta_1', 'regions_pos.json')
