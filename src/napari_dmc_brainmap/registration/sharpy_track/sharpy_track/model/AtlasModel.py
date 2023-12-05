@@ -282,6 +282,21 @@ class AtlasModel():
     def checkSaved(self,regViewer):
         # load exist dots if there is any
         regViewer.status.blendMode[regViewer.status.currentSliceNumber] = 1
+        # try loading ML,DV,AP location
+        try:
+            regViewer.status.x_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][0] # read atlasLocation
+            regViewer.status.y_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][1]
+            regViewer.status.current_z = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][2]
+            # update sliders
+            regViewer.widget.x_slider.setSliderPosition(int(regViewer.status.x_angle * 10))
+            regViewer.widget.y_slider.setSliderPosition(int(regViewer.status.y_angle * 10))
+            regViewer.widget.z_slider.setSliderPosition(coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+                                      [self.xyz_dict['z'][2]], mm_to_coord=True))
+            regViewer.widget.viewerLeft.loadSlice(regViewer) # slice atlas
+
+        except KeyError: # no record at atlasLocation dictionary
+            pass
+
         if not(regViewer.status.currentSliceNumber in regViewer.status.atlasLocation):
             pass
         elif not(regViewer.status.currentSliceNumber in regViewer.status.atlasDots):
@@ -292,10 +307,6 @@ class AtlasModel():
             atlas_pts = regViewer.status.atlasDots[regViewer.status.currentSliceNumber] # read dictionary, create dot object
             sample_pts = regViewer.status.sampleDots[regViewer.status.currentSliceNumber]
 
-            regViewer.status.x_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][0] # read atlasLocation
-            regViewer.status.y_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][1]
-            regViewer.status.current_z = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][2]
-            regViewer.widget.viewerLeft.loadSlice(regViewer) # slice atlas
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
                 dotLeft = DotObject(int(xyAtlas[0] * regViewer.status.scaleFactor), int(xyAtlas[1] * regViewer.status.scaleFactor), int(10 * regViewer.status.scaleFactor)) # list to itemGroup
