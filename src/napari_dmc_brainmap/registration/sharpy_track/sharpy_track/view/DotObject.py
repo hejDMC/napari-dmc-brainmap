@@ -5,7 +5,7 @@ class DotObject(QGraphicsEllipseItem):
     def __init__(self, x, y, r):
         super().__init__(0, 0, r, r)
         # self.app = app
-        self.setPos(x, y)
+        self.setPos(x-int(r/2), y-int(r/2))
         self.setBrush(Qt.blue)
         self.setAcceptHoverEvents(True)
     

@@ -41,6 +41,25 @@ class StatusContainer():
             self.fullWindowSize = [int(round((self.atlas_resolution[0]*2.2) * self.scaleFactor)),
                                        int(round((self.atlas_resolution[1]*1.25) * self.scaleFactor))]
             self.singleWindowSize = [int(i*self.scaleFactor) for i in self.atlas_resolution]
+            
+        # set dotObject size
+        if (int(10 * self.scaleFactor) % 2) != 0:
+            self.dotRR = int(10 * self.scaleFactor) + 1
+        else:
+            self.dotRR = int(10 * self.scaleFactor)
+        
+        # get resolution pixel mapping
+        low = np.arange(np.max(self.singleWindowSize))
+        low_up = (low/self.scaleFactor).astype(int)
+        self.res_up = {k:v for k,v in zip(low,low_up)}
+
+        high = np.arange(np.max(self.atlas_resolution))
+        high_down = (high*self.scaleFactor).astype(int)
+        self.res_down = {k:v for k,v in zip(high,high_down)}
+        # correct for res_down
+        for k,v in self.res_up.items():
+            self.res_down[v] = k
+        
 
 
 

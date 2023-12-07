@@ -20,8 +20,8 @@ class ViewerGeneral():
     
     def getCursorPos(self,regViewer):
         if regViewer.status.contour == 1: # only when contour active, update in status
-            regViewer.status.hoverX = int(self.view.cursorPos[0] / regViewer.status.scaleFactor) # save hover position to status, if single window size different from 1140*800 scale coordinates
-            regViewer.status.hoverY = int(self.view.cursorPos[1] / regViewer.status.scaleFactor)
+            regViewer.status.hoverX = regViewer.status.res_up[self.view.cursorPos[0]] # save hover position to status, if single window size different from 1140*800 scale coordinates
+            regViewer.status.hoverY = regViewer.status.res_up[self.view.cursorPos[1]]
             regViewer.atlasModel.treeFindArea(regViewer)
         else:
             pass

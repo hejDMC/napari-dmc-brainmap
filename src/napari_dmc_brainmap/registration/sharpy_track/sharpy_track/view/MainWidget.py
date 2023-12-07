@@ -79,13 +79,15 @@ class MainWidget():
         # get clicked coordinates
         x_clicked, y_clicked = regViewer.status.pressPos.x(),regViewer.status.pressPos.y()
         # create DotObject inside itemGroup
-        dotLeft = DotObject(x_clicked, y_clicked, int(10 * regViewer.status.scaleFactor))
+        dotLeft = DotObject(x_clicked, y_clicked, 
+                            regViewer.status.dotRR)
+        
         # predict dot at sample based on previous transformation
         if len(self.viewerLeft.itemGroup) >5 :
             x_predict,y_predict = predictPointSample(x_clicked,y_clicked,regViewer.atlasModel.rtransform)
-            dotRight = DotObject(x_predict, y_predict, int(10 * regViewer.status.scaleFactor))
+            dotRight = DotObject(x_predict, y_predict, regViewer.status.dotRR)
         else:
-            dotRight = DotObject(x_clicked, y_clicked, int(10 * regViewer.status.scaleFactor))
+            dotRight = DotObject(x_clicked, y_clicked, regViewer.status.dotRR)
 
         dotLeft.linkPairedDot(dotRight)
         dotRight.linkPairedDot(dotLeft)

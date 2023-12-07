@@ -246,10 +246,13 @@ class AtlasModel():
             # check if has saved coodinates
             atlas_pts = [] 
             for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
+                atlas_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
+                                  int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
             sample_pts = []
             for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
+                sample_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
+                                   int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
+                
             if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
                 pass
             else:
@@ -263,10 +266,12 @@ class AtlasModel():
         else: # refresh dot coodinate
             atlas_pts = [] 
             for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
+                atlas_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
+                                  int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
             sample_pts = []
             for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(dot.pos().x() / regViewer.status.scaleFactor), int(dot.pos().y() / regViewer.status.scaleFactor)]) # scale coordinates
+                sample_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
+                                   int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
             if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
                 pass
             else:
@@ -277,7 +282,11 @@ class AtlasModel():
                 regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
                 regViewer.status.saveRegistration()
                 # apply transformation
-                self.updateTransform(regViewer, np.array(atlas_pts) * regViewer.status.scaleFactor, np.array(sample_pts) * regViewer.status.scaleFactor) # scale coordinates
+                    # atlas_pts ---> downscale to screen
+                    # sample_pts ---> downscale to screen
+                self.updateTransform(regViewer, 
+                                     np.array([[regViewer.status.res_down[i[0]],regViewer.status.res_down[i[1]]] for i in atlas_pts]), 
+                                     np.array([[regViewer.status.res_down[i[0]],regViewer.status.res_down[i[1]]] for i in sample_pts])) # scale coordinates
         
     def checkSaved(self,regViewer):
         # load exist dots if there is any
@@ -309,8 +318,14 @@ class AtlasModel():
 
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                dotLeft = DotObject(int(xyAtlas[0] * regViewer.status.scaleFactor), int(xyAtlas[1] * regViewer.status.scaleFactor), int(10 * regViewer.status.scaleFactor)) # list to itemGroup
-                dotRight = DotObject(int(xySample[0] * regViewer.status.scaleFactor), int(xySample[1] * regViewer.status.scaleFactor), int(10 * regViewer.status.scaleFactor)) # list to itemGroup
+                dotLeft = DotObject(regViewer.status.res_down[xyAtlas[0]], 
+                                    regViewer.status.res_down[xyAtlas[1]], 
+                                    regViewer.status.dotRR) # list to itemGroup
+                
+                dotRight = DotObject(regViewer.status.res_down[xySample[0]], 
+                                     regViewer.status.res_down[xySample[1]], 
+                                     regViewer.status.dotRR) # list to itemGroup
+                
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
                 # add dots to scene
