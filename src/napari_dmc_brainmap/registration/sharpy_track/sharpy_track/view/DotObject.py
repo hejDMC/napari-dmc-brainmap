@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QGraphicsEllipseItem
 class DotObject(QGraphicsEllipseItem):
     def __init__(self, x, y, r):
         super().__init__(0, 0, r, r)
+        self.size = r
         # self.app = app
         self.setPos(x-int(r/2), y-int(r/2))
         self.setBrush(Qt.blue)
@@ -11,6 +12,11 @@ class DotObject(QGraphicsEllipseItem):
     
     def linkPairedDot(self,pairDot):
         self.pairDot = pairDot
+
+    def get_xybound(self):
+        # get xy moving boundary
+        dim_x,dim_y = self.scene().width(), self.scene().height()
+        self.bound_x,self.bound_y = int(dim_x)-1, int(dim_y)-1
 
     # mouse hover event
     def hoverEnterEvent(self, event):
@@ -34,4 +40,25 @@ class DotObject(QGraphicsEllipseItem):
         orig_position = self.scenePos()
         updated_cursor_x = updated_cursor_position.x() - orig_cursor_position.x() + orig_position.x()
         updated_cursor_y = updated_cursor_position.y() - orig_cursor_position.y() + orig_position.y()
+        # DotObject stays inside viewer
+            # check if bound exist
+        if hasattr(self,'bound_x'):
+            pass
+        else:
+            self.get_xybound()
+
+        if updated_cursor_x+int(self.size/2) < 0:
+            updated_cursor_x = -int(self.size/2)
+        elif updated_cursor_x+int(self.size/2) > self.bound_x:
+            updated_cursor_x = self.bound_x - int(self.size/2)
+        else:
+            pass
+
+        if updated_cursor_y+int(self.size/2) < 0:
+            updated_cursor_y = -int(self.size/2)
+        elif updated_cursor_y+int(self.size/2) > self.bound_y:
+            updated_cursor_y = self.bound_y - int(self.size/2)
+        else:
+            pass
+        # update dot position
         self.setPos(QPointF(updated_cursor_x, updated_cursor_y))
