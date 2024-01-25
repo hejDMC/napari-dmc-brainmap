@@ -85,7 +85,15 @@ class MainWidget():
         # predict dot at sample based on previous transformation
         if len(self.viewerLeft.itemGroup) >5 :
             x_predict,y_predict = predictPointSample(x_clicked,y_clicked,regViewer.atlasModel.rtransform)
-            dotRight = DotObject(x_predict, y_predict, regViewer.status.dotRR)
+            # if projection on the right is outside of viewer, use clicked position
+            if (
+                x_predict < 0)|(
+                x_predict > self.viewerRight.scene.width() - 1)|(
+                y_predict < 0)|(
+                y_predict > self.viewerRight.scene.height() - 1):
+                dotRight = DotObject(x_clicked, y_clicked, regViewer.status.dotRR)
+            else: # do prediction
+                dotRight = DotObject(x_predict, y_predict, regViewer.status.dotRR)
         else:
             dotRight = DotObject(x_clicked, y_clicked, regViewer.status.dotRR)
 
