@@ -83,7 +83,11 @@ class sliceHandle():
             x = int(x_post)
             try:
                 z = int(z_plane[y, x])
-                volIndex_list.append([x, y, z])
+                # if any of x,y,z coordinate is negative, abort append
+                if (x<0)|(y<0)|(z<0):
+                    print(s_coord," mapping out of bound, skipping!")
+                else:
+                    volIndex_list.append([x, y, z])
             except IndexError:
                 print(s_coord," mapping out of bound, skipping!")
         return volIndex_list
