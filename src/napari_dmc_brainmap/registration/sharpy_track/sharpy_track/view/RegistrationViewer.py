@@ -10,13 +10,12 @@ import json
 from natsort import natsorted
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import AtlasModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.status import StatusContainer
-from PyQt5.QtWidgets import QApplication
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import RegistrationHelper
 
 class RegistrationViewer(QMainWindow):
     def __init__(self, app, regi_dict) -> None:
         super().__init__()
         self.app = app
-        # QAppInstance = QApplication.instance()  # get current QApplication Instance
 
         # create atlasModel
         self.atlasModel = AtlasModel(regi_dict)
@@ -26,8 +25,8 @@ class RegistrationViewer(QMainWindow):
 
         self.setFixedSize(self.status.fullWindowSize[0],self.status.fullWindowSize[1])
         self.setWindowTitle("Registration Viewer")
-        # self.createActions()
-        # self.createMenus()
+        self.createActions()
+        self.createMenus()
         # self.loadAct.setEnabled(False)
     
         # create widget container
@@ -110,71 +109,18 @@ class RegistrationViewer(QMainWindow):
             self.status.toggleChanged(self)
             self.atlasModel.checkSaved(self)
             
-    # def about(self):
-    #     QMessageBox.about(self, "About Registration Viewer",
-    #                       "<p> A software to align sample microscopic image to AllenCCF </p>")
-    #
-    # def createActions(self):
-    #     self.openAct = QAction("O&pen Folder", self, shortcut="Ctrl+O", triggered=self.openFolder)
-    #     self.loadAct = QAction("L&oad JSON", self, shortcut="Ctrl+L",triggered=self.loadJSON)
-    #     self.exitAct = QAction("E&xit", self, shortcut="Ctrl+Q", triggered=self.close)
-    #     self.aboutAct = QAction("&About", self, triggered=self.about)
-    #
-    # def createMenus(self):
-    #     self.fileMenu = QMenu("&File", self)
-    #     self.fileMenu.addAction(self.openAct)
-    #     self.fileMenu.addAction(self.loadAct)
-    #     self.fileMenu.addAction(self.exitAct)
-    #
-    #     self.helpMenu = QMenu("&Help", self)
-    #     self.helpMenu.addAction(self.aboutAct)
-    #
-    #     self.menuBar().addMenu(self.fileMenu)
-    #     self.menuBar().addMenu(self.helpMenu)
-    #
-    #
-    # def openFolder(self):
-    #     self.status.folderPath = QFileDialog.getExistingDirectory(self, "Select Directory")
-    #     if (self.status.folderPath is None) | (self.status.folderPath == ''):
-    #         pass
-    #     else:
-    #         self.status.imgFileName = natsorted([f.parts[-1] for f in self.status.folderPath.glob('*.tif')])
-    #         self.status.sliceNum = len(self.status.imgFileName)
-    #         if self.status.sliceNum == 0:
-    #             pass
-    #         else:
-    #             for n in range(self.status.sliceNum):
-    #                 self.status.imgNameDict[n] = self.status.imgFileName[n]
-    #             # initiate image stack matrix
-    #             self.atlasModel.getStack(self)
-    #             # create widgets
-    #             self.widget.createImageTitle(self) # create title first
-    #             self.widget.createSampleSlider(self)
-    #             self.widget.createTransformToggle(self)
-    #
-    #             self.widget.viewerRight.loadSample(self)
-    #             self.status.sampleChanged(self) # manually call sampledChanged for loading first slice
-    #             self.loadAct.setEnabled(True) # enable load json option
-    #             # check if registration JSON exist
-    #             if self.status.folderPath.joinpath('registration.json').is_file():
-    #                 # pop up window
-    #                 msg = QMessageBox()
-    #                 msg.setIcon(QMessageBox.Warning)
-    #                 msg.setWindowTitle("Registration JSON found!")
-    #                 msg.setText("There is previous registration record. \nDo want to load them? \n* Choose 'No' will overwrite previous record.")
-    #                 msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-    #                 msg.setDefaultButton(QMessageBox.Yes)
-    #                 feedback = msg.exec_()
-    #                 if feedback == msg.Yes:
-    #                     self.status.jsonPath = self.status.folderPath.joinpath('registration.json')
-    #                     with open (self.status.jsonPath,'r') as jsonData:
-    #                         jsonDict = json.load(jsonData)
-    #                         self.status.atlasLocation = {int(k):v for k,v in jsonDict['atlasLocation'].items()}
-    #                         self.status.atlasDots = {int(k):v for k,v in jsonDict['atlasDots'].items()}
-    #                         self.status.sampleDots = {int(k):v for k,v in jsonDict['sampleDots'].items()}
-    #                         self.status.imgNameDict = {int(k):v for k,v in jsonDict['imgName'].items()}
-    #                     self.status.toggleChanged(self)
-    #                     self.atlasModel.checkSaved(self)
-    #                 else:
-    #                     pass
 
+    def createActions(self):
+        self.helperAct = QAction("Registration H&elper", self, shortcut="Ctrl+H", triggered=self.helperPageOpen)
+
+
+    def createMenus(self):
+        self.helperMenu = QMenu("Tools", self)
+        self.helperMenu.addAction(self.helperAct)
+        self.menuBar().addMenu(self.helperMenu)
+    
+    def helperPageOpen(self):
+        self.helperPage = RegistrationHelper(self)
+        self.helperPage.show()
+
+    
