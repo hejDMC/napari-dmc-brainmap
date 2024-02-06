@@ -13,9 +13,9 @@ class AnchorRow(QWidget):
         regHelper.anchor_vbox.addWidget(self)
         # add widgets to horizontal layout
         self.spinSliceIndex = QSpinBox()
-        self.spinSliceIndex.setValue(regHelper.regViewer.status.currentSliceNumber)
+        self.spinSliceIndex.setValue(regHelper.regViewer.status.currentSliceNumber) # slice_id
         self.spinSliceIndex.setMinimum(0)
-        self.spinSliceIndex.setMaximum(regHelper.regViewer.status.sliceNum - 1)
+        self.spinSliceIndex.setMaximum(regHelper.regViewer.status.sliceNum - 1) # total_num
         self.spinSliceIndex.setSingleStep(1)
         self.spinSliceIndex.valueChanged.connect(self.slice_index_changed)
 
@@ -28,7 +28,7 @@ class AnchorRow(QWidget):
 
         self.spinAPmm = QDoubleSpinBox()
         self.spinAPmm.setDecimals(2)
-        self.spinAPmm.setValue(regHelper.regViewer.status.current_z)
+        self.spinAPmm.setValue(regHelper.regViewer.status.current_z) # ap_mm
         self.spinAPmm.setMinimum(-7.80)
         self.spinAPmm.setMaximum(5.40)
         self.spinAPmm.setSingleStep(0.01)
@@ -38,14 +38,18 @@ class AnchorRow(QWidget):
 
         self.anc_hbox.addWidget(self.spinAPmm)
 
-
         self.trash_btn = QPushButton("Trash")
         self.trash_btn.clicked.connect(self.trash_action)
         self.anc_hbox.addWidget(self.trash_btn)
+        
+        # add anchor(self) to plot
+        regHelper.helperModel.add_anchor(self,regHelper.regViewer.status.currentSliceNumber,
+                                         regHelper.regViewer.status.current_z)
     
     def trash_action(self):
         # remove self from anchor_vbox layout
         self.regHelper.anchor_vbox.removeWidget(self)
+        self.regHelper.helperModel.remove_anchor(self)
 
 
     def slice_index_changed(self):
@@ -53,8 +57,14 @@ class AnchorRow(QWidget):
         self.sliceNameLabel.setText(self.regHelper.regViewer.status.imgNameDict[
             self.regHelper.regViewer.status.currentSliceNumber])
         self.spinAPmm.setValue(self.regHelper.regViewer.status.current_z)
+        # update anchor
+        self.regHelper.helperModel.update_anchor()
     
     def ap_mm_changed(self):
         self.regHelper.regViewer.status.current_z = np.round(self.spinAPmm.value(),2)
         self.regHelper.regViewer.widget.viewerLeft.loadSlice(self.regHelper.regViewer)
+        # sync sample slice index
+        self.regHelper.regViewer.widget.sampleSlider.setValue(self.spinSliceIndex.value())
+        # update anchor
+        self.regHelper.helperModel.update_anchor()
         

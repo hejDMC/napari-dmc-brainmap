@@ -2,11 +2,13 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QComboBox
 from PyQt5 import QtGui
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow import AnchorRow
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperModel import HelperModel
 
 class RegistrationHelper(QMainWindow):
     def __init__(self, regViewer) -> None:
         super().__init__()
         self.regViewer = regViewer
+        self.helperModel = HelperModel(regViewer)
         self.setWindowTitle("Registration Helper")
         self.setFixedSize(int(regViewer.status.fullWindowSize[0]/2),regViewer.status.fullWindowSize[1])
         self.mainWidget = QWidget()
@@ -48,14 +50,13 @@ class RegistrationHelper(QMainWindow):
         self.previewadd_vbox.addWidget(self.add_btn)
             # section location illustration
         self.preview_label = QLabel()
-        # insert demo image, replace with real time rendering in the future
-        demo_img_path = "C:\\Users\\xiao\\GitHub\\napari-dmc-brainmap\\src\\napari_dmc_brainmap\\registration\\sharpy_track\\sharpy_track\\images\\locationplot.png" 
-        with open(demo_img_path,'rb') as f:
-            demo_img_bin = f.read()
-        demo_img = QtGui.QImage()
-        demo_img.loadFromData(demo_img_bin)
-        self.preview_label.setPixmap(QtGui.QPixmap.fromImage(demo_img))
-        # self.preview_label.setFixedSize(750,300)
+        # self.preview_label.setFixedSize()
+
+        # numpy array to QImage
+        h,w,_ = self.helperModel.img0.shape
+        previewimg_init = QtGui.QImage(self.helperModel.img0.data, w, h, 3 * w, QtGui.QImage.Format_RGB888)
+        self.preview_label.setPixmap(QtGui.QPixmap.fromImage(previewimg_init))
+
 
         self.locplot_hbox.addWidget(self.preview_label)
             # abort and apply buttons in a vbox
