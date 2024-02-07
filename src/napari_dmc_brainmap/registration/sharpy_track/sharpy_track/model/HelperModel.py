@@ -96,6 +96,7 @@ class HelperModel():
             for s in range(self.total_num):
                 self.mapping_dict[s] = self.get_ap_from_id(s)
         self.update_illustration()
+        self.regViewer.helperPage.update_button_availability(status_code=1)
     
     def get_ap_from_id(self,slice_id):
         slice_id_list = list(self.anchor_dict.keys())
