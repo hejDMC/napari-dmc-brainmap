@@ -3,15 +3,23 @@ from PyQt5.QtCore import Qt, QRect
 
 
 class ModeToggle(QtWidgets.QPushButton):
-    def __init__(self, parent = None):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__()
         self.setCheckable(True)
         self.setMinimumWidth(44)
         self.setMinimumHeight(132)
 
     def paintEvent(self, event):
-        label = "-" if self.isChecked() else "O"
-        bg_color = Qt.green if self.isChecked() else Qt.red
+        if self.isChecked():
+            label = "I" # transformation ON
+            bg_color = Qt.green
+        else:
+            if self.isEnabled():
+                label = "O" # transformation OFF, non-preview
+                bg_color = Qt.red
+            else:
+                label = "P" # transformation OFF, preview
+                bg_color = Qt.blue
 
         radius = 20
         height = 64

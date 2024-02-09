@@ -10,7 +10,7 @@ class RegistrationHelper(QMainWindow):
         self.regViewer = regViewer
         self.helperModel = HelperModel(regViewer)
         self.setWindowTitle("Registration Helper")
-        self.setFixedSize(int(regViewer.status.fullWindowSize[0]/2),regViewer.status.fullWindowSize[1])
+        self.setFixedSize(int(regViewer.fullWindowSize[0]/2),regViewer.fullWindowSize[1])
         self.mainWidget = QWidget()
         # setup layout
         self.mainLayout = QVBoxLayout()
@@ -87,6 +87,7 @@ class RegistrationHelper(QMainWindow):
         self.stacklayout.addWidget(self.label_re)
         # set default display Interpolate Position tab
         self.stacklayout.setCurrentIndex(0)
+        self.preview_mode = 0
 
     def activate_ipPage(self):
         self.stacklayout.setCurrentIndex(0)
@@ -99,12 +100,44 @@ class RegistrationHelper(QMainWindow):
         AnchorRow(self) # HelperModel takes care of update button availability
     
     def preview_action(self):
-
+        # freeze anchor settings
         self.update_button_availability(status_code=2)
-    
-    def abort_action(self):
+        # show atlas/sample locations in regViewer, lock change
+        self.activate_preview_mode()
+        # backup and overwrite atlasLocation dictionary
+        self.atlasLocation_backup = self.regViewer.status.atlasLocation.copy()
+        for k,v in self.helperModel.mapping_dict.items():
+            self.regViewer.status.atlasLocation[k] = [self.regViewer.status.atlasLocation[k][0],
+                                                      self.regViewer.status.atlasLocation[k][1],
+                                                      v]
+        # update atlas viewer
+        self.regViewer.status.current_z = self.regViewer.status.atlasLocation[
+            self.regViewer.status.currentSliceNumber][2]
+        self.regViewer.widget.viewerLeft.loadSlice()
+        # show transformation overlay
+        if self.regViewer.status.currentSliceNumber in self.regViewer.status.blendMode:
+            self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1 # overlay
+            self.regViewer.atlasModel.updateDotPosition(mode='force')
 
+
+    def abort_action(self):
+        # restore editing
         self.update_button_availability(status_code=3)
+        # restore viewing
+        self.deactivate_preview_mode()
+        # restore previous atlasLocation dictionary
+        self.regViewer.status.atlasLocation = self.atlasLocation_backup.copy()
+        del self.atlasLocation_backup
+        # update atlas viewer
+        self.regViewer.status.current_z = self.regViewer.status.atlasLocation[
+            self.regViewer.status.currentSliceNumber][2]
+        self.regViewer.widget.viewerLeft.loadSlice()
+        # show transformation overlay
+        if self.regViewer.status.currentSliceNumber in self.regViewer.status.blendMode:
+            self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1 # overlay
+            self.regViewer.atlasModel.updateDotPosition(mode='force')
+
+
     
     def apply_action(self):
         msg = QMessageBox()
@@ -124,8 +157,9 @@ class RegistrationHelper(QMainWindow):
     def update_button_availability(self,status_code):
         # status 1: more than 1 different anchors, ready for preview
         if status_code == 1:
-            if len(self.helperModel.mapping_dict.keys())<1:
-                self.preview_btn.setDisabled(True) # empty mapping_dict, restore disabled
+            if (len(self.helperModel.mapping_dict.keys())<1 # empty mapping_dict
+                ) | (self.regViewer.widget.toggle.isChecked()): # or transformation mode active
+                self.preview_btn.setDisabled(True) # gray-out preview button
             else:
                 self.preview_btn.setEnabled(True)
 
@@ -162,6 +196,26 @@ class RegistrationHelper(QMainWindow):
         else:
             print("Warning: button availability updated without specified status code! "+
                   "Check and fix this!")
+    
+    def activate_preview_mode(self):
+        self.preview_mode = 1
+        self.regViewer.widget.x_slider.setDisabled(True)
+        self.regViewer.widget.y_slider.setDisabled(True)
+        self.regViewer.widget.z_slider.setDisabled(True)
+        self.regViewer.widget.toggle.setDisabled(True)
+        self.regViewer.widget.viewerLeft.view.setInteractive(False)
+        self.regViewer.widget.viewerRight.view.setInteractive(False)
+    
+    def deactivate_preview_mode(self):
+        self.preview_mode = 0
+        self.regViewer.widget.x_slider.setEnabled(True)
+        self.regViewer.widget.y_slider.setEnabled(True)
+        self.regViewer.widget.z_slider.setEnabled(True)
+        self.regViewer.widget.toggle.setEnabled(True)
+        self.regViewer.widget.viewerLeft.view.setInteractive(True)
+        self.regViewer.widget.viewerRight.view.setInteractive(True)
+
+
     
 
 

@@ -62,7 +62,7 @@ class AnchorRow(QWidget):
     
     def ap_mm_changed(self):
         self.regHelper.regViewer.status.current_z = np.round(self.spinAPmm.value(),2)
-        self.regHelper.regViewer.widget.viewerLeft.loadSlice(self.regHelper.regViewer)
+        self.regHelper.regViewer.widget.viewerLeft.loadSlice()
         # sync sample slice index
         self.regHelper.regViewer.widget.sampleSlider.setValue(self.spinSliceIndex.value())
         # update anchor
