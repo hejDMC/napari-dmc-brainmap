@@ -1,8 +1,10 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox
+from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox,QTableView,QDialog,QDialogButtonBox,QCheckBox
 from PyQt5 import QtGui
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow import AnchorRow
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperModel import HelperModel
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.PandasModel import PandasModel
+import pandas as pd
 
 class RegistrationHelper(QMainWindow):
     def __init__(self, regViewer) -> None:
@@ -147,12 +149,96 @@ class RegistrationHelper(QMainWindow):
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
         feedback = msg.exec_()
-        print("User chose {}".format(feedback))
         if feedback == QMessageBox.Yes:
             self.update_button_availability(status_code=4)
+            # compare difference of locations
+            # create change tracking list 
+            change_tracking = []
+            # go through mapping_dict
+            for k,v in self.helperModel.mapping_dict.items():
+                dict_temp = {} # columns=["slice_id","pre_AP","post_AP","type_of_change"]
+                if k in self.atlasLocation_backup:
+                    if v == self.atlasLocation_backup[k][2]:
+                        dict_temp = {"slice_id":k,
+                                     "pre_AP":v,
+                                     "post_AP":v,
+                                     "type_of_change":"none"}
+                        change_tracking.append(dict_temp)
+                    else:
+                        dict_temp = {"slice_id":k,
+                                     "pre_AP":self.atlasLocation_backup[k][2],
+                                     "post_AP":v,
+                                     "type_of_change":"modified"}
+                        # self.regViewer.status.atlasLocation[k] = [self.atlasLocation_backup[k][0],
+                        #                                           self.atlasLocation_backup[k][1],
+                        #                                           v]
+                        change_tracking.append(dict_temp)
+                else:
+                    # create according to mapping dict
+                    dict_temp = {"slice_id":k,
+                                 "pre_AP":"none",
+                                 "post_AP":v,
+                                 "type_of_change":"added"}
+                    change_tracking.append(dict_temp)
+                    # self.regViewer.status.atlasLocation[k] = [self.atlasLocation_backup[k][0],
+                    #                                           self.atlasLocation_backup[k][1],
+                    #                                           v]
+            change_tracking = pd.DataFrame(change_tracking)
+            # prompt user to solve conflict
+            # create a dialog window
+            confirmation_dialog = QDialog()
+            confirmation_dialog.setWindowTitle("Confirm or cancel change(s)")
+            buttonbox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            buttonbox.accepted.connect(self.dialog_accept_action)
+            buttonbox.rejected.connect(self.dialog_reject_action)
+            dialog_layout = QVBoxLayout()
+            # create QTableView with pandas dataframe
+            view = QTableView()
+            view.resize(800, 500)
+            view.horizontalHeader().setStretchLastSection(True)
+            view.setAlternatingRowColors(True)
+            view.setSelectionBehavior(QTableView.SelectRows)
+            model = PandasModel(change_tracking)
+            # todo : implement a column of checkable box "Apply column", next to type_of_change column
+
+
+
+            view.setModel(model)
+
+
+
+
+
+            # create confirmation dialog layout
+            dialog_layout.addWidget(view)
+            dialog_layout.addWidget(buttonbox)
+            confirmation_dialog.setLayout(dialog_layout)
+            confirmation_dialog.exec()
+
+
+            # apply change
+
+            # delete atlasLocation_backup
+
+            # update atlas viewer
+
+            # show transformation overlay?
+
+
+            # restore viewing, enable save json
+            self.deactivate_preview_mode()
+            del self.atlasLocation_backup
+            # make sure to execute save json
+
+
         else:
             pass
     
+    def dialog_accept_action(self):
+        print("accepted!")
+    
+    def dialog_reject_action(self):
+        print("canceled!")
     
     def update_button_availability(self,status_code):
         # status 1: more than 1 different anchors, ready for preview
