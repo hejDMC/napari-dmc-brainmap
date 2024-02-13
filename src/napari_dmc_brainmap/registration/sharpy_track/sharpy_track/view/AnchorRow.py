@@ -13,10 +13,10 @@ class AnchorRow(QWidget):
         regHelper.anchor_vbox.addWidget(self)
         # add widgets to horizontal layout
         self.spinSliceIndex = QSpinBox()
-        self.spinSliceIndex.setValue(regHelper.regViewer.status.currentSliceNumber) # slice_id
         self.spinSliceIndex.setMinimum(0)
         self.spinSliceIndex.setMaximum(regHelper.regViewer.status.sliceNum - 1) # total_num
         self.spinSliceIndex.setSingleStep(1)
+        self.spinSliceIndex.setValue(regHelper.regViewer.status.currentSliceNumber) # slice_id
         self.spinSliceIndex.valueChanged.connect(self.slice_index_changed)
 
         self.anc_hbox.addWidget(self.spinSliceIndex)
@@ -28,10 +28,10 @@ class AnchorRow(QWidget):
 
         self.spinAPmm = QDoubleSpinBox()
         self.spinAPmm.setDecimals(2)
-        self.spinAPmm.setValue(regHelper.regViewer.status.current_z) # ap_mm
         self.spinAPmm.setMinimum(-7.80)
         self.spinAPmm.setMaximum(5.40)
         self.spinAPmm.setSingleStep(0.01)
+        self.spinAPmm.setValue(regHelper.regViewer.status.current_z) # ap_mm
         self.spinAPmm.setPrefix("AP: ")
         self.spinAPmm.setSuffix(" mm")
         self.spinAPmm.valueChanged.connect(self.ap_mm_changed)
