@@ -6,6 +6,7 @@ from napari_dmc_brainmap.utils import get_info, get_animal_id
 from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
+from magicgui.widgets import FunctionGui
 import numpy as np
 import pandas as pd
 import random
@@ -108,99 +109,133 @@ def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type
             # progress_bar.update(100 / len(binary_images))
         print("Done with " + chan)
 
-@magicgui(
-    layout='vertical',
-    input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                    tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                'folder containing segmentation results'),
-    single_channel_bool=dict(widget_type='CheckBox', text='use single channel', value=False,
-                             tooltip='tick to use single channel images (not RGB), one can still select '
-                                     'multiple channels'),
-    seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                    choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe'], value='cells',
-                    tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
-                            'IMPORTANT: before switching between types, load next image, delete all image layers'
-                            'and reload image of interest!'),
-    n_probes=dict(widget_type='LineEdit', label='number of fibers/probes', value=1,
-                    tooltip='number (int) of optic fibres and or probes used to segment, ignore this value for '
-                            'segmenting cells/areas/'),
-    channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                      tooltip='select channels to be selected for cell segmentation, '
-                              'to select multiple hold ctrl/shift'),
-    contrast_dapi=dict(widget_type='LineEdit', label='set contrast limits for the dapi channel',
-                       value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-    contrast_green=dict(widget_type='LineEdit', label='set contrast limits for the green channel',
-                        value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-    contrast_n3=dict(widget_type='LineEdit', label='set contrast limits for the n3 channel',
-                     value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-    contrast_cy3=dict(widget_type='LineEdit', label='set contrast limits for the cy3 channel',
-                      value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-    contrast_cy5=dict(widget_type='LineEdit', label='set contrast limits for the cy5 channel',
-                      value='0,100', tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-    image_idx=dict(widget_type='LineEdit', label='image to be loaded', value=0,
-                    tooltip='index (int) of image to be loaded and segmented next'),
-    call_button=False
-)
-def segment_widget(
-    viewer: Viewer,
-    input_path,  # posix path
-    seg_type,
-    n_probes,
-    channels,
-    contrast_dapi,
-    contrast_green,
-    contrast_n3,
-    contrast_cy3,
-    contrast_cy5,
-    image_idx,
-    single_channel_bool
-) -> None:
 
+
+def initialize_segment_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit', 
+                              label='input path (animal_id): ', 
+                              mode='d',
+                              tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+                                    'folder containing segmentation results'),
+              single_channel_bool=dict(widget_type='CheckBox', 
+                                       text='use single channel', 
+                                       value=False,
+                                       tooltip='tick to use single channel images (not RGB), one can still select '
+                                        'multiple channels'),
+              seg_type=dict(widget_type='ComboBox', 
+                            label='segmentation type',
+                            choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe'], 
+                            value='cells',
+                            tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
+                                'IMPORTANT: before switching between types, load next image, delete all image layers'
+                                'and reload image of interest!'),
+              n_probes=dict(widget_type='LineEdit', 
+                            label='number of fibers/probes', 
+                            value=1,
+                            tooltip='number (int) of optic fibres and or probes used to segment, ignore this value for '
+                                'segmenting cells/areas/'),
+              channels=dict(widget_type='Select', 
+                            label='selected channels', 
+                            value=['green', 'cy3'],
+                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            tooltip='select channels to be selected for cell segmentation, '
+                                'to select multiple hold ctrl/shift'),
+              contrast_dapi=dict(widget_type='LineEdit', 
+                                 label='set contrast limits for the dapi channel',
+                                 value='0,100', 
+                                 tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+              contrast_green=dict(widget_type='LineEdit', 
+                                  label='set contrast limits for the green channel',
+                                  value='0,100', 
+                                  tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+              contrast_n3=dict(widget_type='LineEdit', 
+                               label='set contrast limits for the n3 channel',
+                               value='0,100', 
+                               tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+              contrast_cy3=dict(widget_type='LineEdit', 
+                                label='set contrast limits for the cy3 channel',
+                                value='0,100', 
+                                tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+              contrast_cy5=dict(widget_type='LineEdit', 
+                                label='set contrast limits for the cy5 channel',
+                                value='0,100', 
+                                tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
+              image_idx=dict(widget_type='LineEdit', 
+                             label='image to be loaded', 
+                             value=0,
+                             tooltip='index (int) of image to be loaded and segmented next'),
+              call_button=False)
+    
+    def segment_widget(
+        viewer: Viewer,
+        input_path,  # posix path
+        seg_type,
+        n_probes,
+        channels,
+        contrast_dapi,
+        contrast_green,
+        contrast_n3,
+        contrast_cy3,
+        contrast_cy5,
+        image_idx,
+        single_channel_bool):
+        pass
     return segment_widget
 
-@magicgui(
-    layout='vertical',
-    load_bool=dict(widget_type='CheckBox', label='load pre-segmented data', value=False,
-                  tooltip='tick to load pre-segmented data for manual curation'),
-    pre_seg_folder=dict(widget_type='LineEdit', label='folder name with pre-segmented data', value='segmentation',
-                     tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called'
-                             '*segmentation* (default), manual curation will override existing data. '
-                             'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
-                             '*Position Y* for coordinates'),
-    seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                    choices=['cells'], value='cells',
-                    tooltip='select segmentation type to load'),  # todo other than cells?
-    call_button=False
-)
-def load_preseg_widget(
-    viewer: Viewer,
-    load_bool,
-    pre_seg_folder,
-    seg_type
-) -> None:
 
+def initialize_loadpreseg_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              load_bool=dict(widget_type='CheckBox', 
+                             label='load pre-segmented data', 
+                             value=False,
+                             tooltip='tick to load pre-segmented data for manual curation'),
+              pre_seg_folder=dict(widget_type='LineEdit', 
+                                  label='folder name with pre-segmented data', 
+                                  value='segmentation',
+                                  tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called'
+                                '*segmentation* (default), manual curation will override existing data. '
+                                'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
+                                '*Position Y* for coordinates'),
+              seg_type=dict(widget_type='ComboBox', 
+                            label='segmentation type',
+                            choices=['cells'], value='cells',
+                            tooltip='select segmentation type to load'),  # todo other than cells?
+              call_button=False)
+
+    def load_preseg_widget(
+        viewer: Viewer,
+        load_bool,
+        pre_seg_folder,
+        seg_type):
+        pass
     return load_preseg_widget
 
-@magicgui(
-    layout='vertical',
-    mask_folder=dict(widget_type='LineEdit', label='folder name with pre-segmented data', value='segmentation_masks',
-                     tooltip='folder needs to contain sub-folders with channel names and .tif images with segmented '
-                             'of cells.'),
-    mask_type=dict(widget_type='ComboBox', label='segmentation type',
-                    choices=['cells'], value='cells',
-                    tooltip='select segmentation type to load'),  # todo other than cells?
-    output_folder=dict(widget_type='LineEdit', label='output folder', value='segmentation',
-                     tooltip='name of output folder for storing centroids of segmentation masks'),
-    call_button=False
-)
-def find_centroids_widget(
-    viewer: Viewer,
-    mask_folder,
-    mask_type,
-    output_folder
-) -> None:
 
+def initialize_findcentroids_widget():
+    @magicgui(layout='vertical',
+              mask_folder=dict(widget_type='LineEdit', 
+                               label='folder name with pre-segmented data', 
+                               value='segmentation_masks',
+                               tooltip='folder needs to contain sub-folders with channel names and .tif images with segmented '
+                                'of cells.'),
+              mask_type=dict(widget_type='ComboBox', 
+                             label='segmentation type',
+                             choices=['cells'], 
+                             value='cells',
+                             tooltip='select segmentation type to load'),  # todo other than cells?
+              output_folder=dict(widget_type='LineEdit', 
+                                 label='output folder', 
+                                 value='segmentation',
+                                 tooltip='name of output folder for storing centroids of segmentation masks'),
+              call_button=False)
+    
+    def find_centroids_widget(
+        viewer: Viewer,
+        mask_folder,
+        mask_type,
+        output_folder):
+        pass
     return find_centroids_widget
 
 
@@ -210,16 +245,16 @@ class SegmentWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
-        segment = segment_widget
+        self.segment = initialize_segment_widget()
         self.save_dict = default_save_dict()
 
         self._collapse_preseg = QCollapsible('Load pre-segmented data: expand for more', self)
-        preseg = load_preseg_widget
-        self._collapse_preseg.addWidget(preseg.native)
+        self.preseg = initialize_loadpreseg_widget()
+        self._collapse_preseg.addWidget(self.preseg.native)
 
         self._collapse_center = QCollapsible('Find centroids for pre-segmented data (masks): expand for more', self)
-        center = find_centroids_widget
-        self._collapse_center.addWidget(center.native)
+        self.center = initialize_findcentroids_widget()
+        self._collapse_center.addWidget(self.center.native)
         btn_center = QPushButton("get center coordinates for pre-segmented data")
         btn_center.clicked.connect(self._get_center_coord)
         self._collapse_center.addWidget(btn_center)
@@ -227,7 +262,7 @@ class SegmentWidget(QWidget):
         btn = QPushButton("save data and load next image")
         btn.clicked.connect(self._save_and_load)
 
-        self.layout().addWidget(segment.native)
+        self.layout().addWidget(self.segment.native)
         self.layout().addWidget(self._collapse_preseg)
         self.layout().addWidget(self._collapse_center)
         self.layout().addWidget(btn)
@@ -251,13 +286,13 @@ class SegmentWidget(QWidget):
 
     def _save_and_load(self):
 
-        input_path = segment_widget.input_path.value
-        image_idx = int(segment_widget.image_idx.value)
-        seg_type = segment_widget.seg_type.value
-        channels = segment_widget.channels.value
-        n_probes = int(segment_widget.n_probes.value)
-        single_channel = segment_widget.single_channel_bool.value
-        contrast_dict = self._get_contrast_dict(segment_widget)
+        input_path = self.segment.input_path.value
+        image_idx = int(self.segment.image_idx.value)
+        seg_type = self.segment.seg_type.value
+        channels = self.segment.channels.value
+        n_probes = int(self.segment.n_probes.value)
+        single_channel = self.segment.single_channel_bool.value
+        contrast_dict = self._get_contrast_dict(self.segment)
 
         if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
             self.save_dict = default_save_dict()
@@ -308,8 +343,8 @@ class SegmentWidget(QWidget):
 
     def _load_preseg_object(self, input_path, chan, image_idx):
 
-        pre_seg_folder = load_preseg_widget.pre_seg_folder.value
-        pre_seg_type = load_preseg_widget.seg_type.value
+        pre_seg_folder = self.preseg.pre_seg_folder.value
+        pre_seg_type = self.preseg.seg_type.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=pre_seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(im_name.split('.')[0])]
@@ -333,7 +368,7 @@ class SegmentWidget(QWidget):
                 self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
         elif seg_type == 'cells':
             cmap_dict = cmap_cells()
-            if load_preseg_widget.load_bool.value:  # loading presegmented cells
+            if self.preseg.load_bool.value:  # loading presegmented cells
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx)
                     self.viewer.add_points(pre_seg_data, size=5, name=chan, face_color=cmap_dict[chan])
@@ -385,11 +420,11 @@ class SegmentWidget(QWidget):
         #             coords.to_csv(save_name)
 
     def _get_center_coord(self):
-        input_path = segment_widget.input_path.value
-        channels = segment_widget.channels.value
-        mask_folder = find_centroids_widget.mask_folder.value
-        mask_type = find_centroids_widget.mask_type.value
-        output_folder = find_centroids_widget.output_folder.value
+        input_path = self.segment.input_path.value
+        channels = self.segment.channels.value
+        mask_folder = self.center.mask_folder.value
+        mask_type = self.center.mask_type.value
+        output_folder = self.center.output_folder.value
         center_worker = get_center_coord(input_path, channels, mask_folder, output_folder, mask_type=mask_type)
         center_worker.start()
 

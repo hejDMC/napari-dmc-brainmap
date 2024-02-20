@@ -2,6 +2,7 @@ from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
+from magicgui.widgets import FunctionGui
 import cv2
 import numpy as np
 import pandas as pd
@@ -182,55 +183,73 @@ def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
 
 
 
-@magicgui(
-    layout='vertical',
-    input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                    tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                            'folder containing segmentation results'),
-    seg_folder=dict(widget_type='LineEdit', label='folder name of segmentation images: ', value='rgb',
-                        tooltip='name of folder containing the segmentation images, needs to be in same folder as '
-                                'folder containing the segmentation results  (i.e. animal_id folder)'),
-    regi_chan=dict(widget_type='ComboBox', label='registration channel',
-                  choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], value='green',
-                  tooltip='select the channel you registered to the brain atlas'),
-    seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                  choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'], value='cells',
-                  tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
-    channels=dict(widget_type='Select', label='selected channels', value=['green', 'cy3'],
-                  choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                  tooltip='select channels to be selected for cell segmentation, '
-                          'to select multiple hold ctrl/shift'),
-    call_button=False
-)
-def results_widget(
-        input_path,
-        seg_folder,
-        regi_chan,
-        seg_type,
-        channels
+def initialize_results_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit', 
+                              label='input path (animal_id): ', 
+                              mode='d',
+                              tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+                                'folder containing segmentation results'),
+              seg_folder=dict(widget_type='LineEdit', 
+                              label='folder name of segmentation images: ', 
+                              value='rgb',
+                              tooltip='name of folder containing the segmentation images, needs to be in same folder as '
+                                    'folder containing the segmentation results  (i.e. animal_id folder)'),
+              regi_chan=dict(widget_type='ComboBox', 
+                             label='registration channel',
+                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], 
+                             value='green',
+                             tooltip='select the channel you registered to the brain atlas'),
+              seg_type=dict(widget_type='ComboBox', 
+                            label='segmentation type',
+                            choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'], 
+                            value='cells',
+                            tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
+              channels=dict(widget_type='Select', 
+                            label='selected channels', 
+                            value=['green', 'cy3'],
+                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            tooltip='select channels to be selected for cell segmentation, '
+                            'to select multiple hold ctrl/shift'),
+              call_button=False)
 
-):
+    def results_widget(
+            input_path,
+            seg_folder,
+            regi_chan,
+            seg_type,
+            channels):
+        pass
     return results_widget
 
-@magicgui(
-    layout='vertical',
-    save_fig=dict(widget_type='CheckBox', label='save figure?', value=False,
-                       tooltip='tick to save figure'),
-    plot_size=dict(widget_type='LineEdit', label='enter plot size',
-                            value='16,12', tooltip='enter the COMMA SEPERATED size of the plot'),
-    cmap=dict(widget_type='LineEdit', label='colormap',
-              value='Blues', tooltip='enter colormap to use for the pie chart'),
-    kde_axis=dict(widget_type='ComboBox', label='select axis for density plots',
-                  choices=['AP', 'ML', 'DV', 'AP/ML', 'AP/DV', 'ML/DV'], value='AP',
-                  tooltip='AP=antero-posterior, ML=medio-lateral, DV=dorso-ventral'),
-    call_button=False
-)
-def quant_inj_widget(
-        save_fig,
-        plot_size,
-        cmap,
-        kde_axis
-):
+
+def initialize_quantinj_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              save_fig=dict(widget_type='CheckBox', 
+                            label='save figure?', 
+                            value=False,
+                            tooltip='tick to save figure'),
+              plot_size=dict(widget_type='LineEdit', 
+                             label='enter plot size',
+                             value='16,12',
+                             tooltip='enter the COMMA SEPERATED size of the plot'),
+              cmap=dict(widget_type='LineEdit', 
+                        label='colormap',
+                        value='Blues', 
+                        tooltip='enter colormap to use for the pie chart'),
+              kde_axis=dict(widget_type='ComboBox', 
+                            label='select axis for density plots',
+                            choices=['AP', 'ML', 'DV', 'AP/ML', 'AP/DV', 'ML/DV'], 
+                            value='AP',
+                            tooltip='AP=antero-posterior, ML=medio-lateral, DV=dorso-ventral'),
+              call_button=False)
+    
+    def quant_inj_widget(
+            save_fig,
+            plot_size,
+            cmap,
+            kde_axis):
+        pass
     return quant_inj_widget
 
 
@@ -239,38 +258,38 @@ class ResultsWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
-        results = results_widget
+        self.results = initialize_results_widget()
         btn_results = QPushButton("create results file")
         btn_results.clicked.connect(self._create_results_file)
 
         self._collapse_quant = QCollapsible('Quantify injection side: expand for more', self)
-        quant_inj = quant_inj_widget
-        self._collapse_quant.addWidget(quant_inj.native)
+        self.quant_inj = initialize_quantinj_widget()
+        self._collapse_quant.addWidget(self.quant_inj.native)
         btn_quant_inj = QPushButton("quantify injection side")
         btn_quant_inj.clicked.connect(self._quantify_injection_side)
         self._collapse_quant.addWidget(btn_quant_inj)
 
 
 
-        self.layout().addWidget(results.native)
+        self.layout().addWidget(self.results.native)
         self.layout().addWidget(btn_results)
         self.layout().addWidget(self._collapse_quant)
 
     def _create_results_file(self):
-        input_path = results_widget.input_path.value
-        seg_folder = results_widget.seg_folder.value
-        regi_chan = results_widget.regi_chan.value
-        seg_type = results_widget.seg_type.value
-        channels = results_widget.channels.value
+        input_path = self.results.input_path.value
+        seg_folder = self.results.seg_folder.value
+        regi_chan = self.results.regi_chan.value
+        seg_type = self.results.seg_type.value
+        channels = self.results.channels.value
         params_dict = load_params(input_path)
         worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict)
         worker_results_file.start()
 
 
     def _quantify_injection_side(self):
-        input_path = results_widget.input_path.value
-        channels = results_widget.channels.value
-        seg_type = results_widget.seg_type.value
+        input_path = self.results.input_path.value
+        channels = self.results.channels.value
+        seg_type = self.results.seg_type.value
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas("allen_mouse_10um")
         for chan in channels:
@@ -281,12 +300,12 @@ class ResultsWidget(QWidget):
 
     def _plot_quant_injection_side(self, in_data):
         df, chan, seg_type, results_data = in_data
-        input_path = results_widget.input_path.value
+        input_path = self.results.input_path.value
         results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
-        clrs = sns.color_palette(quant_inj_widget.cmap.value)
-        mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
+        clrs = sns.color_palette(self.quant_inj.cmap.value)
+        mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in self.quant_inj.plot_size.value.split(',')])))
 
-        plt_axis = quant_inj_widget.kde_axis.value.split('/')
+        plt_axis = self.quant_inj.kde_axis.value.split('/')
         axis_dict = {
             'AP': ['ap_mm', 'antero-posterior coordinates [mm]'],
             'ML': ['ml_mm', 'medio-lateral coordinates [mm]'],
@@ -309,7 +328,7 @@ class ResultsWidget(QWidget):
         static_ax[1].spines['top'].set_visible(False)
         static_ax[1].spines['right'].set_visible(False)
         static_ax[1].title.set_text('kde plot of ' + seg_type + ' in ' + chan + " channel")
-        if quant_inj_widget.save_fig.value:
+        if self.quant_inj.save_fig.value:
             save_fn = results_dir.joinpath('quantification_injection_side.svg')
             mpl_widget.figure.savefig(save_fn)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
