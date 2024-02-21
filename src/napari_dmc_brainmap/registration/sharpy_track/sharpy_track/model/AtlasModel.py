@@ -64,6 +64,11 @@ class AtlasModel():
                 self.template = (self.template / 20000 * 255).astype(np.uint8)
                 np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) 
         
+        else: # for any atlas else, in this case zebrafish
+            print("loading template volume...")
+            self.template = self.atlas.reference
+
+
 
 
 
