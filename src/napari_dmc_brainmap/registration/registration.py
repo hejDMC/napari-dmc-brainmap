@@ -1,6 +1,7 @@
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 import json
+import objgraph
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from napari_dmc_brainmap.utils import create_regi_dict
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
@@ -48,5 +49,16 @@ class RegistrationWidget(QWidget):
 
         regi_dict = create_regi_dict(input_path, regi_chan)
 
-        reg_viewer = RegistrationViewer(self.viewer, regi_dict)
-        reg_viewer.show()
+        self.reg_viewer = RegistrationViewer(self, regi_dict)
+        self.reg_viewer.show()
+
+        # objgraph.show_refs(self.reg_viewer,filename="C:\\Users\\xiao\\Downloads\\regviewer_structure.png")
+
+
+    # def del_regviewer_instance(self):
+    #     # del self.reg_viewer.regViewerWidget
+    #     # del self.reg_viewer.app
+    #     # del self.reg_viewer.regi_dict
+    #     # del self.reg_viewer
+    #     pass
+        

@@ -14,9 +14,10 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.statu
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import RegistrationHelper
 
 class RegistrationViewer(QMainWindow):
-    def __init__(self, app, regi_dict) -> None:
+    def __init__(self, regViewerWidget, regi_dict) -> None:
         super().__init__()
-        self.app = app
+        self.regViewerWidget = regViewerWidget
+        self.app = regViewerWidget.viewer
         self.regi_dict = regi_dict
         QAppInstance = QApplication.instance()  # get current QApplication Instance
         self.screenSize = [QAppInstance.primaryScreen().size().width(), QAppInstance.primaryScreen().size().height()]
@@ -28,8 +29,8 @@ class RegistrationViewer(QMainWindow):
 
         # create atlasModel
         self.atlasModel = AtlasModel(self)
-        self.widget.viewerLeft.scene.changed.connect(self.atlasModel.updateDotPosition)
-        self.widget.viewerRight.scene.changed.connect(self.atlasModel.updateDotPosition)
+        self.widget.viewerLeft.scene.changed.connect(lambda: self.atlasModel.updateDotPosition(mode="default"))
+        self.widget.viewerRight.scene.changed.connect(lambda: self.atlasModel.updateDotPosition(mode="default"))
 
         # create statusContainer
         self.status = StatusContainer(self)
@@ -46,7 +47,6 @@ class RegistrationViewer(QMainWindow):
         self.setWindowTitle("Registration Viewer")
         self.createActions()
         self.createMenus()
-
 
         self.load_data()
     
@@ -169,4 +169,6 @@ class RegistrationViewer(QMainWindow):
         self.helperPage = RegistrationHelper(self)
         self.helperPage.show()
 
-    
+
+    # def closeEvent(self, event) -> None:
+    #     self.regViewerWidget.del_regviewer_instance()

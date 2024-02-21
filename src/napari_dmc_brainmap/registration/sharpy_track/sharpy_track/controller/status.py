@@ -165,6 +165,7 @@ class StatusContainer():
             pass
 
         if save_exec:
+            # the only place where writing to registration json happens
             with open(self.folderPath.joinpath('registration.json'), 'w') as f:
                 reg_data = {'atlasLocation': self.atlasLocation,
                             'atlasDots': self.atlasDots,
