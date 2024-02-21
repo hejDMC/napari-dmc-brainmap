@@ -29,8 +29,8 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculatio
 
 
 # todo put these function in segment_tools.py file (to be created)
-def change_index(image_idx):
-    segment_widget.image_idx.value = image_idx
+# def change_index(image_idx):
+#     segment_widget.image_idx.value = image_idx
 
 
 def cmap_cells():
@@ -122,15 +122,15 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
             print("NO REGISTRATION DATA FOUND")
     print('running presegmentation of ...')
     for chan in channels:
-        mask_dir = get_info(input_path, mask_folder, channel='chan', seg_type=seg_type,
+        mask_dir = get_info(input_path, mask_folder, channel=chan, seg_type=seg_type,
                             create_dir=True, only_dir=True)
-        output_dir = get_info(input_path, output_folder, channel='chan', seg_type=seg_type,
+        output_dir = get_info(input_path, output_folder, channel=chan, seg_type=seg_type,
                             create_dir=True, only_dir=True)
         print('... channel ' + chan)
         for im in seg_im_list:
             print('... ' + im)
             im_fn = seg_im_dir.joinpath(im)
-            reader = AICSImage(im_fn)
+            reader = AICSImage(str(im_fn))
             img = reader.data.astype(np.float32)  # input image is a single RGB image
             structure_channel = chan_dict[chan] # 0:cy3, 1:green, 2:dapi for RGB
             struct_img0 = img[0, 0, 0, :, :, structure_channel].copy()
@@ -150,32 +150,35 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
             seg = seg>0
             seg = seg.astype(np.uint8)
             seg[seg>0]=255
-            # write binary image to file
-            writer = OmeTiffWriter()
-            mask_save_fn = mask_dir.joinpath(im[:-len(seg_im_suffix)] + '_masks.tiff')
-            writer.save(seg[0], str(mask_save_fn)) # save only one layer binary image
-            # centroid detection
-            label_img = label(seg[0])
-            props = regionprops_table(label_img, properties=['centroid'])
-            if regi_bool:
-                dim_rgb = seg[0].shape
-                x_res = params_dict["atlas_info"]["resolution"][0]
-                y_res = params_dict["atlas_info"]["resolution"][1]
-                x_rgb = props["centroid-1"] / dim_rgb[1] * x_res
-                y_rgb = props["centroid-0"] / dim_rgb[0] * y_res
-                for k, v in regi_data['imgName'].items():
-                    if v.startswith(im[:-len(seg_im_suffix)]):
-                        regi_index = k
-                # get transformation
-                tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
-                # slice annotation volume
-                ml_angle, dv_angle, ap = regi_data['atlasLocation'][regi_index]
-                # annot_slice = angleSlice(ml_angle, dv_angle, ap, annot_vol)
+            if np.mean(seg[0]) == 0:
+                pass
             else:
-                csv_to_save = pd.DataFrame(props)
-                csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
-                csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
-                csv_to_save.to_csv(csv_save_name)
+                # write binary image to file
+                writer = OmeTiffWriter()
+                mask_save_fn = mask_dir.joinpath(im[:-len(seg_im_suffix)] + '_masks.tiff')
+                writer.save(seg[0], str(mask_save_fn)) # save only one layer binary image
+                # centroid detection
+                label_img = label(seg[0])
+                props = regionprops_table(label_img, properties=['centroid'])
+                if regi_bool:
+                    dim_rgb = seg[0].shape
+                    x_res = params_dict["atlas_info"]["resolution"][0]
+                    y_res = params_dict["atlas_info"]["resolution"][1]
+                    x_rgb = props["centroid-1"] / dim_rgb[1] * x_res
+                    y_rgb = props["centroid-0"] / dim_rgb[0] * y_res
+                    for k, v in regi_data['imgName'].items():
+                        if v.startswith(im[:-len(seg_im_suffix)]):
+                            regi_index = k
+                    # get transformation
+                    tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
+                    # slice annotation volume
+                    ml_angle, dv_angle, ap = regi_data['atlasLocation'][regi_index]
+                    # annot_slice = angleSlice(ml_angle, dv_angle, ap, annot_vol)
+                else:
+                    csv_to_save = pd.DataFrame(props)
+                    csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
+                    csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
+                    csv_to_save.to_csv(csv_save_name)
 @thread_worker
 def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type='cells'):
     for chan in channels:
@@ -326,7 +329,7 @@ def initialize_dopreseg_widget():
                                                'the brain first to exclude presegmentation artefacts outside of the '
                                                'brain'),
               regi_chan=dict(widget_type='ComboBox',
-                                     text='registration channel',
+                                     label='registration channel',
                                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                                      value='green',
                                      tooltip='select the registration channel (images need to be in sharpy track folder)'),
@@ -472,7 +475,8 @@ class SegmentWidget(QWidget):
 
         show_info("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
-        change_index(image_idx)
+        self.segment.image_idx.value = image_idx
+        # change_index(image_idx)
 
 
     def _load_rgb(self, path_to_im, channels, contrast_dict):
