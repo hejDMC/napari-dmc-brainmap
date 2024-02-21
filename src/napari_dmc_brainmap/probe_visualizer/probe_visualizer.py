@@ -1,5 +1,6 @@
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
+from magicgui.widgets import FunctionGui
 from napari.qt.threading import thread_worker
 
 import numpy as np
@@ -146,25 +147,33 @@ def calculate_probe_tract(input_path, save_path, params_dict, probe_insert):
     with open(save_fn, 'w') as f:
         json.dump(probes_dict, f)  # write multiple voxelized probes, file can be opened in probe visualizer
     print("DONE!")
-@magicgui(
-    layout='vertical',
-    input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                    tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                            'folder containing segmentation results'),
-    save_path=dict(widget_type='FileEdit', label='save path: ', mode='d',
-                   value='',
-                   tooltip='select a folder for saving plots, default will save in *input path*'),
-    probe_insert=dict(widget_type='LineEdit', label='insertion depth of probe (um)', value='4000',
-                    tooltip='specifiy the depth of neuropixels probe in brain in um'),
-    call_button=False
-)
-def probe_visualizer(
-    input_path,  # posix path
-    save_path,
-    animal_list,
-    probe_insert
-) -> None:
 
+
+
+def initiate_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit', 
+                              label='input path (animal_id): ', 
+                              mode='d',
+                              tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+                                'folder containing segmentation results'),
+              save_path=dict(widget_type='FileEdit', 
+                             label='save path: ', 
+                             mode='d',
+                             value='',
+                             tooltip='select a folder for saving plots, default will save in *input path*'),
+              probe_insert=dict(widget_type='LineEdit', 
+                                label='insertion depth of probe (um)', 
+                                value='4000',
+                                tooltip='specifiy the depth of neuropixels probe in brain in um'),
+              call_button=False)
+    
+    def probe_visualizer(
+        input_path,  # posix path
+        save_path,
+        animal_list,
+        probe_insert):
+        pass
     return probe_visualizer
 
 
@@ -173,7 +182,7 @@ class ProbeVisualizerWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
-        p_vis = probe_visualizer
+        self.p_vis = initiate_widget()
 
         btn_calc_probe = QPushButton("calculate probe tract")
         btn_calc_probe.clicked.connect(self._calculate_probe_tract)
@@ -182,19 +191,19 @@ class ProbeVisualizerWidget(QWidget):
         btn_probe_vis.clicked.connect(self._start_probe_visualizer)
 
 
-        self.layout().addWidget(p_vis.native)
+        self.layout().addWidget(self.p_vis.native)
         self.layout().addWidget(btn_calc_probe)
         self.layout().addWidget(btn_probe_vis)
 
 
     def _calculate_probe_tract(self):
-        input_path = probe_visualizer.input_path.value
-        if str(probe_visualizer.save_path.value) == '.':
+        input_path = self.p_vis.input_path.value
+        if str(self.p_vis.save_path.value) == '.':
             save_path = input_path
         else:
-            save_path = probe_visualizer.save_path.value
+            save_path = self.p_vis.save_path.value
 
-        probe_insert = split_to_list(probe_visualizer.probe_insert.value, out_format='int')  # [int(i) for i in probe_visualizer.probe_insert.value.split(',')]
+        probe_insert = split_to_list(self.p_vis.probe_insert.value, out_format='int')  # [int(i) for i in probe_visualizer.probe_insert.value.split(',')]
         if not probe_insert:
             probe_insert = [probe_insert]  # make list if not already
         params_dict = load_params(input_path)
@@ -203,8 +212,7 @@ class ProbeVisualizerWidget(QWidget):
 
 
     def _start_probe_visualizer(self):
-
-        input_path = probe_visualizer.input_path.value
+        input_path = self.p_vis.input_path.value
         params_dict = load_params(input_path)
         probe_vis = ProbeVisualizer(self.viewer, params_dict)
         probe_vis.show()

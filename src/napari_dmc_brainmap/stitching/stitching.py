@@ -2,7 +2,7 @@ from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from napari import Viewer
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
-
+from magicgui.widgets import FunctionGui
 from natsort import natsorted
 import json
 import tifffile as tiff
@@ -111,54 +111,73 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
     print('all finished!')
 
 
-@magicgui(
-    layout='vertical',
-    input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                    tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                'folder containing segmentation results'),
-    stitch_tiles=dict(widget_type='CheckBox', text='stitching image tiles', value=False,
-                           tooltip='option to stitch images from tiles (ticked) or from image stack (not ticked)'),
-    channels=dict(widget_type='Select', label='imaged channels', value=['green', 'cy3'],
-                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                      tooltip='select the imaged channels, '
-                              'to select multiple hold ctrl/shift'),
-    sharpy_bool=dict(widget_type='CheckBox', text='get images for registration (sharpy-track)', value=True,
-                     tooltip='downsample image to resolution in sharpy track (1140 x 800)'),
-    sharpy_chan=dict(widget_type='Select', label='selected channels', value='green',
-                     choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
-                     tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
-    contrast_bool=dict(widget_type='CheckBox', text='perform contrast adjustment on images for registration', value=True,
-                       tooltip='option to adjust contrast on images, see option details below'),
-    contrast_dapi=dict(widget_type='LineEdit', label='set contrast limits for the dapi channel',
-                       value='50,1000', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-    contrast_green=dict(widget_type='LineEdit', label='set contrast limits for the green channel',
-                        value='50,300', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-    contrast_n3=dict(widget_type='LineEdit', label='set contrast limits for the n3 channel',
-                      value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-    contrast_cy3=dict(widget_type='LineEdit', label='set contrast limits for the cy3 channel',
-                      value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-    contrast_cy5=dict(widget_type='LineEdit', label='set contrast limits for the cy5 channel',
-                      value='50,500', tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
 
+def initialize_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit', 
+                              label='input path (animal_id): ', 
+                              mode='d',
+                              tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+                                    'folder containing segmentation results'),
+              stitch_tiles=dict(widget_type='CheckBox', 
+                                text='stitching image tiles', 
+                                value=False,
+                                tooltip='option to stitch images from tiles (ticked) or from image stack (not ticked)'),
+              channels=dict(widget_type='Select', 
+                            label='imaged channels', 
+                            value=['green', 'cy3'],
+                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            tooltip='select the imaged channels, '
+                                'to select multiple hold ctrl/shift'),
+              sharpy_bool=dict(widget_type='CheckBox', 
+                               text='get images for registration (sharpy-track)', 
+                               value=True,
+                               tooltip='downsample image to resolution in sharpy track (1140 x 800)'),
+              sharpy_chan=dict(widget_type='Select', 
+                               label='selected channels', 
+                               value='green',
+                               choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
+                               tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
+              contrast_bool=dict(widget_type='CheckBox', 
+                                 text='perform contrast adjustment on images for registration',
+                                 value=True,
+                                 tooltip='option to adjust contrast on images, see option details below'),
+              contrast_dapi=dict(widget_type='LineEdit', 
+                                 label='set contrast limits for the dapi channel',
+                                 value='50,1000', 
+                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+              contrast_green=dict(widget_type='LineEdit', 
+                                  label='set contrast limits for the green channel',
+                                  value='50,300', 
+                                  tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+              contrast_n3=dict(widget_type='LineEdit', 
+                               label='set contrast limits for the n3 channel',
+                               value='50,500', 
+                               tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+              contrast_cy3=dict(widget_type='LineEdit', 
+                                label='set contrast limits for the cy3 channel',
+                                value='50,500', 
+                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+              contrast_cy5=dict(widget_type='LineEdit', 
+                                label='set contrast limits for the cy5 channel',
+                                value='50,500', 
+                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
+              call_button=False)
 
-    call_button=False
-)
-def stitching_widget(
-    viewer: Viewer,
-    input_path,  # posix path
-    stitch_tiles,
-    channels,
-    sharpy_bool,
-    sharpy_chan,
-    contrast_bool,
-    contrast_dapi,
-    contrast_green,
-    contrast_n3,
-    contrast_cy3,
-    contrast_cy5
-
-) -> None:
-
+    def stitching_widget(
+        viewer: Viewer,
+        input_path,  # posix path
+        stitch_tiles,
+        channels,
+        sharpy_bool,
+        sharpy_chan,
+        contrast_bool,
+        contrast_dapi,
+        contrast_green,
+        contrast_n3,
+        contrast_cy3,
+        contrast_cy5):
+        pass
     return stitching_widget
 
 
@@ -168,11 +187,11 @@ class StitchingWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
-        stitching = stitching_widget
+        self.stitching = initialize_widget()
         btn = QPushButton("stitch images")
         btn.clicked.connect(self._do_stitching)
 
-        self.layout().addWidget(stitching.native)
+        self.layout().addWidget(self.stitching.native)
         self.layout().addWidget(btn)
     def _get_info(self, widget):
 
@@ -190,20 +209,20 @@ class StitchingWidget(QWidget):
         params_dict = {
             "general":
                 {
-                    "animal_id": get_animal_id(stitching_widget.input_path.value),
-                    "chans_imaged": stitching_widget.channels.value
+                    "animal_id": get_animal_id(self.stitching.input_path.value),
+                    "chans_imaged": self.stitching.channels.value
                 },
             "operations":
                 {
-                    "sharpy_track": stitching_widget.sharpy_bool.value,
+                    "sharpy_track": self.stitching.sharpy_bool.value,
                 },
-            "sharpy_track_params": self._get_info(stitching_widget),
+            "sharpy_track_params": self._get_info(self.stitching),
 
         }
         return params_dict
     def _do_stitching(self):
-        input_path = stitching_widget.input_path.value
-        stitch_tiles = stitching_widget.stitch_tiles.value
+        input_path = self.stitching.input_path.value
+        stitch_tiles = self.stitching.stitch_tiles.value
         params_dict = self._get_stitching_params()
         direct_sharpy_track = params_dict['operations']['sharpy_track']
         params_dict = clean_params_dict(params_dict, "operations")

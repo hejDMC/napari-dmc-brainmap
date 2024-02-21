@@ -13,8 +13,9 @@ from bg_atlasapi import BrainGlobeAtlas
 
 
 class AtlasModel():
-    def __init__(self, regi_dict) -> None:
-        self.regi_dict = regi_dict
+    def __init__(self, regViewer) -> None:
+        self.regViewer = regViewer
+        self.regi_dict = regViewer.regi_dict
         self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
         self.imgStack = None
         print("loading reference atlas...")
@@ -30,6 +31,7 @@ class AtlasModel():
         self.loadStructureTree()
         self.atlas_pts = []
         self.sample_pts = []
+
 
     def loadTemplate(self):
         brainglobe_dir = Path.home() / ".brainglobe"
@@ -83,11 +85,11 @@ class AtlasModel():
         self.r_grid_y = grid_y.ravel()
         self.grid = np.stack([grid_y, grid_x], axis=2)
     
-    def getContourIndex(self,regViewer):
+    def getContourIndex(self):
         # check simple slice or angled slice
         # slice annotation volume, convert to int32 for contour detection
-        if (regViewer.status.x_angle == 0) and (regViewer.status.y_angle == 0):
-            z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+        if (self.regViewer.status.x_angle == 0) and (self.regViewer.status.y_angle == 0):
+            z_coord = coord_mm_transform([self.regViewer.status.current_z], [self.bregma[self.z_idx]],
                                       [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
             self.sliceAnnot = self.annot[z_coord, :, :].copy().astype(np.int32)
         else:
@@ -101,19 +103,18 @@ class AtlasModel():
         self.outline= cv2.cvtColor(self.outline, cv2.COLOR_GRAY2RGBA) # convert to RGBA
         self.outline[:,:,3][np.where(self.outline[:,:,0]==0)] = 0 # set black background transparent
     
-    def displayContour(self,regViewer):
-        regViewer.status.contour = 1 # set status contour active
-        self.getContourIndex(regViewer)
-        regViewer.widget.viewerLeft.showContourLabel(regViewer)
+    def displayContour(self):
+        self.regViewer.status.contour = 1 # set status contour active
+        self.getContourIndex()
+        self.regViewer.widget.viewerLeft.showContourLabel()
 
-
-    def hideContour(self,regViewer):
-        regViewer.status.contour = 0 # set status contour inactive
-        regViewer.widget.viewerLeft.hideContourLabel()
+    def hideContour(self):
+        self.regViewer.status.contour = 0 # set status contour inactive
+        self.regViewer.widget.viewerLeft.hideContourLabel()
     
-    def treeFindArea(self,regViewer):
-        y = regViewer.status.hoverY
-        x = regViewer.status.hoverX
+    def treeFindArea(self):
+        y = self.regViewer.status.hoverY
+        x = self.regViewer.status.hoverX
         z = int(self.z_mat[y, x])
         # get coordinates in mm
         tripled_coord = xyz_atlas_transform([x, y, z], self.regi_dict, self.atlas.space.axes_description)
@@ -127,14 +128,14 @@ class AtlasModel():
             activeArea = np.where(self.sliceAnnot == structure_id)
             # find name in sTree
             structureName = self.sTree.data[structure_id]['name']
-            regViewer.widget.viewerLeft.highlightArea(regViewer,tripled_mm_sorted,activeArea,structureName)
+            self.regViewer.widget.viewerLeft.highlightArea(tripled_mm_sorted,activeArea,structureName)
 
 
-    def getSlice(self,regViewer):
-        if (regViewer.status.x_angle == 0) and (regViewer.status.y_angle == 0):
-            self.simpleSlice(regViewer) # update simple slice
+    def getSlice(self):
+        if (self.regViewer.status.x_angle == 0) and (self.regViewer.status.y_angle == 0):
+            self.simpleSlice() # update simple slice
         else:
-            self.angleSlice(regViewer) # update angled slice
+            self.angleSlice() # update angled slice
         name_dict = {
             'ap': 'AP',
             'si': 'DV',
@@ -146,51 +147,51 @@ class AtlasModel():
         # get textbox size and calculate textbox coordinates
         offset =  int(self.fontscale * 10) # integer
 
-        text_w, text_h = cv2.getTextSize(z_str + ": " + str(regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        text_w, text_h = cv2.getTextSize(z_str + ": " + str(self.regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         ap_text_location = [self.slice.shape[1]-offset-text_w,text_h+offset]
 
-        text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(self.regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         xangle_text_location = [offset,text_h+offset]
 
-        text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(self.regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         yangle_text_location = [offset,offset+text_h+offset+text_h]
         # put text
-        cv2.putText(self.slice, z_str + ": " + str(regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
-        cv2.putText(self.slice, x_str + " Angle: " + str(regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
-        cv2.putText(self.slice, y_str + " Angle: " + str(regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(self.slice, z_str + ": " + str(self.regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(self.slice, x_str + " Angle: " + str(self.regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(self.slice, y_str + " Angle: " + str(self.regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
 
-        self.slice = cv2.resize(self.slice,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1])) # resize to single window size
-        if regViewer.status.imageRGB is False:
+        self.slice = cv2.resize(self.slice,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1])) # resize to single window size
+        if self.regViewer.status.imageRGB is False:
             self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
         else:
             self.slice = cv2.cvtColor(self.slice, cv2.COLOR_GRAY2BGR)
             self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_BGR888)
 
-    def getSample(self,regViewer):
-        if regViewer.status.sliceNum == 0:
+    def getSample(self):
+        if self.regViewer.status.sliceNum == 0:
             # self.sampleQimg = QImage(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')))
             self.sample = cv2.imread(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')),cv2.IMREAD_COLOR)
-            self.sample = cv2.resize(self.sample,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
+            self.sample = cv2.resize(self.sample,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888)
         else:
-            self.sample = cv2.resize(self.imgStack[regViewer.status.currentSliceNumber],(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
-            if regViewer.status.imageRGB is False:
+            self.sample = cv2.resize(self.imgStack[self.regViewer.status.currentSliceNumber],(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
+            if self.regViewer.status.imageRGB is False:
                 self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8) # if grayscale sample
             else:
                 self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888) # if RGB sample
 
 
-    def simpleSlice(self,regViewer):
-        z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+    def simpleSlice(self):
+        z_coord = coord_mm_transform([self.regViewer.status.current_z], [self.bregma[self.z_idx]],
                                   [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
         self.slice = self.template[z_coord, :, :].copy()
         self.z_mat = np.full((self.xyz_dict['y'][1], self.xyz_dict['x'][1]), z_coord)
     
-    def angleSlice(self,regViewer):
+    def angleSlice(self):
         # calculate from ML and DV angle, the plane of current slice
-        x_shift = int(np.tan(np.deg2rad(regViewer.status.x_angle)) * (self.xyz_dict['x'][1] / 2))
-        y_shift = int(np.tan(np.deg2rad(regViewer.status.y_angle)) * (self.xyz_dict['y'][1] / 2))
-        z_coord = coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+        x_shift = int(np.tan(np.deg2rad(self.regViewer.status.x_angle)) * (self.xyz_dict['x'][1] / 2))
+        y_shift = int(np.tan(np.deg2rad(self.regViewer.status.y_angle)) * (self.xyz_dict['y'][1] / 2))
+        z_coord = coord_mm_transform([self.regViewer.status.current_z], [self.bregma[self.z_idx]],
                                   [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
 
         center = np.array([z_coord, (self.xyz_dict['y'][1] / 2), (self.xyz_dict['x'][1] / 2)])
@@ -214,44 +215,44 @@ class AtlasModel():
             self.slice = np.zeros((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),dtype=np.uint8)
             cv2.putText(self.slice, "Slice out of volume!", (int(self.xyz_dict['x'][1]/3),int(self.xyz_dict['y'][1]/2)), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
     
-    def getStack(self,regViewer):
+    def getStack(self):
         # check image grayscale or RGB, only check first image, assume all grayscale/all RGB
-        image_0 = cv2.imread(os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[0]),cv2.IMREAD_UNCHANGED)
+        image_0 = cv2.imread(os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[0]),cv2.IMREAD_UNCHANGED)
         if len(image_0.shape) == 2: # gray scale [0-255]
-            self.imgStack = np.full((regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1]),-1,dtype=np.uint8) # adaptive imgStack dimension
+            self.imgStack = np.full((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1]),-1,dtype=np.uint8) # adaptive imgStack dimension
             # copy slices to stack
-            for i in range(regViewer.status.sliceNum):
-                full_path = os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[i])
+            for i in range(self.regViewer.status.sliceNum):
+                full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])
                 img_data = cv2.imread(full_path,cv2.IMREAD_GRAYSCALE)
                 self.imgStack[i,:,:] = img_data
 
         else: # 3 channel RGB/BGR or 4 channel RGBA
-            regViewer.status.imageRGB = True
-            self.imgStack = np.full((regViewer.status.sliceNum,800,1140,3),-1,dtype=np.uint8) # for RGBA also just keep RGB channels in stack
+            self.regViewer.status.imageRGB = True
+            self.imgStack = np.full((self.regViewer.status.sliceNum,800,1140,3),-1,dtype=np.uint8) # for RGBA also just keep RGB channels in stack
             # copy slices to stack
-            for i in range(regViewer.status.sliceNum):
-                full_path = os.path.join(regViewer.status.folderPath,regViewer.status.imgFileName[i])
+            for i in range(self.regViewer.status.sliceNum):
+                full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])
                 img_data = cv2.imread(full_path,cv2.IMREAD_UNCHANGED)
                 self.imgStack[i,:,:,:] = img_data[:,:,:3] # load first 3 channels of sample image to stack
 
-        print(regViewer.status.sliceNum, "Slice(s) loaded")
+        print(self.regViewer.status.sliceNum, "Slice(s) loaded")
 
 
-    def updateDotPosition(self,regViewer,mode='default'):
+    def updateDotPosition(self,mode='default'):
         # ignore if less than 5 pairs of dots
-        if len(regViewer.widget.viewerLeft.itemGroup) == 0:
+        if len(self.regViewer.widget.viewerLeft.itemGroup) == 0:
             pass
 
-        elif 0 < len(regViewer.widget.viewerLeft.itemGroup) < 5:
+        elif 0 < len(self.regViewer.widget.viewerLeft.itemGroup) < 5:
             # check if has saved coodinates
             atlas_pts = [] 
-            for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
-                                  int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
+            for dot in self.regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
+                atlas_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
+                                  int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
             sample_pts = []
-            for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
-                                   int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
+            for dot in self.regViewer.widget.viewerRight.itemGroup: # itemGroup to list
+                sample_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
+                                   int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
                 
             if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
                 pass
@@ -259,104 +260,103 @@ class AtlasModel():
                 self.atlas_pts = atlas_pts
                 self.sample_pts = sample_pts
                 # update dot record in dictionary
-                regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
-                regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
-                regViewer.status.saveRegistration()
+                self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] = atlas_pts
+                self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber] = sample_pts
+                self.regViewer.status.saveRegistration()
 
         else: # refresh dot coodinate
             atlas_pts = [] 
-            for dot in regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
-                                  int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
+            for dot in self.regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
+                atlas_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
+                                  int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
             sample_pts = []
-            for dot in regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(regViewer.status.res_up[int(dot.pos().x()) + (regViewer.status.dotRR/2)]), 
-                                   int(regViewer.status.res_up[int(dot.pos().y()) + (regViewer.status.dotRR/2)])]) # scale coordinates
+            for dot in self.regViewer.widget.viewerRight.itemGroup: # itemGroup to list
+                sample_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
+                                   int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
             if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
                 pass
             else:
                 self.atlas_pts = atlas_pts
                 self.sample_pts = sample_pts
                 # update dot record in dictionary
-                regViewer.status.atlasDots[regViewer.status.currentSliceNumber] = atlas_pts
-                regViewer.status.sampleDots[regViewer.status.currentSliceNumber] = sample_pts
-                regViewer.status.saveRegistration()
+                self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] = atlas_pts
+                self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber] = sample_pts
+                self.regViewer.status.saveRegistration()
                 # apply transformation
                     # atlas_pts ---> downscale to screen
                     # sample_pts ---> downscale to screen
-                self.updateTransform(regViewer, 
-                                     np.array([[regViewer.status.res_down[i[0]],regViewer.status.res_down[i[1]]] for i in atlas_pts]), 
-                                     np.array([[regViewer.status.res_down[i[0]],regViewer.status.res_down[i[1]]] for i in sample_pts])) # scale coordinates
+                self.updateTransform(np.array([[self.regViewer.res_down[i[0]],self.regViewer.res_down[i[1]]] for i in atlas_pts]), 
+                                     np.array([[self.regViewer.res_down[i[0]],self.regViewer.res_down[i[1]]] for i in sample_pts])) # scale coordinates
         
-    def checkSaved(self,regViewer):
+    def checkSaved(self):
         # load exist dots if there is any
-        regViewer.status.blendMode[regViewer.status.currentSliceNumber] = 1
+        self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1
         # try loading ML,DV,AP location
         try:
-            regViewer.status.x_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][0] # read atlasLocation
-            regViewer.status.y_angle = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][1]
-            regViewer.status.current_z = regViewer.status.atlasLocation[regViewer.status.currentSliceNumber][2]
+            self.regViewer.status.x_angle = self.regViewer.status.atlasLocation[self.regViewer.status.currentSliceNumber][0] # read atlasLocation
+            self.regViewer.status.y_angle = self.regViewer.status.atlasLocation[self.regViewer.status.currentSliceNumber][1]
+            self.regViewer.status.current_z = self.regViewer.status.atlasLocation[self.regViewer.status.currentSliceNumber][2]
             # update sliders
-            regViewer.widget.x_slider.setSliderPosition(int(regViewer.status.x_angle * 10))
-            regViewer.widget.y_slider.setSliderPosition(int(regViewer.status.y_angle * 10))
-            regViewer.widget.z_slider.setSliderPosition(coord_mm_transform([regViewer.status.current_z], [self.bregma[self.z_idx]],
+            self.regViewer.widget.x_slider.setSliderPosition(int(self.regViewer.status.x_angle * 10))
+            self.regViewer.widget.y_slider.setSliderPosition(int(self.regViewer.status.y_angle * 10))
+            self.regViewer.widget.z_slider.setSliderPosition(coord_mm_transform([self.regViewer.status.current_z], [self.bregma[self.z_idx]],
                                       [self.xyz_dict['z'][2]], mm_to_coord=True))
-            regViewer.widget.viewerLeft.loadSlice(regViewer) # slice atlas
+            self.regViewer.widget.viewerLeft.loadSlice() # slice atlas
 
         except KeyError: # no record at atlasLocation dictionary
             pass
 
-        if not(regViewer.status.currentSliceNumber in regViewer.status.atlasLocation):
+        if not(self.regViewer.status.currentSliceNumber in self.regViewer.status.atlasLocation):
             pass
-        elif not(regViewer.status.currentSliceNumber in regViewer.status.atlasDots):
-            regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.sliceQimg))
-        elif len(regViewer.status.atlasDots[regViewer.status.currentSliceNumber]) == 0:
-            regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.sliceQimg))
+        elif not(self.regViewer.status.currentSliceNumber in self.regViewer.status.atlasDots):
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.sliceQimg))
+        elif len(self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber]) == 0:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.sliceQimg))
         else:
-            atlas_pts = regViewer.status.atlasDots[regViewer.status.currentSliceNumber] # read dictionary, create dot object
-            sample_pts = regViewer.status.sampleDots[regViewer.status.currentSliceNumber]
+            atlas_pts = self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] # read dictionary, create dot object
+            sample_pts = self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber]
 
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                dotLeft = DotObject(regViewer.status.res_down[xyAtlas[0]], 
-                                    regViewer.status.res_down[xyAtlas[1]], 
-                                    regViewer.status.dotRR) # list to itemGroup
+                dotLeft = DotObject(self.regViewer.res_down[xyAtlas[0]], 
+                                    self.regViewer.res_down[xyAtlas[1]], 
+                                    self.regViewer.dotRR) # list to itemGroup
                 
-                dotRight = DotObject(regViewer.status.res_down[xySample[0]], 
-                                     regViewer.status.res_down[xySample[1]], 
-                                     regViewer.status.dotRR) # list to itemGroup
+                dotRight = DotObject(self.regViewer.res_down[xySample[0]], 
+                                     self.regViewer.res_down[xySample[1]], 
+                                     self.regViewer.dotRR) # list to itemGroup
                 
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
                 # add dots to scene
-                regViewer.widget.viewerLeft.scene.addItem(dotLeft)
-                regViewer.widget.viewerRight.scene.addItem(dotRight)
+                self.regViewer.widget.viewerLeft.scene.addItem(dotLeft)
+                self.regViewer.widget.viewerRight.scene.addItem(dotRight)
                 # store dot to itemGroup
-                regViewer.widget.viewerLeft.itemGroup.append(dotLeft) # add dot to leftViewer
-                regViewer.widget.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
+                self.regViewer.widget.viewerLeft.itemGroup.append(dotLeft) # add dot to leftViewer
+                self.regViewer.widget.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
 
-    def updateTransform(self,regViewer,atlas_pts,sample_pts):
+    def updateTransform(self,atlas_pts,sample_pts):
         transform = fitGeoTrans(sample_pts,atlas_pts) # save transform for prediction
         self.rtransform = fitGeoTrans(atlas_pts,sample_pts)
-        self.sampleWarp = cv2.warpPerspective(self.sample,transform,(regViewer.status.singleWindowSize[0],regViewer.status.singleWindowSize[1]))
+        self.sampleWarp = cv2.warpPerspective(self.sample,transform,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
         self.sampleBlend = cv2.addWeighted(self.slice, 0.5, self.sampleWarp, 0.5, 0)
 
-        if regViewer.status.imageRGB is False:
+        if self.regViewer.status.imageRGB is False:
             self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_Grayscale8)
             self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_Grayscale8)
         else:
             self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_BGR888)
             self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_BGR888)
 
-        if not(regViewer.status.currentSliceNumber in regViewer.status.blendMode):
-            regViewer.status.blendMode[regViewer.status.currentSliceNumber] = 1 # overlay
+        if not(self.regViewer.status.currentSliceNumber in self.regViewer.status.blendMode):
+            self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1 # overlay
         else:
             pass
-        if regViewer.status.blendMode[regViewer.status.currentSliceNumber] == 0: # all atlas
-            regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.sliceQimg))
-        elif regViewer.status.blendMode[regViewer.status.currentSliceNumber] == 1: # overlay
-            regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qBlend))
+        if self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] == 0: # all atlas
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.sliceQimg))
+        elif self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] == 1: # overlay
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qBlend))
         else:
-            regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qWarp)) # all sample
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qWarp)) # all sample
 
     
