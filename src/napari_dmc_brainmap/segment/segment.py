@@ -2,21 +2,35 @@ from napari import Viewer
 from napari.qt.threading import thread_worker
 from natsort import natsorted
 import cv2
-from napari_dmc_brainmap.utils import get_info, get_animal_id
+from napari_dmc_brainmap.utils import get_info, load_params
 from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
+import json
 import numpy as np
 import pandas as pd
 import random
 import matplotlib.colors as mcolors
-from skimage.measure import label, regionprops
+
+from aicsimageio import AICSImage
+from aicsimageio.writers import OmeTiffWriter
+
+from aicssegmentation.core.pre_processing_utils import intensity_normalization, image_smoothing_gaussian_slice_by_slice
+from aicssegmentation.core.seg_dot import dot_3d
+from aicssegmentation.core.utils import hole_filling
+
+from skimage.morphology import remove_small_objects
+from skimage.measure import label, regionprops, regionprops_table
 from napari.utils.notifications import show_info
 
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 
-def change_index(image_idx):
-    segment_widget.image_idx.value = image_idx
+
+
+# todo put these function in segment_tools.py file (to be created)
+# def change_index(image_idx):
+#     segment_widget.image_idx.value = image_idx
 
 
 def cmap_cells():
@@ -76,6 +90,95 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
     else:
         return path_to_im
 
+
+@thread_worker
+def do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
+                                              mask_folder, output_folder, seg_type='cells'):
+    single_channel = False
+    regi_bool = False
+    if single_channel:
+        print("single channel option not implemented yet, using RGBs")
+        seg_im_dir = get_info(input_path, 'rgb', only_dir=True)
+    else:
+        chan_dict = {
+            'cy3': 0,
+            'green': 1,
+            'dapi': 2
+        }
+        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
+    seg_im_list = natsorted(seg_im_list)
+
+
+    if regi_bool:
+        regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
+        regi_fn = regi_dir.joinpath("registration.json")
+        if regi_fn.is_file():
+            with open(regi_fn, 'r') as f:
+                regi_data = json.load(f)
+            print('loading reference atlas ' + params_dict['atlas_info']['atlas'] + ' ...')
+            # todo here function for loading annot_bool
+            annot_bool = 'dummy'
+        else:
+            print("NO REGISTRATION DATA FOUND")
+    print('running presegmentation of ...')
+    for chan in channels:
+        mask_dir = get_info(input_path, mask_folder, channel=chan, seg_type=seg_type,
+                            create_dir=True, only_dir=True)
+        output_dir = get_info(input_path, output_folder, channel=chan, seg_type=seg_type,
+                            create_dir=True, only_dir=True)
+        print('... channel ' + chan)
+        for im in seg_im_list:
+            print('... ' + im)
+            im_fn = seg_im_dir.joinpath(im)
+            reader = AICSImage(str(im_fn))
+            img = reader.data.astype(np.float32)  # input image is a single RGB image
+            structure_channel = chan_dict[chan] # 0:cy3, 1:green, 2:dapi for RGB
+            struct_img0 = img[0, 0, 0, :, :, structure_channel].copy()
+            struct_img0 = np.array([struct_img0, struct_img0])  # make duplicate layer stack
+            # preprocessing
+            intensity_scaling_param = [0.5,17.5] # default[1000], [0.5,17.5] works better
+            gaussian_smoothing_sigma = 1
+            struct_img = intensity_normalization(struct_img0, scaling_param=intensity_scaling_param)
+            structure_img_smooth = image_smoothing_gaussian_slice_by_slice(struct_img, sigma=gaussian_smoothing_sigma)
+            # core
+            response = dot_3d(structure_img_smooth, log_sigma=1.0)
+            bw = response > 0.03
+            # postprocessing
+            bw_filled = hole_filling(bw, 0, 81, True)
+            seg = remove_small_objects(bw_filled, min_size=7, connectivity=1) # min_size=3 a lot of small objects detected # ,min size 6 is still too small
+            # output segmentation binary image
+            seg = seg>0
+            seg = seg.astype(np.uint8)
+            seg[seg>0]=255
+            if np.mean(seg[0]) == 0:
+                pass
+            else:
+                # write binary image to file
+                writer = OmeTiffWriter()
+                mask_save_fn = mask_dir.joinpath(im[:-len(seg_im_suffix)] + '_masks.tiff')
+                writer.save(seg[0], str(mask_save_fn)) # save only one layer binary image
+                # centroid detection
+                label_img = label(seg[0])
+                props = regionprops_table(label_img, properties=['centroid'])
+                if regi_bool:
+                    dim_rgb = seg[0].shape
+                    x_res = params_dict["atlas_info"]["resolution"][0]
+                    y_res = params_dict["atlas_info"]["resolution"][1]
+                    x_rgb = props["centroid-1"] / dim_rgb[1] * x_res
+                    y_rgb = props["centroid-0"] / dim_rgb[0] * y_res
+                    for k, v in regi_data['imgName'].items():
+                        if v.startswith(im[:-len(seg_im_suffix)]):
+                            regi_index = k
+                    # get transformation
+                    tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
+                    # slice annotation volume
+                    ml_angle, dv_angle, ap = regi_data['atlasLocation'][regi_index]
+                    # annot_slice = angleSlice(ml_angle, dv_angle, ap, annot_vol)
+                else:
+                    csv_to_save = pd.DataFrame(props)
+                    csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
+                    csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
+                    csv_to_save.to_csv(csv_save_name)
 @thread_worker
 def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type='cells'):
     for chan in channels:
@@ -212,6 +315,51 @@ def initialize_loadpreseg_widget() -> FunctionGui:
     return load_preseg_widget
 
 
+def initialize_dopreseg_widget():
+    @magicgui(layout='vertical',
+              single_channel_bool=dict(widget_type='CheckBox',
+                                       text='use single channel',
+                                       value=False,
+                                       tooltip='tick to use single channel images (not RGB), one can still select '
+                                               'multiple channels'),
+              regi_bool=dict(widget_type='CheckBox',
+                                       text='registration done?',
+                                       value=True,
+                                       tooltip='tick to indicate if brain was registered (it is advised to register'
+                                               'the brain first to exclude presegmentation artefacts outside of the '
+                                               'brain'),
+              regi_chan=dict(widget_type='ComboBox',
+                                     label='registration channel',
+                                     choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                                     value='green',
+                                     tooltip='select the registration channel (images need to be in sharpy track folder)'),
+              seg_type=dict(widget_type='ComboBox',
+                            label='segmentation type',
+                            choices=['cells'], value='cells',
+                            tooltip='select segmentation type to load'), # todo other than cells?
+              mask_folder=dict(widget_type='LineEdit',
+                                 label='masks folder)',
+                                 value='segmentation_masks',
+                                 tooltip='name of output folder for storing segmentation masks'),
+
+              output_folder=dict(widget_type='LineEdit',
+                                 label='output folder',
+                                 value='segmentation',
+                                 tooltip='name of output folder for storing the presegmentation results'),
+              call_button=False)
+    def do_preseg_widget(
+            viewer: Viewer,
+            single_channel_bool,
+            regi_bool,
+            regi_chan,
+            seg_type,
+            mask_folder,
+            output_folder):
+        pass
+
+    return do_preseg_widget
+
+
 def initialize_findcentroids_widget():
     @magicgui(layout='vertical',
               mask_folder=dict(widget_type='LineEdit', 
@@ -248,9 +396,16 @@ class SegmentWidget(QWidget):
         self.segment = initialize_segment_widget()
         self.save_dict = default_save_dict()
 
-        self._collapse_preseg = QCollapsible('Load pre-segmented data: expand for more', self)
-        self.preseg = initialize_loadpreseg_widget()
-        self._collapse_preseg.addWidget(self.preseg.native)
+        self._collapse_load_preseg = QCollapsible('Load pre-segmented data: expand for more', self)
+        self.load_preseg = initialize_loadpreseg_widget()
+        self._collapse_load_preseg.addWidget(self.load_preseg.native)
+
+        self._collapse_do_preseg = QCollapsible('Do presegmentation of data: expand for more', self)
+        self.do_preseg = initialize_dopreseg_widget()
+        self._collapse_do_preseg.addWidget(self.do_preseg.native)
+        btn_do_preseg = QPushButton("run presegmentation and store data")
+        btn_do_preseg.clicked.connect(self._do_presegmentation)
+        self._collapse_do_preseg.addWidget(btn_do_preseg)
 
         self._collapse_center = QCollapsible('Find centroids for pre-segmented data (masks): expand for more', self)
         self.center = initialize_findcentroids_widget()
@@ -263,7 +418,8 @@ class SegmentWidget(QWidget):
         btn.clicked.connect(self._save_and_load)
 
         self.layout().addWidget(self.segment.native)
-        self.layout().addWidget(self._collapse_preseg)
+        self.layout().addWidget(self._collapse_load_preseg)
+        self.layout().addWidget(self._collapse_do_preseg)
         self.layout().addWidget(self._collapse_center)
         self.layout().addWidget(btn)
 
@@ -319,7 +475,8 @@ class SegmentWidget(QWidget):
 
         show_info("loaded " + path_to_im.parts[-1] + " (cnt=" + str(image_idx) + ")")
         image_idx += 1
-        change_index(image_idx)
+        self.segment.image_idx.value = image_idx
+        # change_index(image_idx)
 
 
     def _load_rgb(self, path_to_im, channels, contrast_dict):
@@ -343,8 +500,8 @@ class SegmentWidget(QWidget):
 
     def _load_preseg_object(self, input_path, chan, image_idx):
 
-        pre_seg_folder = self.preseg.pre_seg_folder.value
-        pre_seg_type = self.preseg.seg_type.value
+        pre_seg_folder = self.load_preseg.pre_seg_folder.value
+        pre_seg_type = self.load_preseg.seg_type.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=pre_seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(im_name.split('.')[0])]
@@ -368,7 +525,7 @@ class SegmentWidget(QWidget):
                 self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
         elif seg_type == 'cells':
             cmap_dict = cmap_cells()
-            if self.preseg.load_bool.value:  # loading presegmented cells
+            if self.load_preseg.load_bool.value:  # loading presegmented cells
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx)
                     self.viewer.add_points(pre_seg_data, size=5, name=chan, face_color=cmap_dict[chan])
@@ -427,4 +584,18 @@ class SegmentWidget(QWidget):
         output_folder = self.center.output_folder.value
         center_worker = get_center_coord(input_path, channels, mask_folder, output_folder, mask_type=mask_type)
         center_worker.start()
+
+    def _do_presegmentation(self):
+        input_path = self.segment.input_path.value
+        params_dict = load_params(input_path)
+        channels = self.segment.channels.value
+        single_channel = self.do_preseg.single_channel_bool.value
+        regi_bool = self.do_preseg.regi_bool.value
+        regi_chan = self.do_preseg.regi_chan.value
+        seg_type = self.do_preseg.seg_type.value
+        mask_folder = self.do_preseg.mask_folder.value
+        output_folder = self.do_preseg.output_folder.value
+        do_preseg_worker = do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
+                                              mask_folder, output_folder, seg_type=seg_type)
+        do_preseg_worker.start()
 
