@@ -36,38 +36,35 @@ class AtlasModel():
     def loadTemplate(self):
         brainglobe_dir = Path.home() / ".brainglobe"
         atlas_name_general  = f"{self.regi_dict['atlas']}_v*"
-        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # if error: could be multiple local versions
+        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # glob returns generator object, need to exhaust it in list, then take out
 
-        if self.regi_dict['atlas'] == "allen_mouse_10um": # when atlas is allen mouse 100um, downsample and save a reference volume 8-bit copy
-            print('checking template volume...')
-            if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')): # when directory has 8-bit template volume, load it
-                print('loading template volume...')
-                self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
+        # for any atlas else, in this case test with zebrafish atlas
+        print('checking template volume...')
+        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy')): # when directory has 8-bit template volume, load it
+            print('loading template volume...')
+            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'))
 
-            else: # when 8-bit template not found
-                print('loading template volume...')
-                self.template = self.atlas.reference # load 16-bit template
-                print('creating 8-bit reference volume...')
-                self.template = (self.template / 516 * 255).astype(np.uint8) # adjust brightness and downsample to 8-bit
-                np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) # save volume for next time loading
-        
-        elif self.regi_dict['atlas'] == "whs_sd_rat_39um": # when atlas is whs sd rat 39um, downsample and save a reference volume 8-bit copy
-            # other atlas save downsampled reference atlas here, if needed
-            print('checking template volume...')
-            if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')):
-                print('loading template volume...')
-                self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
-            else:
-                print('loading template volume...')
-                self.template = self.atlas.reference
-                print('creating 8-bit reference volume...')
-                self.template = (self.template / 20000 * 255).astype(np.uint8)
-                np.save(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'), self.template) 
-        
-        else: # for any atlas else, in this case zebrafish
-            print("loading template volume...")
+        else: # when saved template not found
+            # check if template volume from brainglobe is already 8-bit
             self.template = self.atlas.reference
-
+            if np.issubdtype(self.template.dtype,np.uint16): # check if template is 16-bit
+                print('creating 8-bit template volume...')
+                # rescale intensity
+                lim_16_min = self.template.min()
+                lim_16_max = self.template.max()
+                self.template = self.template - lim_16_min # adjust brightness and downsample to 8-bit
+                self.template = self.template / (lim_16_max-lim_16_min) * 255
+                self.template = self.template.astype(np.uint8)
+                # save to 8-bit npy file
+                np.save(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'), self.template) # save volume for next time loading
+            
+            elif np.issubdtype(self.template.dtype,np.uint8): # if 8-bit, no need for downsample
+                pass
+            else: # other nparray.dtype
+                print("Data type for reference volume: {}".format(self.template.dtype))
+                print("at : {}".format(os.path.join(brainglobe_dir,atlas_names_local,'reference.tiff')))
+                print("8-bit / 16-bit grayscale volume is required.")
+                print("Reference volume cannot be correctly loaded to RegistrationViewer!")
 
 
 

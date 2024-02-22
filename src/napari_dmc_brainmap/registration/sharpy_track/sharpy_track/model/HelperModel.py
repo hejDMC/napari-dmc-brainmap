@@ -77,7 +77,7 @@ class HelperModel():
     def update_anchor(self):
         self.anchor_dict = {}
         for a in self.active_anchor:
-            self.anchor_dict[a.spinSliceIndex.value()] = np.round(a.spinAPmm.value(),2)
+            self.anchor_dict[a.spinSliceIndex.value()] = np.round(a.spinAPmm.value(),self.regViewer.status.decimal)
         self._update_mapping()
         
     
@@ -110,14 +110,14 @@ class HelperModel():
                 # use anchor 0,1 for interpolation
                 step = (self.anchor_dict[slice_id_list[0]]-self.anchor_dict[slice_id_list[1]])/(slice_id_list[1] - slice_id_list[0])
                 step_n = slice_id_list[0] - slice_id
-                ap_from_id = np.round(self.anchor_dict[slice_id_list[0]] + step_n * step,2)
+                ap_from_id = np.round(self.anchor_dict[slice_id_list[0]] + step_n * step,self.regViewer.status.decimal)
 
             elif slice_id > slice_id_list[-1]:
                 # print("Segment {} ~ {}".format(slice_id_list[-1],self.total_num-1))
                 # use anchor -2,-1 for interpolation
                 step = (self.anchor_dict[slice_id_list[-1]]-self.anchor_dict[slice_id_list[-2]])/(slice_id_list[-1] - slice_id_list[-2])
                 step_n = slice_id - slice_id_list[-1]
-                ap_from_id = np.round(self.anchor_dict[slice_id_list[-1]] + step_n * step,2)
+                ap_from_id = np.round(self.anchor_dict[slice_id_list[-1]] + step_n * step,self.regViewer.status.decimal)
 
             else:
                 for i in range(len(slice_id_list)):
@@ -127,6 +127,6 @@ class HelperModel():
                             # use anchor i-1,i for interpolation
                             step = (self.anchor_dict[slice_id_list[i-1]]-self.anchor_dict[slice_id_list[i]])/(slice_id_list[i] - slice_id_list[i-1])
                             step_n = slice_id_list[i] - slice_id
-                            ap_from_id = np.round(self.anchor_dict[slice_id_list[i]] + step_n * step,2)
+                            ap_from_id = np.round(self.anchor_dict[slice_id_list[i]] + step_n * step,self.regViewer.status.decimal)
         return ap_from_id
         

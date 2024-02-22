@@ -21,6 +21,7 @@ class ProbeVisualizer(QMainWindow):
         super().__init__()
         self.app = app
         self.params_dict = params_dict
+        self.calculate_z_decimal()
         self.setWindowTitle("Probe Visualizer")
         # get primary screen size
         QAppInstance = QApplication.instance()
@@ -46,22 +47,55 @@ class ProbeVisualizer(QMainWindow):
         self.applySizePolicy(shape)
         self.widget = MainWidget(self, shape, resolution)
         self.setCentralWidget(self.widget.widget)
-        
+
     
+    def calculate_z_decimal(self):
+        step_float = self.params_dict['atlas_info']['xyz_dict']['z'][2] / 1000
+        # by default keep 2 decimals
+        decimal = 2
+        if np.round(step_float,decimal) == 0: # extend decimal
+            while np.abs(np.round(step_float,decimal)-step_float) >= 0.01 * step_float:
+                decimal += 1
+        else:
+            pass
+        self.decimal = decimal
+
+        
     def loadTemplate(self):
-        print('loading template volume...')
-        # check if there is downsampled 8 bit volume, otherwise do realtime 8 bit conversion
         brainglobe_dir = Path.home() / ".brainglobe"
         atlas_name_general  = f"{self.params_dict['atlas_info']['atlas']}_v*"
-        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0]
+        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # glob returns generator object, need to exhaust it in list, then take out
 
-        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy')): # if there is 8-bit volume, load this
-            print("local 8-bit volume found, loading 8-bit volume...")
-            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'template_8bit.npy'))
-        else: # otherwise convert from brainglobe 16 bit volume
+        # for any atlas else, in this case test with zebrafish atlas
+        print('checking template volume...')
+        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy')): # when directory has 8-bit template volume, load it
+            print('loading template volume...')
+            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'))
+
+        else: # when saved template not found
+            # check if template volume from brainglobe is already 8-bit
             self.template = self.atlas.reference
-            self.template = adjust_contrast(self.template, (0, self.template.max()))
-            self.template = do_8bit(self.template)
+            if np.issubdtype(self.template.dtype,np.uint16): # check if template is 16-bit
+                print('creating 8-bit template volume...')
+                # rescale intensity
+                lim_16_min = self.template.min()
+                lim_16_max = self.template.max()
+                self.template = self.template - lim_16_min # adjust brightness and downsample to 8-bit
+                self.template = self.template / (lim_16_max-lim_16_min) * 255
+                self.template = self.template.astype(np.uint8)
+                # save to 8-bit npy file
+                np.save(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'), self.template) # save volume for next time loading
+            
+            elif np.issubdtype(self.template.dtype,np.uint8): # if 8-bit, no need for downsample
+                pass
+            else: # other nparray.dtype
+                print("Data type for reference volume: {}".format(self.template.dtype))
+                print("at : {}".format(os.path.join(brainglobe_dir,atlas_names_local,'reference.tiff')))
+                print("8-bit / 16-bit grayscale volume is required.")
+                print("Reference volume cannot be correctly loaded to ProbeVisualizer!")
+
+
+        
 
     def loadAnnot(self):
         self.annot = self.atlas.annotation.transpose(self.ori_idx)  # change axis of atlas to match [ap, dv, ml] order
@@ -220,11 +254,11 @@ class ProbeVisualizer(QMainWindow):
     def getCoordMM(self,vox_index):
         vox_ap,vox_dv,vox_ml = vox_index
         ap_mm = np.round((self.bregma[0] - vox_ap) *
-                         (self.atlas.resolution[self.atlas.space.axes_description.index('ap')]/1000),2)
+                         (self.atlas.resolution[self.atlas.space.axes_description.index('ap')]/1000),self.decimal)
         dv_mm = np.round((self.bregma[1] - vox_dv) *
-                         (self.atlas.resolution[self.atlas.space.axes_description.index('si')] / 1000), 2)
+                         (self.atlas.resolution[self.atlas.space.axes_description.index('si')] / 1000), self.decimal)
         ml_mm = np.round((self.bregma[2] - vox_ml) *
-                         (self.atlas.resolution[self.atlas.space.axes_description.index('rl')] / 1000), 2)
+                         (self.atlas.resolution[self.atlas.space.axes_description.index('rl')] / 1000), self.decimal)
         return [ap_mm,dv_mm,ml_mm]
 
     def createMenus(self):

@@ -26,6 +26,20 @@ class StatusContainer():
         self.imgFileName = None
         self.folderPath = None
         self.imageRGB = False
+        self.calculate_z_decimal()
+
+    
+    def calculate_z_decimal(self):
+        step_float = self.xyz_dict['z'][2] / 1000
+        # by default keep 2 decimals
+        decimal = 2
+        if np.round(step_float,decimal) == 0: # extend decimal
+            while np.abs(np.round(step_float,decimal)-step_float) >= 0.01 * step_float:
+                decimal += 1
+        else:
+            pass
+        self.decimal = decimal
+
 
 
     def sampleChanged(self):
@@ -51,7 +65,7 @@ class StatusContainer():
         self.current_z = np.round(coord_mm_transform([0], [self.bregma[self.z_idx]],
                                       [self.xyz_dict['z'][2]]) - 
                                       self.regViewer.widget.z_slider.value() /
-                                        (1000/self.xyz_dict['z'][2]), 2) # adapt Z step from atlas resolution
+                                        (1000/self.xyz_dict['z'][2]), self.decimal) # adapt Z step from atlas resolution
         self.regViewer.widget.viewerLeft.loadSlice()
 
     def x_changed(self):
@@ -94,10 +108,10 @@ class StatusContainer():
         if (self.cursor == -1) & (self.tMode == 0) & (self.regViewer.widget.toggle.isEnabled()): # tMode OFF, inside viewerLeft
             if event.angleDelta().y() < 0: # scrolling towards posterior
                 self.current_z -= self.xyz_dict['z'][2] / 1000
-                self.current_z = np.round(self.current_z, 2)
+                self.current_z = np.round(self.current_z, self.decimal)
             elif event.angleDelta().y() > 0: # scrolling towards anterior
                 self.current_z += self.xyz_dict['z'][2] / 1000
-                self.current_z = np.round(self.current_z, 2)
+                self.current_z = np.round(self.current_z, self.decimal)
             else:
                 pass
 
