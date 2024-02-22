@@ -411,43 +411,43 @@ class PreprocessingWidget(QWidget):
         params_dict = {
             "general":
                 {
-                    "animal_id": get_animal_id(self.header_widget.input_path.value),
-                    "chans_imaged": self.header_widget.chans_imaged.value
+                    "animal_id": get_animal_id(self.header.input_path.value),
+                    "chans_imaged": self.header.chans_imaged.value
                 },
             "operations":
                 {
-                    "rgb": self.do_rgb.button.value,
-                    "single_channel": self.do_single_channel.button.value,
-                    "stack": self.do_stack.button.value,
-                    "sharpy_track": self.do_sharpy.button.value,
-                    "binary": self.do_binary.button.value
+                    "rgb": self.rgb_widget.button.value,
+                    "single_channel": self.single_channel_widget.button.value,
+                    "stack": self.stack_widget.button.value,
+                    "sharpy_track": self.sharpy_widget.button.value,
+                    "binary": self.binary_widget.button.value
                 },
-            "rgb_params": self._get_info(self.do_rgb, rgb=True),
-            "single_channel_params": self._get_info(self.do_single_channel),
-            "stack_params": self._get_info(self.do_stack),
-            "sharpy_track_params": self._get_info(self.do_sharpy),
+            "rgb_params": self._get_info(self.rgb_widget, rgb=True),
+            "single_channel_params": self._get_info(self.single_channel_widget),
+            "stack_params": self._get_info(self.stack_widget),
+            "sharpy_track_params": self._get_info(self.sharpy_widget),
             "binary_params":
                 {
-                    "channels": self.do_binary.channels.value,
-                    "downsampling": self.do_binary.ds_params.value,
-                    "thresh": int(self.do_binary.thresh_bool.value),
-                    "dapi": int(self.do_binary.thresh_dapi.value),
-                    "green": int(self.do_binary.thresh_green.value),
-                    "n3": int(self.do_binary.thresh_n3.value),
-                    "cy3": int(self.do_binary.thresh_cy3.value),
-                    "cy5": int(self.do_binary.thresh_cy5.value)
+                    "channels": self.binary_widget.channels.value,
+                    "downsampling": self.binary_widget.ds_params.value,
+                    "thresh": int(self.binary_widget.thresh_bool.value),
+                    "dapi": int(self.binary_widget.thresh_dapi.value),
+                    "green": int(self.binary_widget.thresh_green.value),
+                    "n3": int(self.binary_widget.thresh_n3.value),
+                    "cy3": int(self.binary_widget.thresh_cy3.value),
+                    "cy5": int(self.binary_widget.thresh_cy5.value)
                 }
         }
         return params_dict
 
     def _do_preprocessing(self):
-        input_path = self.header_widget.input_path.value
+        input_path = self.header.input_path.value
         preprocessing_params = self._get_preprocessing_params()
 
         save_dirs = create_dirs(preprocessing_params, input_path)
         filter_list = preprocessing_params['general']['chans_imaged']
         img_list = get_im_list(input_path)
-        num_cores = self.footer_widget.num_cores.value
+        num_cores = self.footer.num_cores.value
         params_dict = load_params(input_path)
         resolution = params_dict['atlas_info']['resolution']
         preprocessing_worker = do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params,

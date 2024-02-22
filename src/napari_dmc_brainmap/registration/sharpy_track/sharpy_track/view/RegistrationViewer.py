@@ -170,5 +170,5 @@ class RegistrationViewer(QMainWindow):
         self.helperPage.show()
 
 
-    # def closeEvent(self, event) -> None:
-    #     self.regViewerWidget.del_regviewer_instance()
+    def closeEvent(self, event) -> None:
+        self.regViewerWidget.del_regviewer_instance()

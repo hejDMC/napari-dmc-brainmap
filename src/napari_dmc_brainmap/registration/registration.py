@@ -51,12 +51,14 @@ class RegistrationWidget(QWidget):
         self.reg_viewer.show()
 
 
-    # def del_regviewer_instance(self): # temporary fix for memory leak, get back to this in the future
-    #     del self.reg_viewer.regViewerWidget
-    #     del self.reg_viewer.app
-    #     del self.reg_viewer.regi_dict
-    #     del self.reg_viewer.widget
-    #     del self.reg_viewer.status
-    #     del self.reg_viewer.atlasModel
-    #     del self.reg_viewer
+    def del_regviewer_instance(self): # temporary fix for memory leak, maybe not complete, get back to this in the future
+        self.reg_viewer.widget.viewerLeft.scene.changed.disconnect()
+        self.reg_viewer.widget.viewerRight.scene.changed.disconnect()
+        del self.reg_viewer.regViewerWidget
+        del self.reg_viewer.app
+        del self.reg_viewer.regi_dict
+        del self.reg_viewer.widget
+        del self.reg_viewer.status
+        del self.reg_viewer.atlasModel
+        del self.reg_viewer
         
