@@ -39,6 +39,7 @@ class StatusContainer():
         else:
             pass
         self.decimal = decimal
+        self.z_step = np.round(step_float,self.decimal)
 
 
 
@@ -107,10 +108,10 @@ class StatusContainer():
         ## update viewerLeft
         if (self.cursor == -1) & (self.tMode == 0) & (self.regViewer.widget.toggle.isEnabled()): # tMode OFF, inside viewerLeft
             if event.angleDelta().y() < 0: # scrolling towards posterior
-                self.current_z -= self.xyz_dict['z'][2] / 1000
+                self.current_z -= self.z_step
                 self.current_z = np.round(self.current_z, self.decimal)
             elif event.angleDelta().y() > 0: # scrolling towards anterior
-                self.current_z += self.xyz_dict['z'][2] / 1000
+                self.current_z += self.z_step
                 self.current_z = np.round(self.current_z, self.decimal)
             else:
                 pass

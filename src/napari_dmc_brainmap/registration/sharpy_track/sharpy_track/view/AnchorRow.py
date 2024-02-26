@@ -1,6 +1,5 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSpinBox,QLabel,QPushButton,QDoubleSpinBox
-from napari_dmc_brainmap.utils import coord_mm_transform
 import numpy as np
 
 class AnchorRow(QWidget):
@@ -27,10 +26,10 @@ class AnchorRow(QWidget):
         self.anc_hbox.addWidget(self.sliceNameLabel)
 
         self.spinAPmm = QDoubleSpinBox()
-        self.spinAPmm.setDecimals(2)
-        self.spinAPmm.setMinimum(-7.80)
-        self.spinAPmm.setMaximum(5.40)
-        self.spinAPmm.setSingleStep(0.01)
+        self.spinAPmm.setDecimals(self.regHelper.regViewer.status.decimal)
+        self.spinAPmm.setMinimum(regHelper.helperModel.z_mm_pos)
+        self.spinAPmm.setMaximum(regHelper.helperModel.z_mm_ant)
+        self.spinAPmm.setSingleStep(self.regHelper.regViewer.status.z_step)
         self.spinAPmm.setValue(regHelper.regViewer.status.current_z) # ap_mm
         self.spinAPmm.setPrefix("AP: ")
         self.spinAPmm.setSuffix(" mm")

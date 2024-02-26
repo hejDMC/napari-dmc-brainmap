@@ -6,23 +6,53 @@ from PyQt5.QtGui import QPixmap,QImage
 class HelperModel():
     def __init__(self,regViewer):
         self.regViewer = regViewer
-        self.saggital_mid = regViewer.atlasModel.template[:,:,570].T
-        self.get_location_img0()
+        saggital_mid_index = int(regViewer.atlasModel.xyz_dict['x'][1]/2)
+        self.saggital_mid = regViewer.atlasModel.template[:,:,saggital_mid_index].T
+        self.get_illustration_stats()
         self.anchor_dict = {}
         self.mapping_dict = {}
         self.total_num = regViewer.status.sliceNum
         self.active_anchor = []
+        self.get_location_img0()
+
+
+    def get_illustration_stats(self):
+        self.bregma_z_vox = self.regViewer.atlasModel.bregma[self.regViewer.atlasModel.z_idx] # 540 from [540,0,570]
+        self.z_vox_max = self.regViewer.atlasModel.xyz_dict['z'][1]
+        
+        self.z_mm_ant = np.round((self.bregma_z_vox * self.regViewer.atlasModel.xyz_dict['z'][2])/1000,  # convert um to mm
+                                 self.regViewer.status.decimal)
+        self.z_mm_pos = np.round(
+            (
+            (
+            self.bregma_z_vox - self.z_vox_max + 1
+            ) * self.regViewer.atlasModel.xyz_dict['z'][2]
+            ) /1000,
+            self.regViewer.status.decimal)
+
+        if self.z_mm_ant > 0:
+            self.z_mm_ant_str = "+{}mm".format(self.z_mm_ant)
+        else:
+            self.z_mm_ant_str = "{}mm".format(self.z_mm_ant)
+
+        self.z_mm_pos_str = "{}mm".format(self.z_mm_pos)
+
+        self.figsize = [self.saggital_mid.shape[1] * 4 / 1140,
+                        self.saggital_mid.shape[0] * 3 / 800]
+
+
 
     
     def get_location_img0(self): # initiate bregma only
-        fig,ax = plt.subplots(figsize=(4,3),nrows=1,ncols=1)
+        fig,ax = plt.subplots(figsize=(self.figsize[0],self.figsize[1]),nrows=1,ncols=1)
         ax.imshow(self.saggital_mid,cmap='gray')
         ax.get_yaxis().set_visible(False)
         ax.xaxis.tick_top()
-        ax.set_xlim(0,1320)
-        ax.set_xticks([0,540,1320],labels=["+5.4 mm","0 mm","-7.8 mm"])
+        ax.set_xlim(0,self.regViewer.atlasModel.xyz_dict['z'][1]-1)
+        ax.set_xticks([0,self.bregma_z_vox,self.z_vox_max-1],
+                      labels=[self.z_mm_ant_str,"0 mm",self.z_mm_pos_str],fontsize=7)
         
-        fig.tight_layout(pad=0)
+        # fig.tight_layout(pad=0)
         fig.canvas.draw()
         img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         self.img0 = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
@@ -30,34 +60,35 @@ class HelperModel():
     
 
     def update_illustration(self):
-        fig,ax = plt.subplots(figsize=(4,3),nrows=1,ncols=1)
+        fig,ax = plt.subplots(figsize=(self.figsize[0],self.figsize[1]),nrows=1,ncols=1)
         ax.imshow(self.saggital_mid,cmap='gray')
         ax.get_yaxis().set_visible(False)
         ax.xaxis.tick_top()
-        ax.set_xlim(0,1320)
-        ax.set_xticks([0,540,1320],labels=["+5.4 mm","0 mm","-7.8 mm"])
+        ax.set_xlim(0,self.regViewer.atlasModel.xyz_dict['z'][1]-1)
+        ax.set_xticks([0,self.bregma_z_vox,self.z_vox_max-1],
+                      labels=[self.z_mm_ant_str,"0 mm",self.z_mm_pos_str],fontsize=7)
 
         if len(self.anchor_dict.keys())<2:
             pass # empty mapping_dict
         else:
             for v in self.mapping_dict.values():
-                ax.axvline(int(540-100*v),color='blue',linewidth=1)
+                ax.axvline(int(self.bregma_z_vox-(1000/self.regViewer.atlasModel.xyz_dict['z'][2])*v),color='blue',linewidth=1)
         
         if len(self.anchor_dict.keys())==0:
             pass # empty anchor_dict
         else:
             for k,v in self.anchor_dict.items():
-                ax.axvline(int(540-100*v),color='yellow',linewidth=1)
+                ax.axvline(int(self.bregma_z_vox-(1000/self.regViewer.atlasModel.xyz_dict['z'][2])*v),color='yellow',linewidth=1)
 
-                ax.annotate(text="i={}".format(k),
-                    xy=(int(540-100*v),800),
-                    xytext=(50,-50),
+                ax.annotate(text="{}".format(k),
+                    xy=(int(self.bregma_z_vox-(1000/self.regViewer.atlasModel.xyz_dict['z'][2])*v),self.regViewer.atlasModel.xyz_dict['y'][1]),
+                    xytext=(15,-15),
                     xycoords="data",
                     textcoords="offset points",
                     arrowprops={"arrowstyle":"simple",
                                 "facecolor":"yellow",
                                 "lw": 0.5})
-        fig.tight_layout(pad=0)
+        # fig.tight_layout(pad=0)
         fig.canvas.draw()
         img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         self.img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))

@@ -12,7 +12,7 @@ class RegistrationHelper(QMainWindow):
         self.regViewer = regViewer
         self.helperModel = HelperModel(regViewer)
         self.setWindowTitle("Registration Helper")
-        self.setFixedSize(int(regViewer.fullWindowSize[0]/2),regViewer.fullWindowSize[1])
+        self.setFixedSize(int(regViewer.fullWindowSize[0]/1.5),regViewer.fullWindowSize[1])
         self.mainWidget = QWidget()
         # setup layout
         self.mainLayout = QVBoxLayout()

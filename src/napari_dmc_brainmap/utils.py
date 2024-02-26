@@ -208,7 +208,7 @@ def get_bregma(atlas_id):
 
     bregma_dict = {
         "allen_mouse_10um": [540, 0, 570], # Ref: https://github.com/cortex-lab/allenCCF/blob/master/Browsing%20Functions/allenCCFbregma.m 
-        "whs_sd_rat_39um": [371, 246, 72], # Ref: Papp EA. Neuroimage. 2014 Aug 15;97:374-86. doi: 10.1016/j.neuroimage.2014.04.001.
+        "whs_sd_rat_39um": [371, 72, 266], # Ref: Papp EA. Neuroimage. 2014 Aug 15;97:374-86. doi: 10.1016/j.neuroimage.2014.04.001.
         "azba_zfish_4um" : [360, 0, 335] # Ref: cannot really find one, by looking at the saggital section, it seems around 350 to 400 AP voxel
     }
     if atlas_id in bregma_dict.keys():
