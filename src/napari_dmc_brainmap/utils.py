@@ -249,7 +249,7 @@ def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord = False):
     if mm_to_coord:
         triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
-    else:
+    else: # fix hard coded 2
         triplet_new = [round((br_coord - coord) * (res/1000), 2) for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
     if len(triplet_new) == 1:
