@@ -153,7 +153,7 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
 
 
 @thread_worker
-def do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
+def do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan, preseg_params,
                                               start_end_im, mask_folder, output_folder, seg_type='cells'):
 
     xyz_dict = params_dict['atlas_info']['xyz_dict']
@@ -174,7 +174,6 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
             regi_bool = False
     print('running presegmentation of ...')
 
-    single_channel = False
     if not single_channel:
         chan_dict = {
             'cy3': 0,
@@ -211,16 +210,16 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
                 struct_img0 = img[0, 0, 0, :, :, structure_channel].copy()
             struct_img0 = np.array([struct_img0, struct_img0])  # make duplicate layer stack
             # preprocessing
-            intensity_scaling_param = [0.5,17.5] # default[1000], [0.5,17.5] works better
-            gaussian_smoothing_sigma = 1
+            intensity_scaling_param = preseg_params["intensity_norm"] # default[1000], [0.5,17.5] works better
+            gaussian_smoothing_sigma = preseg_params["gaussian_smoothing_sigma"]
             struct_img = intensity_normalization(struct_img0, scaling_param=intensity_scaling_param)
             structure_img_smooth = image_smoothing_gaussian_slice_by_slice(struct_img, sigma=gaussian_smoothing_sigma)
             # core
-            response = dot_3d(structure_img_smooth, log_sigma=1.0)
-            bw = response > 0.03
+            response = dot_3d(structure_img_smooth, log_sigma=preseg_params["dot_3d_sigma"])
+            bw = response > preseg_params["dot_3d_cutoff"]
             # postprocessing
-            bw_filled = hole_filling(bw, 0, 81, True)
-            seg = remove_small_objects(bw_filled, min_size=7, connectivity=1) # min_size=3 a lot of small objects detected # ,min size 6 is still too small
+            bw_filled = hole_filling(bw, preseg_params["hole_min_max"][0], preseg_params["hole_min_max"][1], True)
+            seg = remove_small_objects(bw_filled, min_size=preseg_params["minArea"], connectivity=1) # min_size=3 a lot of small objects detected # ,min size 6 is still too small
             # output segmentation binary image
             seg = seg>0
             seg = seg.astype(np.uint8)
@@ -431,8 +430,29 @@ def initialize_dopreseg_widget():
                             label='segmentation type',
                             choices=['cells'], value='cells',
                             tooltip='select segmentation type to load'), # todo other than cells?
+              intensity_norm=dict(widget_type='LineEdit', label='intensity normalization', value='0.5,17.5',
+                                  tooltip='intensity normalization parameter for rab5a model from aics-segmentation;'
+                                          'https://github.com/AllenInstitute/aics-segmentation'),
+              gaussian_smoothing_sigma=dict(widget_type='LineEdit', label='gauss. smooth. sigma', value='1',
+                                            tooltip='gaussian smoothing sigma parameter for rab5a model from aics-segmentation;'
+                                                    'https://github.com/AllenInstitute/aics-segmentation'),
+              #gaussian_smoothing_truncate_range=dict(widget_type='LineEdit', label='gauss. smooth. trunc. range',
+              #                                       value='',
+              #                                       tooltip='gaussian smoothing truncate range parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+              dot_3d_sigma=dict(widget_type='LineEdit', label='dot 3d sigma',
+                                                     value='1',
+                                                     tooltip='dot 3d sigma parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+              dot_3d_cutoff=dict(widget_type='LineEdit', label='dot 3d cutoff',
+                                                     value='0.03',
+                                                     tooltip='dot 3d cutoff parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+              hole_min_max=dict(widget_type='LineEdit', label='hole min/max',
+                                                     value='0,81',
+                                                     tooltip='hole min/max parameters (COMMA SEPARATED) for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+              minArea=dict(widget_type='LineEdit', label='min. area',
+                                                     value='3',
+                                                     tooltip='min area parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               start_end_im=dict(widget_type='LineEdit', label='image range to presegment', value='',
-                                  tooltip='if you only want to segment a subset of images enter COMMA SEPERATED indices '
+                                  tooltip='if you only want to segment a subset of images enter COMMA SEPARATED indices '
                                           'of the first and last image to presegment, e.g. 0,10'),
               mask_folder=dict(widget_type='LineEdit',
                                  label='masks folder)',
@@ -450,6 +470,13 @@ def initialize_dopreseg_widget():
             regi_bool,
             regi_chan,
             seg_type,
+            intensity_norm,
+            gaussian_smoothing_sigma,
+            # gaussian_smoothing_truncate_range,
+            dot_3d_sigma,
+            dot_3d_cutoff,
+            hole_min_max,
+            minArea,
             start_end_im,
             mask_folder,
             output_folder):
@@ -691,10 +718,19 @@ class SegmentWidget(QWidget):
         regi_bool = self.do_preseg.regi_bool.value
         regi_chan = self.do_preseg.regi_chan.value
         seg_type = self.do_preseg.seg_type.value
+        preseg_params = {
+            "intensity_norm": split_to_list(self.do_preseg.intensity_norm.value, out_format='float'),
+            "gaussian_smoothing_sigma": int(self.do_preseg.gaussian_smoothing_sigma.value),
+            # "gaussian_smoothing_truncate_range": int(self.do_preseg.gaussian_smoothing_truncate_range.value),
+            "dot_3d_sigma": int(self.do_preseg.dot_3d_sigma.value),
+            "dot_3d_cutoff": float(self.do_preseg.dot_3d_cutoff.value),
+            "hole_min_max": split_to_list(self.do_preseg.hole_min_max.value, out_format='int'),
+            "minArea": int(self.do_preseg.minArea.value)
+        }
         start_end_im = split_to_list(self.do_preseg.start_end_im.value, out_format='int')
         mask_folder = self.do_preseg.mask_folder.value
         output_folder = self.do_preseg.output_folder.value
         do_preseg_worker = do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
-                                              start_end_im, mask_folder, output_folder, seg_type=seg_type)
+                                              preseg_params, start_end_im, mask_folder, output_folder, seg_type=seg_type)
         do_preseg_worker.start()
 
