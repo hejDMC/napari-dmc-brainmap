@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import random
 import matplotlib.colors as mcolors
+from pathlib import Path
 
 from aicsimageio import AICSImage
 from aicsimageio.writers import OmeTiffWriter
@@ -24,14 +25,74 @@ from skimage.morphology import remove_small_objects
 from skimage.measure import label, regionprops, regionprops_table
 from napari.utils.notifications import show_info
 
+from bg_atlasapi import config, BrainGlobeAtlas
+
+from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 
 
 
 # todo put these function in segment_tools.py file (to be created)
-# def change_index(image_idx):
-#     segment_widget.image_idx.value = image_idx
+def calculateImageGrid(x_res, y_res): # one time calculation
+    y = np.arange(y_res)
+    x = np.arange(x_res)
+    grid_x, grid_y = np.meshgrid(x, y)
+    r_grid_x = grid_x.ravel()
+    r_grid_y = grid_y.ravel()
+    grid = np.stack([grid_y, grid_x], axis=2)
+    return grid, r_grid_x, r_grid_y
 
+def loadAnnotBool(atlas):
+    brainglobe_dir = config.get_brainglobe_dir()
+    atlas_name_general = f"{atlas}_v*"
+    atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[
+        0]  # glob returns generator object, need to exhaust it in list, then take out
+    annot_bool_dir = brainglobe_dir.joinpath(atlas_names_local, 'annot_bool.npy')
+    # for any atlas else, in this case test with zebrafish atlas
+    print('checking for annot_bool volume...')
+    if annot_bool_dir.exists():  # when directory has 8-bit template volume, load it
+        print('loading annot_bool volume...')
+        annot_bool = np.load(annot_bool_dir)
+
+    else:  # when saved template not found
+        # check if template volume from brainglobe is already 8-bit
+        print('... local version not found, loading annotation volume...')
+        annot = BrainGlobeAtlas(atlas).annotation
+
+        print('... creating annot_bool version...')
+
+        annot_bool = np.where(annot>0, 255, 0)  # 0, outside brain, 255 inside brain
+        np.save(annot_bool_dir, annot_bool)
+
+    return annot_bool
+
+def angleSlice(x_angle, y_angle, z, annot_bool, z_idx, z_res, bregma, xyz_dict):
+    # calculate from ml and dv angle, the plane of current slice
+    x_shift = int(np.tan(np.deg2rad(x_angle)) * (xyz_dict['x'][1] / 2))
+    y_shift = int(np.tan(np.deg2rad(y_angle)) * (xyz_dict['y'][1] / 2))
+    # pick up slice
+    z_coord = coord_mm_transform([z], [bregma[z_idx]],
+                                 [z_res], mm_to_coord=True)
+
+    center = np.array([z_coord, (xyz_dict['y'][1] / 2), (xyz_dict['x'][1] / 2)])
+    c_right = np.array([z_coord+x_shift, (xyz_dict['y'][1] / 2), (xyz_dict['x'][1] - 1)])
+    c_top = np.array([z_coord-y_shift, 0, (xyz_dict['x'][1] / 2)])
+    # calculate plane normal vector
+    vec_1 = c_right-center
+    vec_2 = c_top-center
+    vec_n = np.cross(vec_1,vec_2)
+    # calculate ap matrix
+    grid,r_grid_x,r_grid_y = calculateImageGrid(xyz_dict['x'][1], xyz_dict['y'][1])
+    ap_mat = (-vec_n[1]*(grid[:,:,0]-center[1])-vec_n[2]*(grid[:,:,1]-center[2]))/vec_n[0] + center[0]
+    ap_flat = ap_mat.astype(int).ravel()
+    # within volume check
+    outside_vol = np.argwhere((ap_flat<0)|(ap_flat>(xyz_dict['z'][1]-1))) # outside of volume index
+    if outside_vol.size == 0: # if outside empty, inside of volume
+        # index volume with ap_mat and grid
+        slice = annot_bool[ap_mat.astype(int).ravel(),r_grid_y,r_grid_x].reshape(xyz_dict['y'][1],xyz_dict['x'][1])
+    else: # if not empty, show black image
+        slice = np.zeros((xyz_dict['y'][1], xyz_dict['x'][1]),dtype=np.uint8)
+    return slice
 
 def cmap_cells():
     # return default colormap for channel and color of cells
@@ -93,47 +154,61 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
 
 @thread_worker
 def do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
-                                              mask_folder, output_folder, seg_type='cells'):
-    single_channel = False
-    regi_bool = False
-    if single_channel:
-        print("single channel option not implemented yet, using RGBs")
-        seg_im_dir = get_info(input_path, 'rgb', only_dir=True)
-    else:
-        chan_dict = {
-            'cy3': 0,
-            'green': 1,
-            'dapi': 2
-        }
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-    seg_im_list = natsorted(seg_im_list)
+                                              start_end_im, mask_folder, output_folder, seg_type='cells'):
 
-
+    xyz_dict = params_dict['atlas_info']['xyz_dict']
+    atlas_id = params_dict['atlas_info']['atlas']
     if regi_bool:
         regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
         regi_fn = regi_dir.joinpath("registration.json")
         if regi_fn.is_file():
             with open(regi_fn, 'r') as f:
                 regi_data = json.load(f)
-            print('loading reference atlas ' + params_dict['atlas_info']['atlas'] + ' ...')
-            # todo here function for loading annot_bool
-            annot_bool = 'dummy'
+            annot_bool = loadAnnotBool(atlas_id)
+            atlas = BrainGlobeAtlas(atlas_id)
+            z_idx = atlas.space.axes_description.index(xyz_dict['z'][0])
+            z_res = xyz_dict["z"][2]
+            bregma = get_bregma(atlas_id)
         else:
             print("NO REGISTRATION DATA FOUND")
+            regi_bool = False
     print('running presegmentation of ...')
+
+    single_channel = False
+    if not single_channel:
+        chan_dict = {
+            'cy3': 0,
+            'green': 1,
+            'dapi': 2
+        }
+        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
+        seg_im_list = natsorted(seg_im_list)
+        if start_end_im:
+            if len(start_end_im) == 2:
+                seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]]
+
     for chan in channels:
         mask_dir = get_info(input_path, mask_folder, channel=chan, seg_type=seg_type,
                             create_dir=True, only_dir=True)
         output_dir = get_info(input_path, output_folder, channel=chan, seg_type=seg_type,
                             create_dir=True, only_dir=True)
         print('... channel ' + chan)
+        if single_channel:
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=chan)
+            seg_im_list = natsorted(seg_im_list)
+            if start_end_im:
+                if len(start_end_im) == 2:
+                    seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]]
         for im in seg_im_list:
             print('... ' + im)
             im_fn = seg_im_dir.joinpath(im)
             reader = AICSImage(str(im_fn))
             img = reader.data.astype(np.float32)  # input image is a single RGB image
-            structure_channel = chan_dict[chan] # 0:cy3, 1:green, 2:dapi for RGB
-            struct_img0 = img[0, 0, 0, :, :, structure_channel].copy()
+            if single_channel:
+                struct_img0 = img[0, 0, 0, :, :].copy()
+            else:
+                structure_channel = chan_dict[chan] # 0:cy3, 1:green, 2:dapi for RGB
+                struct_img0 = img[0, 0, 0, :, :, structure_channel].copy()
             struct_img0 = np.array([struct_img0, struct_img0])  # make duplicate layer stack
             # preprocessing
             intensity_scaling_param = [0.5,17.5] # default[1000], [0.5,17.5] works better
@@ -162,8 +237,8 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
                 props = regionprops_table(label_img, properties=['centroid'])
                 if regi_bool:
                     dim_rgb = seg[0].shape
-                    x_res = params_dict["atlas_info"]["resolution"][0]
-                    y_res = params_dict["atlas_info"]["resolution"][1]
+                    x_res = xyz_dict['x'][1]
+                    y_res = xyz_dict['y'][1]
                     x_rgb = props["centroid-1"] / dim_rgb[1] * x_res
                     y_rgb = props["centroid-0"] / dim_rgb[0] * y_res
                     for k, v in regi_data['imgName'].items():
@@ -172,13 +247,32 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
                     # get transformation
                     tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
                     # slice annotation volume
-                    ml_angle, dv_angle, ap = regi_data['atlasLocation'][regi_index]
-                    # annot_slice = angleSlice(ml_angle, dv_angle, ap, annot_vol)
+                    x_angle, y_angle, z = regi_data['atlasLocation'][regi_index]
+
+                    annot_slice = angleSlice(x_angle, y_angle, z, annot_bool, z_idx, z_res, bregma, xyz_dict)
+                    # mark invalid coordinates
+                    drop_bool = []
+                    for x, y in zip(x_rgb, y_rgb):
+                        x_atlas, y_atlas = mapPointTransform(x, y, tform)
+                        x_atlas, y_atlas = int(x_atlas), int(y_atlas)
+                        if (x_atlas < 0) | (y_atlas < 0) | (x_atlas >= xyz_dict['x'][1]) | (y_atlas >= xyz_dict['y'][1]):
+                            drop_bool.append(1)
+                        else:
+                            if annot_slice[y_atlas, x_atlas] == 0:
+                                drop_bool.append(1)
+                            else:
+                                drop_bool.append(0)
+                    csv_to_save = pd.DataFrame(props)
+                    csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
+                    csv_to_save = csv_to_save.iloc[np.where(np.array(drop_bool) == 0)[0], :].copy().reset_index(
+                        drop=True)
                 else:
                     csv_to_save = pd.DataFrame(props)
                     csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
-                    csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
-                    csv_to_save.to_csv(csv_save_name)
+
+                csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
+                csv_to_save.to_csv(csv_save_name)
+    print("DONE with presegmentation")
 @thread_worker
 def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type='cells'):
     for chan in channels:
@@ -337,6 +431,9 @@ def initialize_dopreseg_widget():
                             label='segmentation type',
                             choices=['cells'], value='cells',
                             tooltip='select segmentation type to load'), # todo other than cells?
+              start_end_im=dict(widget_type='LineEdit', label='image range to presegment', value='',
+                                  tooltip='if you only want to segment a subset of images enter COMMA SEPERATED indices '
+                                          'of the first and last image to presegment, e.g. 0,10'),
               mask_folder=dict(widget_type='LineEdit',
                                  label='masks folder)',
                                  value='segmentation_masks',
@@ -353,6 +450,7 @@ def initialize_dopreseg_widget():
             regi_bool,
             regi_chan,
             seg_type,
+            start_end_im,
             mask_folder,
             output_folder):
         pass
@@ -593,9 +691,10 @@ class SegmentWidget(QWidget):
         regi_bool = self.do_preseg.regi_bool.value
         regi_chan = self.do_preseg.regi_chan.value
         seg_type = self.do_preseg.seg_type.value
+        start_end_im = split_to_list(self.do_preseg.start_end_im.value, out_format='int')
         mask_folder = self.do_preseg.mask_folder.value
         output_folder = self.do_preseg.output_folder.value
         do_preseg_worker = do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
-                                              mask_folder, output_folder, seg_type=seg_type)
+                                              start_end_im, mask_folder, output_folder, seg_type=seg_type)
         do_preseg_worker.start()
 
