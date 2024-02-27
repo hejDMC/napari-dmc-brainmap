@@ -17,9 +17,9 @@ class NapariProxy():
 napari_proxy = NapariProxy(app)
 
 regi_dict = create_regi_dict(Path("C:\\Users\\xiao\\histology_data\\DP-411"),
-                             "green")
+                            "green")
 # regi_dict = create_regi_dict(Path("C:\\Users\\xiao\\histology_data\\ZF-000"),
-#                              "green")
+                            #  "green")
 # regi_dict = create_regi_dict(Path("C:\\Users\\xiao\\histology_data\\790311"),
 #                              "green")
 

@@ -1,5 +1,5 @@
 import numpy as np
-from napari_dmc_brainmap.utils import coord_mm_transform
+from napari_dmc_brainmap.utils import coord_mm_transform,get_decimal
 from PyQt5.QtCore import Qt
 import json
 from PyQt5.QtWidgets import QMessageBox
@@ -31,14 +31,7 @@ class StatusContainer():
     
     def calculate_z_decimal(self):
         step_float = self.xyz_dict['z'][2] / 1000
-        # by default keep 2 decimals
-        decimal = 2
-        if np.round(step_float,decimal) == 0: # extend decimal
-            while np.abs(np.round(step_float,decimal)-step_float) >= 0.01 * step_float:
-                decimal += 1
-        else:
-            pass
-        self.decimal = decimal
+        self.decimal = get_decimal([self.xyz_dict['z'][2]])[0]
         self.z_step = np.round(step_float,self.decimal)
 
 
