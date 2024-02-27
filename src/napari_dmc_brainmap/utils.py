@@ -4,6 +4,7 @@ import pandas as pd
 from mergedeep import merge
 from enum import Enum
 from bg_atlasapi.list_atlases import descriptors, utils
+import numpy as np
 
 def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
@@ -216,7 +217,7 @@ def get_bregma(atlas_id):
     else:
         print('no bregma coordinates specified for ' + atlas_id + '\n'
               ' returning 0/0/0 coordinates as *bregma*')
-        bregma = [0, 0, 0]
+        bregma = [0, 0, 0] #FIXME half of x and z-axis size
 
     return bregma
 
@@ -244,12 +245,57 @@ def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
 
     return triplet_new
 
+def get_decimal(res_tup): # res_tup is a list of arbitrary number of resolution(um) values
+    decimal_list = []
+    for r in res_tup:
+        step_float = r / 1000
+        # by default keep 2 decimals
+        decimal = 2
+        while np.abs(np.round(step_float,decimal)-step_float) >= 0.01 * step_float:
+            decimal += 1
+        decimal_list.append(decimal)
+    return decimal_list
+
+
+def consider_decimals(func):
+    def wrapper(*args, **kwargs):
+        args = list(args)
+        if len(args) == 4:
+            pass
+        else:
+            if len(kwargs) == 0:
+                args.append(False)
+            else:
+                args.append(kwargs['mm_to_coord'])
+        triplet, bregma, resolution_tuple, mm_to_coord = args # take out arguments
+
+        ## get z_step decimals
+        decimal_list = get_decimal(resolution_tuple)
+
+        if mm_to_coord:
+            triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
+                       zip(triplet, bregma, resolution_tuple)]
+        else:
+            triplet_new = []
+            for coord, br_coord, res, decimal in zip(triplet,bregma,resolution_tuple,decimal_list):
+                triplet_new.append(round((br_coord - coord) * (res/1000), decimal))
+
+        if len(triplet_new) == 1:
+            return triplet_new[0]
+        else:
+            return triplet_new
+        
+    return wrapper
+
+
+
+@consider_decimals
 def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord = False):
 
     if mm_to_coord:
         triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
-    else: # fix hard coded 2
+    else:
         triplet_new = [round((br_coord - coord) * (res/1000), 2) for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
     if len(triplet_new) == 1:
