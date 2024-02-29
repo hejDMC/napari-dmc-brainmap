@@ -1,4 +1,5 @@
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox,QTableView,QDialog,QDialogButtonBox
 from PyQt5 import QtGui
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow import AnchorRow
@@ -24,7 +25,7 @@ class RegistrationHelper(QMainWindow):
         self.mainLayout.addLayout(self.stacklayout)
         # buttons
         self.btn_ip = QPushButton("Interpolate Position")
-        self.btn_re = QPushButton("Registration Editor")
+        self.btn_re = QPushButton("Keyboard shortcuts")
 
         self.btn_ip.clicked.connect(self.activate_ipPage)
         self.btn_re.clicked.connect(self.activate_rePage)
@@ -85,7 +86,18 @@ class RegistrationHelper(QMainWindow):
 
         # tab structure: Registration Editor
         self.label_re = QLabel()
-        self.label_re.setText("editor")
+        self.label_re.setPixmap(QPixmap(str(
+            self.regViewer.atlasModel.sharpy_dir.joinpath(
+                'sharpy_track',
+                'sharpy_track',
+                'images',
+                'helperpage_shortcuts.png'))))
+
+        # Optional: Adjust the QLabel size to fit the image
+        self.label_re.setScaledContents(True)
+        self.label_re.resize(self.label_re.pixmap().size())
+        
+
         self.stacklayout.addWidget(self.label_re)
         # set default display Interpolate Position tab
         self.stacklayout.setCurrentIndex(0)
