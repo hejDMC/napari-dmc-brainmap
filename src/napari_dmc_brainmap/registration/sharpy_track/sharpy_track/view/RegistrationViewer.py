@@ -163,11 +163,20 @@ class RegistrationViewer(QMainWindow):
     def createMenus(self):
         self.helperMenu = QMenu("Tools", self)
         self.helperMenu.addAction(self.helperAct)
+        self.helperAct.setEnabled(True)
         self.menuBar().addMenu(self.helperMenu)
     
     def helperPageOpen(self):
+        self.helperAct.setEnabled(False)
         self.helperPage = RegistrationHelper(self)
         self.helperPage.show()
+    
+    def del_reghelper_instance(self):
+        del self.helperPage.regViewer
+        del self.helperPage.helperModel
+        del self.helperPage.mainWidget
+        del self.helperPage
+        self.helperAct.setEnabled(True)
 
 
     def closeEvent(self, event) -> None:

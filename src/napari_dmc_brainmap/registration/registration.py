@@ -54,6 +54,12 @@ class RegistrationWidget(QWidget):
     def del_regviewer_instance(self): # temporary fix for memory leak, maybe not complete, get back to this in the future
         self.reg_viewer.widget.viewerLeft.scene.changed.disconnect()
         self.reg_viewer.widget.viewerRight.scene.changed.disconnect()
+
+        if self.reg_viewer.helperAct.isEnabled():
+            pass
+        else: # if registration helper is opened, close it too
+            self.reg_viewer.helperPage.close()
+    
         del self.reg_viewer.regViewerWidget
         del self.reg_viewer.app
         del self.reg_viewer.regi_dict

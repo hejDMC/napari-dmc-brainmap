@@ -322,7 +322,9 @@ class RegistrationHelper(QMainWindow):
         self.regViewer.widget.toggle.setEnabled(True)
         self.regViewer.widget.viewerLeft.view.setInteractive(True)
         self.regViewer.widget.viewerRight.view.setInteractive(True)
-
+    
+    def closeEvent(self, event) -> None:
+        self.regViewer.del_reghelper_instance()
 
     
 
