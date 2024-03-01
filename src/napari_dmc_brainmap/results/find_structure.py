@@ -46,6 +46,7 @@ class sliceHandle():
                     if self.regData['imgName'][k] == slice_n:
                         self.currentSlice = int(k)
                         print("Slice Index Found")
+                        break
                     else:
                         pass
         else:

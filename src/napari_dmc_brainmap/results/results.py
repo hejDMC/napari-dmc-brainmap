@@ -127,10 +127,14 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
         if len(segment_list) > 0:
             results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
             for im in segment_list:
-                section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
-                                                            seg_im_suffix, regi_data,
-                                                            regi_dir, regi_suffix)
-                data = pd.concat((data, section_data))
+                try:
+                    section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
+                                                                seg_im_suffix, regi_data,
+                                                                regi_dir, regi_suffix)
+                    data = pd.concat((data, section_data))
+                except KeyError: # something wrong with registration data
+                    print("Registration data for {} is not complete, skip.".format(im))
+                
             fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
             data.to_csv(fn)
             print("done! data saved to: " + str(fn))
