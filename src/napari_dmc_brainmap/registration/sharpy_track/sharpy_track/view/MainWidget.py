@@ -46,19 +46,17 @@ class MainWidget(QWidget):
         self.layoutGrid.addWidget(self.z_slider, 2, 1)
 
     def create_x_slider(self):
-        x_size = self.regViewer.regi_dict['xyz_dict']['x'][1]
         self.x_slider = QSlider(Qt.Horizontal)
-        self.x_slider.setMinimum(int(-x_size / 2))
-        self.x_slider.setMaximum(int(x_size / 2))
+        self.x_slider.setMinimum(-450) # +-45 degrees should be enough
+        self.x_slider.setMaximum(450)
         self.x_slider.setSingleStep(1)
         
         self.layoutGrid.addWidget(self.x_slider, 0, 1)
 
     def create_y_slider(self):
-        y_size = self.regViewer.regi_dict['xyz_dict']['y'][1]
         self.y_slider = QSlider(Qt.Vertical)
-        self.y_slider.setMinimum(int(-y_size / 2))
-        self.y_slider.setMaximum(int(y_size / 2))
+        self.y_slider.setMinimum(-450)
+        self.y_slider.setMaximum(450)
         self.y_slider.setSingleStep(1)
         
         self.layoutGrid.addWidget(self.y_slider, 1, 0)
