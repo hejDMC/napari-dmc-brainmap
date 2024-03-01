@@ -25,10 +25,15 @@ class MainWidget(QWidget):
     
     def connect_actions(self):
         self.z_slider.valueChanged.connect(self.regViewer.status.z_changed)
+        self.regViewer.status.z_changed()
         self.x_slider.valueChanged.connect(self.regViewer.status.x_changed)
+        self.regViewer.status.x_changed()
         self.y_slider.valueChanged.connect(self.regViewer.status.y_changed)
+        self.regViewer.status.y_changed()
         self.sampleSlider.valueChanged.connect(self.regViewer.status.sampleChanged)
+        self.regViewer.status.sampleChanged()
         self.toggle.clicked.connect(self.regViewer.status.toggleChanged)
+        self.regViewer.status.toggleChanged()
         
     def create_z_slider(self):
         z_size = self.regViewer.regi_dict['xyz_dict']['z'][1]

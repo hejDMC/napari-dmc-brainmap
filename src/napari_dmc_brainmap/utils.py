@@ -230,6 +230,7 @@ def create_regi_dict(input_path, regi_chan):
         'input_path': input_path,
         'regi_dir': regi_dir,
         'atlas': params_dict['atlas_info']['atlas'],
+        'orientation': params_dict['atlas_info']['orientation'],
         'xyz_dict': params_dict['atlas_info']['xyz_dict']
     }
 

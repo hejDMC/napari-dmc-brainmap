@@ -59,7 +59,12 @@ class RegistrationViewer(QMainWindow):
             self.singleWindowSize = self.atlas_resolution
 
         else: # [1920,1080] resolution
-            self.scaleFactor = round(self.screenSize[0]/(self.atlas_resolution[0] * 2.5), 2)
+            # check for longer edge on x and y axis
+            if self.atlas_resolution[0] >= self.atlas_resolution[1]:
+                self.scaleFactor = round(self.screenSize[0]/(self.atlas_resolution[0] * 2.5), 2)
+            else:
+                self.scaleFactor = round(self.screenSize[1]/(self.atlas_resolution[1] * 1.7), 2)
+
             self.fullWindowSize = [int(round((self.atlas_resolution[0]*2.2) * self.scaleFactor)),
                                        int(round((self.atlas_resolution[1]*1.25) * self.scaleFactor))]
             self.singleWindowSize = [int(i*self.scaleFactor) for i in self.atlas_resolution]

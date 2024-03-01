@@ -22,8 +22,8 @@ class AtlasModel():
         self.atlas = BrainGlobeAtlas(self.regi_dict['atlas'])
         self.xyz_dict = self.regi_dict['xyz_dict']
         # adaptive fontsize
-        self.fontscale = np.round(np.min([self.xyz_dict['x'][1],self.xyz_dict['y'][1]]) / 800,1)
-        self.fontthickness = np.rint(np.min([self.xyz_dict['x'][1],self.xyz_dict['y'][1]]) / 256).astype(int)
+        self.fontscale = np.round(np.min([self.xyz_dict['x'][1],self.xyz_dict['y'][1]]) / 800 * self.regViewer.scaleFactor,1)
+        self.fontthickness = np.rint(np.min([self.xyz_dict['x'][1],self.xyz_dict['y'][1]]) / 256 * self.regViewer.scaleFactor).astype(int)
         self.z_idx = self.atlas.space.axes_description.index(self.xyz_dict['z'][0])
         self.calculateImageGrid()
         self.loadTemplate()
@@ -65,14 +65,21 @@ class AtlasModel():
                 print("at : {}".format(os.path.join(brainglobe_dir,atlas_names_local,'reference.tiff')))
                 print("8-bit / 16-bit grayscale volume is required.")
                 print("Reference volume cannot be correctly loaded to RegistrationViewer!")
-
-
-
+        
+        ori_trans_dict = {"coronal": (0,1,2),
+                          "horizontal": (1,0,2),
+                          "sagittal": (2,0,1)}
+        self.template = np.transpose(self.template,
+                                     axes=ori_trans_dict[self.regi_dict["orientation"]])
 
 
 
     def loadAnnot(self):
-        self.annot = self.atlas.annotation
+        ori_trans_dict = {"coronal": (0,1,2),
+                          "horizontal": (1,0,2),
+                          "sagittal": (2,0,1)}
+        self.annot = np.transpose(self.atlas.annotation,
+                                  axes=ori_trans_dict[self.regi_dict["orientation"]])
 
 
     def loadStructureTree(self):
