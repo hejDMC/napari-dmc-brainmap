@@ -103,10 +103,10 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
     probe_tract['Name'] = [df_tree.data[i]['name'] if i > 0 else 'root' for i in probe_tract['structure_id']]
 
     #certainty_list = get_certainty_list(probe_tract, annot, col_names)
-    probe_tract['Certainty'] = estimate_confidence(v_coords = probe_tract[[col_names[0],
+    probe_tract['Distance_To_Nearest_Structure(um)'] = estimate_confidence(v_coords = probe_tract[[col_names[0],
                                                                            col_names[1],
                                                                            col_names[2]]],
-                                                    atlas_resolution_um = 10,
+                                                    atlas_resolution_um = 10, # FIXME receive input from params.json file
                                                     annot = annot)
 
 

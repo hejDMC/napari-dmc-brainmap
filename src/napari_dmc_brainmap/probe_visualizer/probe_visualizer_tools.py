@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import distinctipy
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 from napari_dmc_brainmap.utils import get_animal_id
 
 def get_primary_axis_idx(direction_vector): # get primary axis from direction vector
@@ -105,74 +104,27 @@ def get_certainty_list(probe_tract, annot, col_names):
 
 
 def estimate_confidence(v_coords,atlas_resolution_um,annot):
+    # calculate r<=10 sphere 
+    cube_10 = np.array(np.meshgrid(np.arange(-10,11,1),
+                        np.arange(-10,11,1),
+                        np.arange(-10,11,1))).T.reshape(9261,3)
+    d = np.sqrt((cube_10 ** 2).sum(axis=1))
+    sphere_10 = cube_10[d<=10] # filter with r<=10, 4169 voxels
+
     confidence_list = []
     for _,row in v_coords.iterrows():
         c1,c2,c3 = row.values
         current_id = annot[c1,c2,c3] # electrode structure_id
-        coords_full = np.array(np.where(annot==current_id)).T # coordinates of the same structure_id, very slow here
-        neibour = np.array(np.meshgrid([-1,0,1],
-                           [-1,0,1],
-                           [-1,0,1])).T.reshape(27,3)
-        
-        neibour_coords = np.tile(neibour,(len(coords_full),1)) # tile neibour shifts for number of coordinates
-        coords_27 = np.repeat(coords_full,27,axis=0) # repeat each coordinate for 27 times (neibour shifts)
-        coords_27 = coords_27 + neibour_coords
-        
-        # map structure id
-        id_full = annot[coords_27.T[0],coords_27.T[1],coords_27.T[2]]
-        # get voxel shell coordinates
-        edge_coord = np.array(id_full != current_id,dtype=np.uint8).reshape(
-            int(len(id_full)/27),27)
-        edge_coord = np.sum(edge_coord,axis=1)
-        coords_shell = coords_full[edge_coord>0]
-        # find shortest and longest distance from electrode coordinate
-        reference_tile = np.tile(np.array([c1,c2,c3]),(len(coords_shell),1))
-        dist_list = ((coords_shell - reference_tile) ** 2).sum(axis=1)
-        print([dist_list.min()**0.5,dist_list.max()**0.5])
-        confidence_list.append(dist_list.min()**0.5 * atlas_resolution_um)
-
+        # restrict view to r=10 voxels sphere space
+        within_sphere = np.tile(np.array([c1,c2,c3]),(4169,1)) + sphere_10
+        sphere_struct = annot[within_sphere.T[0],within_sphere.T[1],within_sphere.T[2]]
+        struct_else = (sphere_struct != current_id)
+        if np.sum(struct_else) == 0:
+            confidence_list.append(10*atlas_resolution_um)
+        else:
+            confidence_list.append(np.sqrt((((within_sphere[struct_else] - np.tile(np.array([c1,c2,c3]),(np.sum(struct_else),1)))) ** 2).sum(axis=1)).min() * atlas_resolution_um)
+    confidence_list = np.array(confidence_list,dtype=np.uint8)
     return confidence_list
-
-def plot_3dscatter(coords_full,coords_shell):
-
-    fig = go.Figure(data=[go.Scatter3d(x=coords_full.T[0][::16],
-                                       y=coords_full.T[1][::16],
-                                       z=coords_full.T[2][::16],
-                                       mode='markers',
-                                       marker=dict(
-                                        size=2,
-                                        color="rgb(255,0,0)",   # choose a colorscale
-                                        opacity=0.5),
-                                )])
-    
-    fig.add_scatter3d(x=coords_shell.T[0][::16], 
-                  y=coords_shell.T[1][::16], 
-                  z=coords_shell.T[2][::16],
-                  mode='markers',
-        marker=dict(
-        size=2,
-        color="rgb(0,0,0)",   # choose a colorscale
-        opacity=0.5),
-    )
-
-
-    fig.add_scatter3d(x=[355,354,352], 
-                  y=[302,286,238], 
-                  z=[686,686,685],
-                  mode='markers',
-        marker=dict(
-        size=6,
-        color="rgb(0,0,255)",   # choose a colorscale
-        opacity=1),
-        name="electrode"
-    )
-
-    fig.update_layout(
-        scene = {
-            "aspectmode": "cube"
-        }
-    )
-    fig.write_html(r"C:\Users\xiao\Downloads\coords_shell.html")
 
 
 def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution,ax_primary):
@@ -273,17 +225,17 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
         acro_text = df_plot['Acronym'].values[chan_row_n]
         # fill color
         ax[3].fill_betweenx(df_plot['Distance_To_Tip(um)'].values[chan_row_n:chan_row_n + len(r)] + 5,
-                            df_plot['Certainty'].values[chan_row_n:chan_row_n + len(r)], color=reg_color_dict[r[0]])
+                            df_plot['Distance_To_Nearest_Structure(um)'].values[chan_row_n:chan_row_n + len(r)], color=reg_color_dict[r[0]])
         # add text
         ax[4].text(0, (df_plot['Distance_To_Tip(um)'].values[chan_row_n] + df_plot['Distance_To_Tip(um)'].values[
             chan_row_n + len(r) - 1]) / 2 - 5, acro_text)
 
         chan_row_n += len(r)
 
-    ax[3].set_xlim(0, 1)
+    ax[3].set_xlim(0, 100)
     ax[3].set_ylim(0, 4015)
     ax[3].get_yaxis().set_visible(False)
-    ax[3].set_xlabel('Certainty', fontsize=8)
+    ax[3].set_xlabel('Confidence(um)', fontsize=8)
     ax[3].tick_params(direction="in", pad=-16)
     # ax[3].set_xticks([])
     ax[3].spines['left'].set_visible(False)
