@@ -10,7 +10,7 @@ from natsort import natsorted
 from skspatial.objects import Line, Points # scikit-spatial package: https://scikit-spatial.readthedocs.io/en/stable/
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from napari_dmc_brainmap.probe_visualizer.probe_visualizer_tools import get_primary_axis_idx, get_voxelized_coord, \
-    get_certainty_list, check_probe_insert, save_probe_tract_fig
+    estimate_confidence, check_probe_insert, save_probe_tract_fig
 from napari_dmc_brainmap.utils import get_info, load_params, split_to_list
 
 from bg_atlasapi import BrainGlobeAtlas
@@ -103,7 +103,15 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
     probe_tract['Name'] = [df_tree.data[i]['name'] if i > 0 else 'root' for i in probe_tract['structure_id']]
 
     #certainty_list = get_certainty_list(probe_tract, annot, col_names)
-    probe_tract['Certainty'] = [1] * len(probe_tract)
+    probe_tract['Certainty'] = estimate_confidence(v_coords = probe_tract[[col_names[0],
+                                                                           col_names[1],
+                                                                           col_names[2]]],
+                                                    atlas_resolution_um = 10,
+                                                    annot = annot)
+
+
+
+
     save_probe_tract_fig(input_path, probe, save_path, probe_tract)
     return probe_tract, col_names
 

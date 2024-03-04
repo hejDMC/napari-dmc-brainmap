@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import distinctipy
 import matplotlib.pyplot as plt
-
+import plotly.graph_objects as go
 from napari_dmc_brainmap.utils import get_animal_id
 
 def get_primary_axis_idx(direction_vector): # get primary axis from direction vector
@@ -102,6 +102,77 @@ def get_certainty_list(probe_tract, annot, col_names):
             certainty_list.append(0)
 
     return certainty_list
+
+
+def estimate_confidence(v_coords,atlas_resolution_um,annot):
+    confidence_list = []
+    for _,row in v_coords.iterrows():
+        c1,c2,c3 = row.values
+        current_id = annot[c1,c2,c3] # electrode structure_id
+        coords_full = np.array(np.where(annot==current_id)).T # coordinates of the same structure_id, very slow here
+        neibour = np.array(np.meshgrid([-1,0,1],
+                           [-1,0,1],
+                           [-1,0,1])).T.reshape(27,3)
+        
+        neibour_coords = np.tile(neibour,(len(coords_full),1)) # tile neibour shifts for number of coordinates
+        coords_27 = np.repeat(coords_full,27,axis=0) # repeat each coordinate for 27 times (neibour shifts)
+        coords_27 = coords_27 + neibour_coords
+        
+        # map structure id
+        id_full = annot[coords_27.T[0],coords_27.T[1],coords_27.T[2]]
+        # get voxel shell coordinates
+        edge_coord = np.array(id_full != current_id,dtype=np.uint8).reshape(
+            int(len(id_full)/27),27)
+        edge_coord = np.sum(edge_coord,axis=1)
+        coords_shell = coords_full[edge_coord>0]
+        # find shortest and longest distance from electrode coordinate
+        reference_tile = np.tile(np.array([c1,c2,c3]),(len(coords_shell),1))
+        dist_list = ((coords_shell - reference_tile) ** 2).sum(axis=1)
+        print([dist_list.min()**0.5,dist_list.max()**0.5])
+        confidence_list.append(dist_list.min()**0.5 * atlas_resolution_um)
+
+    return confidence_list
+
+def plot_3dscatter(coords_full,coords_shell):
+
+    fig = go.Figure(data=[go.Scatter3d(x=coords_full.T[0][::16],
+                                       y=coords_full.T[1][::16],
+                                       z=coords_full.T[2][::16],
+                                       mode='markers',
+                                       marker=dict(
+                                        size=2,
+                                        color="rgb(255,0,0)",   # choose a colorscale
+                                        opacity=0.5),
+                                )])
+    
+    fig.add_scatter3d(x=coords_shell.T[0][::16], 
+                  y=coords_shell.T[1][::16], 
+                  z=coords_shell.T[2][::16],
+                  mode='markers',
+        marker=dict(
+        size=2,
+        color="rgb(0,0,0)",   # choose a colorscale
+        opacity=0.5),
+    )
+
+
+    fig.add_scatter3d(x=[355,354,352], 
+                  y=[302,286,238], 
+                  z=[686,686,685],
+                  mode='markers',
+        marker=dict(
+        size=6,
+        color="rgb(0,0,255)",   # choose a colorscale
+        opacity=1),
+        name="electrode"
+    )
+
+    fig.update_layout(
+        scene = {
+            "aspectmode": "cube"
+        }
+    )
+    fig.write_html(r"C:\Users\xiao\Downloads\coords_shell.html")
 
 
 def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution,ax_primary):
