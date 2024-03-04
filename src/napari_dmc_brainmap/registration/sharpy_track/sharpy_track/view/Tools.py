@@ -186,6 +186,15 @@ class RegistrationHelper(QMainWindow):
                 change_tracking.append(dict_temp)
 
         change_tracking = pd.DataFrame(change_tracking)
+        registration_status = []
+        for id in change_tracking["slice_id"]:
+            if len(self.regViewer.status.atlasDots[id]) > 0:
+                registration_status.append("YES")
+            else:
+                registration_status.append("NO")
+
+        change_tracking["registered"] = registration_status
+
         # prompt user to solve conflict
         # create a dialog window
         self.confirmation_dialog = QDialog()
