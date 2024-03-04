@@ -256,7 +256,7 @@ class RegistrationHelper(QMainWindow):
             self.regViewer.status.atlasLocation = self.atlasLocation_backup.copy()
             del self.atlasLocation_backup
             for _,row in update_queue.iterrows():
-                slice_id,_,post_AP,type_of_change,_ = row.tolist()
+                slice_id,_,post_AP,type_of_change,_,_ = row.tolist()
                 if type_of_change == "added": # can be empty angle [empty,empty,AP], when type of change is 'added', use status angle info
                     self.regViewer.status.atlasLocation[slice_id] = [self.regViewer.status.x_angle,
                                                                     self.regViewer.status.y_angle,
