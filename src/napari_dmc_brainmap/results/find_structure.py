@@ -131,40 +131,44 @@ class sliceHandle():
         inputCoordinates = np.array(inputCoordinates)  # inputCoordinates in [x, y]
 
         volIndex_list = self.getVolumeIndex(str(self.currentSlice), inputCoordinates)  # [[x, y, z], [x, y, z]...] in 'dmc-brainmap space'
-        # transfer xyz coordinates to convention used by atlas (bg_atlasapi)
-        volIndex_list = [xyz_atlas_transform(v, self.regi_dict, self.atlas.space.axes_description) for v in volIndex_list]
-        id_list = []
-        name_list = []
-        acronym_list = []
-        vol_mm_list = []
-        for triplet in volIndex_list:
-            structure_id = self.atlas.structure_from_coords(triplet)
-            id_list.append(structure_id)
-            if structure_id > 0 :
-                name_list.append(self.sTree.data[structure_id]['name'])
-                acronym_list.append(self.sTree.data[structure_id]['acronym'])
-            else:
-                name_list.append('root')
-                acronym_list.append('root')
-            # calculate Allen coordinates in mm unit
-            vol_mm = coord_mm_transform(triplet, self.bregma, self.atlas.space.resolution)
-            vol_mm_list.append(vol_mm)
-        name_dict = {
-            'ap': 'ap',
-            'si': 'dv',
-            'rl': 'ml'
-        }
+        # if return list is empty: return None
+        if len(volIndex_list) == 0:
+            return None
+        else:
+            # transfer xyz coordinates to convention used by atlas (bg_atlasapi)
+            volIndex_list = [xyz_atlas_transform(v, self.regi_dict, self.atlas.space.axes_description) for v in volIndex_list]
+            id_list = []
+            name_list = []
+            acronym_list = []
+            vol_mm_list = []
+            for triplet in volIndex_list:
+                structure_id = self.atlas.structure_from_coords(triplet)
+                id_list.append(structure_id)
+                if structure_id > 0 :
+                    name_list.append(self.sTree.data[structure_id]['name'])
+                    acronym_list.append(self.sTree.data[structure_id]['acronym'])
+                else:
+                    name_list.append('root')
+                    acronym_list.append('root')
+                # calculate Allen coordinates in mm unit
+                vol_mm = coord_mm_transform(triplet, self.bregma, self.atlas.space.resolution)
+                vol_mm_list.append(vol_mm)
+            name_dict = {
+                'ap': 'ap',
+                'si': 'dv',
+                'rl': 'ml'
+            }
 
-        a_coord, b_coord, c_coord = map(list, zip(*volIndex_list))
-        a_mm, b_mm, c_mm = map(list, zip(*vol_mm_list))
-        col_names = ['name', 'acronym', 'structure_id']
-        col_names.extend([name_dict[n] + '_mm' for n in self.atlas.space.axes_description])
-        col_names.extend([name_dict[n] + '_coords' for n in self.atlas.space.axes_description])
-        section_data = pd.DataFrame(list(zip(name_list, acronym_list, id_list, a_mm, b_mm, c_mm,
-                                             a_coord, b_coord, c_coord)),
-                                    columns=col_names)
-        section_data['section_name'] = [section_name] * len(section_data)
-        return section_data
+            a_coord, b_coord, c_coord = map(list, zip(*volIndex_list))
+            a_mm, b_mm, c_mm = map(list, zip(*vol_mm_list))
+            col_names = ['name', 'acronym', 'structure_id']
+            col_names.extend([name_dict[n] + '_mm' for n in self.atlas.space.axes_description])
+            col_names.extend([name_dict[n] + '_coords' for n in self.atlas.space.axes_description])
+            section_data = pd.DataFrame(list(zip(name_list, acronym_list, id_list, a_mm, b_mm, c_mm,
+                                                a_coord, b_coord, c_coord)),
+                                        columns=col_names)
+            section_data['section_name'] = [section_name] * len(section_data)
+            return section_data
 
 
 

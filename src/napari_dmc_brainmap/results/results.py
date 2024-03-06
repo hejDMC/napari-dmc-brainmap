@@ -131,7 +131,10 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
                     section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
                                                                 seg_im_suffix, regi_data,
                                                                 regi_dir, regi_suffix)
-                    data = pd.concat((data, section_data))
+                    if section_data is None:
+                        pass
+                    else:
+                        data = pd.concat((data, section_data))
                 except KeyError: # something wrong with registration data
                     print("Registration data for {} is not complete, skip.".format(im))
                 
