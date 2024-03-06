@@ -13,7 +13,7 @@ from napari_dmc_brainmap.utils import load_params, get_info
 def do_padding(input_path, channels, pad_folder, resolution):
     print('doing padding of ...')
     for chan in channels:
-        print('... channel ' + ' chan')
+        print('... channel ' + chan)
         pad_dir, pad_im_list, pad_suffix = get_info(input_path, pad_folder, channel=chan)
         for im in pad_im_list:
             print('... ' + im)
