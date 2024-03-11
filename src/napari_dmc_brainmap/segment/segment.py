@@ -578,7 +578,7 @@ class SegmentWidget(QWidget):
         if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
             self.save_dict = default_save_dict()
         if type(self.save_dict['image_idx']) == int:  # todo there must be a better way :-D (for image_idx = 0)
-            self._save_data(input_path, channels)
+            self._save_data(input_path, channels, single_channel)
         del (self.viewer.layers[:])  # remove open layers
 
         try:
@@ -664,11 +664,14 @@ class SegmentWidget(QWidget):
                 p_id = seg_type + '_' + str(i)
                 self.viewer.add_points(size=20, name=p_id, face_color=p_color)
 
-    def _save_data(self, input_path, channels):
+    def _save_data(self, input_path, channels, single_channel):
         # points data in [y, x] format
         save_idx = self.save_dict['image_idx']
         seg_type_save = self.save_dict['seg_type']
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
+        if single_channel:
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channels[0])
+        else:
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
         im_name_str = path_to_im.with_suffix('').parts[-1]
         if seg_type_save not in ['cells', 'injection_side']:
