@@ -678,20 +678,27 @@ class SegmentWidget(QWidget):
             channels = [seg_type_save + '_' + str(i) for i in range(self.save_dict['n_probes'])]
         for chan in channels:
             try:
-                if len(self.viewer.layers[chan].data) > 0:
-                    segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
-                                            create_dir=True,
-                                            only_dir=True)
-                    if seg_type_save == 'injection_side':
-                        data = pd.DataFrame()
-                        for i in range(len(self.viewer.layers[chan].data)):
-                            data_temp = pd.DataFrame(self.viewer.layers[chan].data[i], columns=['Position Y', 'Position X'])
-                            data_temp['idx_shape'] = [i] * len(data_temp)
-                            data = pd.concat((data, data_temp))
-                    else:
-                        data = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
-                    save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
+
+                segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
+                                    create_dir=True,
+                                    only_dir=True)
+                if seg_type_save == 'injection_side':
+                    data = pd.DataFrame()
+                    for i in range(len(self.viewer.layers[chan].data)):
+                        data_temp = pd.DataFrame(self.viewer.layers[chan].data[i], columns=['Position Y', 'Position X'])
+                        data_temp['idx_shape'] = [i] * len(data_temp)
+                        data = pd.concat((data, data_temp))
+                else:
+                    data = pd.DataFrame(self.viewer.layers[chan].data, columns=['Position Y', 'Position X'])
+                save_name = segment_dir.joinpath(im_name_str + '_' + seg_type_save + '.csv')
+                if len(self.viewer.layers[chan].data) > 0:  # only create results file when data is present
                     data.to_csv(save_name)
+                else:
+                    if self.load_preseg.load_bool.value:  # this only in case preseg and seg are same folder, if you delete all cells delete existing file
+                        if self.load_preseg.pre_seg_folder.value == 'segmentation':
+                            if save_name.exists():
+                                save_name.unlink()
+
             except KeyError:
                 pass
         # else:
