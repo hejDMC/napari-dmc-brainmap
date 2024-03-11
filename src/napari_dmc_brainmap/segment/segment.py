@@ -388,7 +388,7 @@ def initialize_loadpreseg_widget() -> FunctionGui:
                              tooltip='tick to load pre-segmented data for manual curation'),
               pre_seg_folder=dict(widget_type='LineEdit', 
                                   label='folder name with pre-segmented data', 
-                                  value='segmentation',
+                                  value='presegmentation',
                                   tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called'
                                 '*segmentation* (default), manual curation will override existing data. '
                                 'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
@@ -461,7 +461,7 @@ def initialize_dopreseg_widget():
 
               output_folder=dict(widget_type='LineEdit',
                                  label='output folder',
-                                 value='segmentation',
+                                 value='presegmentation',
                                  tooltip='name of output folder for storing the presegmentation results'),
               call_button=False)
     def do_preseg_widget(
@@ -499,7 +499,7 @@ def initialize_findcentroids_widget():
                              tooltip='select segmentation type to load'),  # todo other than cells?
               output_folder=dict(widget_type='LineEdit', 
                                  label='output folder', 
-                                 value='segmentation',
+                                 value='presegmentation',
                                  tooltip='name of output folder for storing centroids of segmentation masks'),
               call_button=False)
     
