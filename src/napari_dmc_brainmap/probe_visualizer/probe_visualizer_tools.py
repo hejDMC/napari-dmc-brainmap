@@ -165,33 +165,52 @@ def check_probe_insert(probe_df, probe_insert, linefit, surface_vox, resolution,
     return probe_insert, direction_unit
 
 
-def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
-
+def save_probe_tract_fig(input_path, probe, save_path, probe_tract,bank):
 
     animal_id = get_animal_id(input_path)
-    df_plot = probe_tract.iloc[:192].copy()
+    df_plot = probe_tract.copy()
     fig, ax = plt.subplots(ncols=5, nrows=1, figsize=(5, 20))
-    # plot probe tip
-    ax[0].fill([32, 64, 0, 32], [0, 175, 175, 0], 'k', zorder=0)  # bottom layer
+    # if recording from bank 0, show probe tip, otherwise, hide tip
+    if bank == 0:
+        # plot probe tip
+        ax[0].fill([32, 64, 0, 32], [0, 175, 175, 0], 'k', zorder=0)  # bottom layer
+    else:
+        pass
     # plot shank 384
     ax[0].fill([0, 64, 64, 0, 0], [175, 175, 4015, 4015, 175], 'b', zorder=1)  # middle layer
     # plot electrodes
     electrode_x = np.tile(np.array([8, 40, 24, 56]), 96)
     electrode_y = np.repeat(np.arange(0, 192 * 20, 20) + 185, 2)
-    # mark outside of brain electrodes
-    inside_brain_bool = np.repeat(df_plot['Inside_Brain'].values, 2)
     # skip electrodes outside of brain
-    ax[0].scatter(electrode_x[inside_brain_bool], electrode_y[inside_brain_bool], marker='s', s=10, c='yellow',
+    ax[0].scatter(electrode_x, electrode_y, marker='s', s=10, c='yellow',
                   zorder=2)  # top layer
-    ax[0].set_xlim(0, 64)
-    ax[0].set_ylim(0, 4015)
     ax[0].get_xaxis().set_visible(False)
     ax[0].set_aspect(1)
-    ax[0].set_ylabel('Probe Lenth From Tip (um)', fontsize=15)
+    ax[0].set_ylabel('Depth (um)', fontsize=15)
+    yticklabels = (np.arange(np.ceil(df_plot['Depth(um)'].max()/1000)) * 1000).astype(int)
+    if df_plot["Depth(um)"].min() > 5:
+        yticklabels = np.concatenate(([int(df_plot["Depth(um)"].min())], yticklabels))
+        overlapping_tick = None
+        overlapping_tick_idx = 1
+        for tl in yticklabels[1:]:
+            if np.abs(tl - yticklabels[0]) < 50:
+                overlapping_tick = tl
+                break
+            overlapping_tick_idx += 1
+
+        if overlapping_tick is not None:
+            yticklabels = yticklabels.tolist()
+            del yticklabels[overlapping_tick_idx]
+            yticklabels = np.array(yticklabels)
+
+    yticks = (df_plot["Distance_To_Tip(um)"] + df_plot["Depth(um)"]).values[0] - yticklabels + 15
+    ax[0].set_yticks(yticks)
+    ax[0].set_yticklabels(yticklabels)
     ax[0].spines['left'].set_visible(False)
     ax[0].spines['right'].set_visible(False)
     ax[0].spines['top'].set_visible(False)
-
+    ax[0].set_xlim(0, 64)
+    ax[0].set_ylim(0, 4015)
     # plot electrode channels configuration
     text_x = np.tile(np.array([0, 64]), 192)
     for chan, tx in zip(range(384), text_x):
@@ -205,7 +224,7 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
     for row in range(len(df_plot)):
         acro_y = df_plot.iloc[row, :]['Distance_To_Tip(um)']
         acro_text = df_plot.iloc[row, :]['Acronym']
-        ax[2].text(0, acro_y - 5, acro_text, fontsize=8)
+        ax[2].text(0, acro_y + 5, acro_text, fontsize=8)
 
     ax[2].set_xlim(0, 100)
     ax[2].set_ylim(0, 4015)
@@ -224,7 +243,7 @@ def save_probe_tract_fig(input_path, probe, save_path, probe_tract):
     for r in region_split:
         acro_text = df_plot['Acronym'].values[chan_row_n]
         # fill color
-        ax[3].fill_betweenx(df_plot['Distance_To_Tip(um)'].values[chan_row_n:chan_row_n + len(r)] + 5,
+        ax[3].fill_betweenx(df_plot['Distance_To_Tip(um)'].values[chan_row_n:chan_row_n + len(r)] + 15,
                             df_plot['Distance_To_Nearest_Structure(um)'].values[chan_row_n:chan_row_n + len(r)], color=reg_color_dict[r[0]])
         # add text
         ax[4].text(0, (df_plot['Distance_To_Tip(um)'].values[chan_row_n] + df_plot['Distance_To_Tip(um)'].values[

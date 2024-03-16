@@ -62,23 +62,32 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
     # create probe information dataframe
     probe_tract = pd.DataFrame()
     # create electrode left and right channel columns
-    in_brain_chan = round(probe_insert/10)
-    if in_brain_chan < 385:
-        l_chan = 384
-        r_chan = 385
+    # by default only process "bank 0", unless changed here by user
+    bank = 0 # specify recording bank here, if other than 0
+    if bank == 0:
+        l_chan = np.arange(1,384,2)
+        r_chan = np.arange(2,385,2)
+        dtt_offset = 0
+    elif bank == 1:
+        l_chan = np.arange(385,768,2)
+        r_chan = np.arange(386,769,2)
+        dtt_offset = 3840
+    elif bank == 2:
+        l_chan = np.arange(769,1152,2)
+        r_chan = np.arange(770,1153,2)
+        dtt_offset = 7680
     else:
-        if in_brain_chan % 2 == 0:
-            l_chan = in_brain_chan
-            r_chan = l_chan + 1
-        else:
-            r_chan = in_brain_chan
-            l_chan = r_chan - 1
-    probe_tract['Channel_L'] = np.arange(1, l_chan, 2)
-    probe_tract['Channel_R'] = np.arange(2, r_chan, 2)
-    probe_tract['Distance_To_Tip(um)'] = np.arange(0, int(l_chan/2) * 20, 20) + 185  # 185 = 175 + 10 (electrode center to bottom)
-    probe_tract['Recorded_Channels'] = [True] * int(384/2) + [False] * (int(l_chan/2)-int(384/2))
-    probe_tract['Inside_Brain'] = probe_tract[
-                                 'Distance_To_Tip(um)'] <= probe_insert  # change according to manipulator readout
+        print('Invalid bank number, using bank 0')
+        l_chan = np.arange(1,384,2)
+        r_chan = np.arange(2,385,2)
+        dtt_offset = 0
+
+
+    probe_tract['Channel_L'] = l_chan
+    probe_tract['Channel_R'] = r_chan
+    probe_tract['Distance_To_Tip(um)'] = np.arange(192)*20 + 175 + dtt_offset #
+    probe_tract['Depth(um)'] = probe_insert - probe_tract['Distance_To_Tip(um)']
+    probe_tract['Inside_Brain'] = (probe_tract['Depth(um)'] >= -5)
     name_dict = {
         'ap': 'AP',
         'si': 'DV',
@@ -112,7 +121,7 @@ def get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe, p
 
 
 
-    save_probe_tract_fig(input_path, probe, save_path, probe_tract)
+    save_probe_tract_fig(input_path, probe, save_path, probe_tract,bank)
     return probe_tract, col_names
 
 
