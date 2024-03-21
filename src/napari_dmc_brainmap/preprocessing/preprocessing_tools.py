@@ -49,15 +49,20 @@ def downsample_image(data, scale_factor=False, resolution_tuple=False):
     else:
         size_tuple = resolution_tuple  # (1140, 800)
     data_resized = cv2.resize(data, size_tuple)
-    data_resized = data_resized.astype('uint16')
+    # data_resized = data_resized.astype('uint16') # what is necessary for uint16 dtype?
     return data_resized
 
 
 def do_8bit(data):
-    #
-    data = data.astype(int)
-    data8bit = (data >> 8).astype('uint8')
-    return data8bit
+    # only if input data is 16-bit
+    if data.dtype == 'uint16':
+        data = data.astype(int)
+        data8bit = (data >> 8).astype('uint8')
+        return data8bit
+    elif data.dtype == 'uint8':
+        return data
+    else:
+        raise TypeError("Input data for bit shift is not uint8 or uint16! got {} instead.".format(data.dtype))
 
 
 def save_zstack(path, stack_dict):
@@ -89,7 +94,7 @@ def make_rgb(stack_dict, params):
     # add empty array for missing filters
     for missing_filter in missing_filters:
         stack_dict[missing_filter] = np.zeros(image_size)
-    rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])) # create a stack of all three channels
+    rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])).astype(stack_dict['cy3'].dtype) # create a stack of all three channels
     rgb_stack_8bit = do_8bit(rgb_stack)  # convert to 8bit (RGB is 0-255)
     return rgb_stack_8bit
 
@@ -116,7 +121,13 @@ def make_sharpy_track(data, chan, params, resolution_tuple):
     #
     # and we always downsample
     data = downsample_image(data, scale_factor=False, resolution_tuple=resolution_tuple)
-    data = do_8bit(data)
+    # check dtype of data, if 16-bit: convert to 8-bit, if 8-bit: do nothing, else raise error
+    if data.dtype == 'uint16':
+        data = do_8bit(data)
+    elif data.dtype == 'uint8':
+        pass
+    else:
+        raise TypeError("WARNING: data type of stitched image is neither uint8 nor uint16!")
     return data
 
 # create a stack and process accordingly
