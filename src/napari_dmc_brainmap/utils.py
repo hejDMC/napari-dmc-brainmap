@@ -31,25 +31,33 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
     if only_dir:
         return data_dir
     else:
-        data_suffix = find_common_suffix(data_list, folder=folder_id)
+        data_suffix = find_common_suffix(data_list, input_path=input_path, folder=folder_id, im_list_present=True)
         return data_dir, data_list, data_suffix
 
 
-def find_common_suffix(image_list, folder='unknown'):
-    if len(image_list) > 1:
-        for i in range(len(image_list[0])):
-            if i > 0:
-                if image_list[0][-i] == image_list[1][-i]:
-                    continue
-                else:
-                    break
-        common_suffix = image_list[0][-i + 1:]
-        # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
-    elif len(image_list) == 1:
-        print('only one file in ' + folder + ' folder: ' + image_list[0])
-        common_suffix = input("please, manually enter suffix: ")
+def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_present=False):
+
+    # if image list is present, load and get suffix
+    if im_list_present:
+        im0 = image_list[0]
+        im_list = get_im_list(input_path)
+        im1 = [i for i in im_list if im0.startswith(i)]
+        common_suffix = im0[len(im1):]
     else:
-        common_suffix = []
+        if len(image_list) > 1:
+            for i in range(len(image_list[0])):
+                if i > 0:
+                    if image_list[0][-i] == image_list[1][-i]:
+                        continue
+                    else:
+                        break
+            common_suffix = image_list[0][-i + 1:]
+            # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
+        elif len(image_list) == 1:
+            print('only one file in ' + folder + ' folder: ' + image_list[0])
+            common_suffix = input("please, manually enter suffix: ")
+        else:
+            common_suffix = []
     return common_suffix
 
 def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
@@ -66,7 +74,7 @@ def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
         else:
             filter_dir = [f for f in data_dir.glob('**/*') if f.is_dir()][0]  # just take the first folder
             image_list = natsorted([f.parts[-1] for f in filter_dir.glob(file_id)])
-        common_suffix = find_common_suffix(image_list)
+        common_suffix = find_common_suffix(image_list, folder=folder_id)
         image_list = [image[:-len(common_suffix)] for image in image_list]  # delete the common_suffix
 
         # store data as .csv file
