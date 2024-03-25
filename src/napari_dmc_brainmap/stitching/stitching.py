@@ -1,3 +1,10 @@
+"""
+DMC-BrainMap widget for stitching .tif and .czi files
+
+2024 - FJ, XC
+"""
+
+# import modules
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from napari import Viewer
 from napari.qt.threading import thread_worker
@@ -14,8 +21,18 @@ from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dic
 
 @thread_worker
 def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track):
+    """
+
+    :param input_path: PosixPath of dir to animal_id containing all data
+    :param filter_list: list of channels to stitch
+    :param params_dict: dict loaded from params.json
+    :param stitch_tiles: bool, whether to stitch individual tiles, if False use DMC-FluoImager data as input
+    :param direct_sharpy_track: bool, whether to directly create data for SHARPy
+    :return:
+    """
+
     animal_id = get_animal_id(input_path)
-    resolution = params_dict['atlas_info']['resolution']
+    resolution = params_dict['atlas_info']['resolution']  # resolution of atlas used for registration, important for padding of stitched images
     # get obj sub-dirs
     data_dir = input_path.joinpath('raw')
     objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])
@@ -225,8 +242,8 @@ class StitchingWidget(QWidget):
         stitch_tiles = self.stitching.stitch_tiles.value
         params_dict = self._get_stitching_params()
         direct_sharpy_track = params_dict['operations']['sharpy_track']
-        params_dict = clean_params_dict(params_dict, "operations")
-        params_dict = update_params_dict(input_path, params_dict)
+        params_dict = clean_params_dict(params_dict, "operations")  # remove empty keys
+        params_dict = update_params_dict(input_path, params_dict)  # update params.json file, add info on stitching
         filter_list = params_dict['general']['chans_imaged']
         preprocessing_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track)
         preprocessing_worker.start()
