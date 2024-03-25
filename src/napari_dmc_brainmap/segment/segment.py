@@ -27,7 +27,7 @@ from napari.utils.notifications import show_info
 
 from bg_atlasapi import config, BrainGlobeAtlas
 
-from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list
+from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list, get_im_list
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 
 
@@ -147,7 +147,9 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
         image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
     path_to_im = seg_im_dir.joinpath(im)
     if pre_seg:
-        return im
+        im_list = get_im_list(input_path)  # to return im base name for loading preseg
+        im_name = [i for i in im_list if im.startswith(i)][0]
+        return im_name
     else:
         return path_to_im
 
@@ -272,6 +274,26 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
                 csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
                 csv_to_save.to_csv(csv_save_name)
     print("DONE with presegmentation")
+
+
+@thread_worker
+def create_projection_preseg(input_path, channels, binary_folder, output_folder):
+    for chan in channels:
+        binary_dir = get_info(input_path, binary_folder, channel=chan, only_dir=True)
+        output_dir = get_info(input_path, output_folder, seg_type='projections', channel=chan, create_dir=True,
+                              only_dir=True)
+        binary_images = natsorted([im.parts[-1] for im in binary_dir.glob('*.tif')])
+        print(binary_images)
+        for im_name in binary_images:
+            path_to_im = binary_dir.joinpath(im_name)
+            image = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
+            idx = np.where(image == 255)
+            csv_to_save = pd.DataFrame({'Position Y': idx[0], 'Position X': idx[1]})
+            csv_save_name = output_dir.joinpath(im_name.split('.')[0] + '_projections.csv')
+            csv_to_save.to_csv(csv_save_name)
+        print("Done with " + chan)
+    print('Done with creating projections presegmentation files!')
+
 @thread_worker
 def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type='cells'):
     for chan in channels:
@@ -321,7 +343,7 @@ def initialize_segment_widget() -> FunctionGui:
                                         'multiple channels'),
               seg_type=dict(widget_type='ComboBox', 
                             label='segmentation type',
-                            choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe'], 
+                            choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe', 'projections'],
                             value='cells',
                             tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
                                 'IMPORTANT: before switching between types, load next image, delete all image layers'
@@ -393,17 +415,13 @@ def initialize_loadpreseg_widget() -> FunctionGui:
                                 '*segmentation* (default), manual curation will override existing data. '
                                 'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
                                 '*Position Y* for coordinates'),
-              seg_type=dict(widget_type='ComboBox', 
-                            label='segmentation type',
-                            choices=['cells'], value='cells',
-                            tooltip='select segmentation type to load'),  # todo other than cells?
               call_button=False)
 
     def load_preseg_widget(
         viewer: Viewer,
         load_bool,
-        pre_seg_folder,
-        seg_type):
+        pre_seg_folder
+    ):
         pass
     return load_preseg_widget
 
@@ -485,6 +503,27 @@ def initialize_dopreseg_widget():
     return do_preseg_widget
 
 
+def initialize_projectionpreseg_widget():
+    @magicgui(layout='vertical',
+              binary_folder=dict(widget_type='LineEdit',
+                               label='folder name with pre-segmented projections',
+                               value='binary',
+                               tooltip='folder needs to contain sub-folders with channel names and .tif binary images '
+                                       'of segmented of projections.'),
+              output_folder=dict(widget_type='LineEdit',
+                                 label='output folder',
+                                 value='presegmentation',
+                                 tooltip='name of output folder for storing presegmentation data of projections (to be loaded)'),
+              call_button=False)
+    def create_projection_preseg(
+            viewer: Viewer,
+            binary_folder,
+            output_folder):
+        pass
+
+    return create_projection_preseg
+
+
 def initialize_findcentroids_widget():
     @magicgui(layout='vertical',
               mask_folder=dict(widget_type='LineEdit', 
@@ -532,6 +571,13 @@ class SegmentWidget(QWidget):
         btn_do_preseg.clicked.connect(self._do_presegmentation)
         self._collapse_do_preseg.addWidget(btn_do_preseg)
 
+        self._collapse_projections = QCollapsible('Create presegmentation data for projections: expand for more', self)
+        self.projections = initialize_projectionpreseg_widget()
+        self._collapse_projections.addWidget(self.projections.native)
+        btn_projections = QPushButton("create presegmentation of projections data")
+        btn_projections.clicked.connect(self._create_projection_preseg)
+        self._collapse_projections.addWidget(btn_projections)
+
         self._collapse_center = QCollapsible('Find centroids for pre-segmented data (masks): expand for more', self)
         self.center = initialize_findcentroids_widget()
         self._collapse_center.addWidget(self.center.native)
@@ -545,6 +591,7 @@ class SegmentWidget(QWidget):
         self.layout().addWidget(self.segment.native)
         self.layout().addWidget(self._collapse_load_preseg)
         self.layout().addWidget(self._collapse_do_preseg)
+        self.layout().addWidget(self._collapse_projections)
         self.layout().addWidget(self._collapse_center)
         self.layout().addWidget(btn)
 
@@ -623,13 +670,12 @@ class SegmentWidget(QWidget):
         self.viewer.add_image(im_loaded, name=chan + ' channel', colormap=cmap_disp[chan], opacity=0.5)
         self.viewer.layers[chan + ' channel'].contrast_limits = contrast_dict[chan]
 
-    def _load_preseg_object(self, input_path, chan, image_idx):
+    def _load_preseg_object(self, input_path, chan, image_idx, seg_type):
 
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
-        pre_seg_type = self.load_preseg.seg_type.value
-        pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=pre_seg_type, channel=chan)
+        pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
-        fn_to_load = [d for d in pre_seg_list if d.startswith(im_name.split('.')[0])]
+        fn_to_load = [d for d in pre_seg_list if d.startswith(im_name)]
         if fn_to_load:
             df = pd.read_csv(pre_seg_dir.joinpath(fn_to_load[0]))  # load dataframe
             try:
@@ -648,15 +694,19 @@ class SegmentWidget(QWidget):
             cmap_dict = cmap_injection()
             for chan in channels:
                 self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
-        elif seg_type == 'cells':
+        elif seg_type in ['cells', 'projections']:
+            if seg_type == 'cells':
+                point_size = 5
+            else:
+                point_size = 3
             cmap_dict = cmap_cells()
             if self.load_preseg.load_bool.value:  # loading presegmented cells
                 for chan in channels:
-                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx)
-                    self.viewer.add_points(pre_seg_data, size=5, name=chan, face_color=cmap_dict[chan])
+                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
+                    self.viewer.add_points(pre_seg_data, size=point_size, name=chan, face_color=cmap_dict[chan])
             else:
                 for chan in channels:
-                    self.viewer.add_points(size=5, name=chan, face_color=cmap_dict[chan])
+                    self.viewer.add_points(size=point_size, name=chan, face_color=cmap_dict[chan])
         else:
             # todo keep colors constant
             for i in range(n_probes):
@@ -674,7 +724,7 @@ class SegmentWidget(QWidget):
             seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
         im_name_str = path_to_im.with_suffix('').parts[-1]
-        if seg_type_save not in ['cells', 'injection_side']:
+        if seg_type_save not in ['cells', 'injection_side', 'projections']:
             channels = [seg_type_save + '_' + str(i) for i in range(self.save_dict['n_probes'])]
         for chan in channels:
             try:
@@ -744,3 +794,10 @@ class SegmentWidget(QWidget):
                                               preseg_params, start_end_im, mask_folder, output_folder, seg_type=seg_type)
         do_preseg_worker.start()
 
+    def _create_projection_preseg(self):
+        input_path = self.segment.input_path.value
+        channels = self.segment.channels.value
+        binary_folder = self.projections.binary_folder.value
+        output_folder = self.projections.output_folder.value
+        projection_worker = create_projection_preseg(input_path, channels, binary_folder, output_folder)
+        projection_worker.start()
