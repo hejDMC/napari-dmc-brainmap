@@ -27,7 +27,7 @@ def initialize_widget() -> FunctionGui:
                             '(be CONSISTENT in your naming across animals)'),
               chans_imaged=dict(widget_type='Select', 
                                 label='imaged channels', 
-                                choices=['dapi', 'green', 'cy3', 'cy5'],
+                                choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                                 value=['green', 'cy3'],
                                 tooltip='select all channels imaged, to select multiple hold ctrl/shift'),
               section_orient=dict(widget_type='ComboBox', label='orientation of sectioning',
