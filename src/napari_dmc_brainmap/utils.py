@@ -55,6 +55,8 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
             # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
         elif len(image_list) == 1:
             print('only one file in ' + folder + ' folder: ' + image_list[0])
+            print('in DMC-BrainMap an image name has a base_string and a suffix. For an image named *animal1_obj1_1_stitched.tif* '
+                  '\n the base_string is animal1_obj1_1 and the suffix is _stitched.tif')
             common_suffix = input("please, manually enter suffix: ")
         else:
             common_suffix = []
