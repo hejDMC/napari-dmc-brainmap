@@ -1,3 +1,15 @@
+"""
+DMC-BrainMap widget for creating params.json file
+
+params.json file is used to keep track of experimental parameters of animal
+  as well as to keep a history of preprocessing operation performed
+
+2024 - FJ, XC
+
+
+
+"""
+# import modules
 import json
 from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict, get_atlas_dropdown, get_xyz
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
@@ -78,6 +90,7 @@ class ParamsWidget(QWidget):
         xyz_dict = get_xyz(atlas, orientation)
         resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
 
+        # basic structure of params.json dictionary
         params_dict = {
             "general": {
                 "animal_id": animal_id,
@@ -94,7 +107,7 @@ class ParamsWidget(QWidget):
 
             }
         }
-        params_dict = clean_params_dict(params_dict, "general")
+        params_dict = clean_params_dict(params_dict, "general")  # remove empty keys, e.g. when no genotype specified
         params_fn = input_path.joinpath('params.json')
         params_dict = update_params_dict(input_path, params_dict)
         with open(params_fn, 'w') as fn:
