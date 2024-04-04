@@ -93,7 +93,7 @@ def make_rgb(stack_dict, params):
     image_size = stack_dict[next(iter(stack_dict))].shape  # get the shape of the images
     # add empty array for missing filters
     for missing_filter in missing_filters:
-        stack_dict[missing_filter] = np.zeros(image_size)
+        stack_dict[missing_filter] = np.zeros(image_size, dtype='uint16')
     rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])).astype(stack_dict['cy3'].dtype) # create a stack of all three channels
     rgb_stack_8bit = do_8bit(rgb_stack)  # convert to 8bit (RGB is 0-255)
     return rgb_stack_8bit

@@ -148,7 +148,14 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
     path_to_im = seg_im_dir.joinpath(im)
     if pre_seg:
         im_list = get_im_list(input_path)  # to return im base name for loading preseg
-        im_name = [i for i in im_list if im.startswith(i)][0]
+        im_name_candidates = [i for i in im_list if im.startswith(i)]
+        if len(im_name_candidates) == 1:
+            im_name = im_name_candidates[0]
+        elif len(im_name_candidates) == 2:
+            im_name = im_name_candidates[1]
+        else:
+            print("Can't identify image name, image candidates:")
+            print(im_name_candidates)
         return im_name
     else:
         return path_to_im
@@ -675,9 +682,9 @@ class SegmentWidget(QWidget):
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
-        fn_to_load = [d for d in pre_seg_list if d.startswith(im_name)]
+        fn_to_load = [d for d in pre_seg_list if d.startswith(im_name)][0]
         if fn_to_load:
-            df = pd.read_csv(pre_seg_dir.joinpath(fn_to_load[0]))  # load dataframe
+            df = pd.read_csv(pre_seg_dir.joinpath(fn_to_load))  # load dataframe
             try:
                 pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
             except KeyError:
