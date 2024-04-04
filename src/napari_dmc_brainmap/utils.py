@@ -41,7 +41,7 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
     if im_list_present:
         im0 = image_list[0]
         im_list = get_im_list(input_path)
-        im1 = [i for i in im_list if im0.startswith(i)]
+        im1 = [i for i in im_list if im0.startswith(i)][0]
         common_suffix = im0[len(im1):]
     else:
         if len(image_list) > 1:
