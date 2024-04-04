@@ -6,12 +6,13 @@ from enum import Enum
 from bg_atlasapi.list_atlases import descriptors, utils
 import numpy as np
 
+
 def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
     return animal_id
 
-def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=False, only_dir=False):
 
+def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=False, only_dir=False):
     if not seg_type:
         if channel:
             data_dir = input_path.joinpath(folder_id, channel)
@@ -36,7 +37,6 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
 
 
 def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_present=False):
-
     # if image list is present, load and get suffix
     if im_list_present:
         im0 = image_list[0]
@@ -55,15 +55,16 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
             # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
         elif len(image_list) == 1:
             print('only one file in ' + folder + ' folder: ' + image_list[0])
-            print('in DMC-BrainMap an image name has a base_string and a suffix. For an image named *animal1_obj1_1_stitched.tif* '
-                  '\n the base_string is animal1_obj1_1 and the suffix is _stitched.tif')
+            print(
+                'in DMC-BrainMap an image name has a base_string and a suffix. For an image named *animal1_obj1_1_stitched.tif* '
+                '\n the base_string is animal1_obj1_1 and the suffix is _stitched.tif')
             common_suffix = input("please, manually enter suffix: ")
         else:
             common_suffix = []
     return common_suffix
 
-def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
 
+def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
     im_list_name = input_path.joinpath('image_names.csv')
     if im_list_name.exists():
         image_list = pd.read_csv(im_list_name)
@@ -85,6 +86,7 @@ def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
 
     return image_list
 
+
 def load_params(input_path):
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
@@ -93,6 +95,7 @@ def load_params(input_path):
     else:
         print("params file missing for " + get_animal_id(input_path))
     return params_dict
+
 
 def clean_params_dict(params_dict, key):
     # remove empty keys and processes that have not run
@@ -103,7 +106,7 @@ def clean_params_dict(params_dict, key):
     for d in del_list:
         del params_dict[key][d]
         try:
-            del params_dict[d+"_params"]
+            del params_dict[d + "_params"]
         except KeyError:
             pass
     return params_dict
@@ -152,15 +155,13 @@ def get_parent(a, st):
         for i in v:
             if st[st['acronym'] == i]['structure_id_path'].iloc[0] in a:
                 if len(a.split('/')) > (k + 3):
-                    a_parent = st[st['structure_id_path'] == '/'.join(a.split('/')[:k+2]) + '/']['acronym'].iloc[0]
+                    a_parent = st[st['structure_id_path'] == '/'.join(a.split('/')[:k + 2]) + '/']['acronym'].iloc[0]
                 break
 
     return a_parent
 
 
-
 def clean_results_df(df, atlas):
-
     list_delete = ['root']
     for item in ['fiber tracts', 'VS']:
         list_delete.append(atlas.get_structure_descendants(item))
@@ -169,6 +170,7 @@ def clean_results_df(df, atlas):
     df = df.reset_index(drop=True)
 
     return df
+
 
 def split_to_list(input_str, out_format='str'):
     if not input_str:
@@ -190,7 +192,6 @@ def split_to_list(input_str, out_format='str'):
 
 
 def load_group_dict(input_path, animal_list, group_id='genotype'):
-
     dict = {}
     for animal_id in animal_list:
         data_dir = input_path.joinpath(animal_id)
@@ -215,24 +216,27 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
 
     return dict
 
-def get_bregma(atlas_id):
 
+def get_bregma(atlas_id):
     bregma_dict = {
-        "allen_mouse_10um": [540, 0, 570], # Ref: https://github.com/cortex-lab/allenCCF/blob/master/Browsing%20Functions/allenCCFbregma.m 
-        "whs_sd_rat_39um": [371, 72, 266], # Ref: Papp EA. Neuroimage. 2014 Aug 15;97:374-86. doi: 10.1016/j.neuroimage.2014.04.001.
-        "azba_zfish_4um" : [360, 0, 335] # Ref: cannot really find one, by looking at the saggital section, it seems around 350 to 400 AP voxel
+        "allen_mouse_10um": [540, 0, 570],
+        # Ref: https://github.com/cortex-lab/allenCCF/blob/master/Browsing%20Functions/allenCCFbregma.m
+        "whs_sd_rat_39um": [371, 72, 266],
+        # Ref: Papp EA. Neuroimage. 2014 Aug 15;97:374-86. doi: 10.1016/j.neuroimage.2014.04.001.
+        "azba_zfish_4um": [360, 0, 335]
+        # Ref: cannot really find one, by looking at the saggital section, it seems around 350 to 400 AP voxel
     }
     if atlas_id in bregma_dict.keys():
         bregma = bregma_dict[atlas_id]
     else:
         print('no bregma coordinates specified for ' + atlas_id + '\n'
-              ' returning 0/0/0 coordinates as *bregma*')
-        bregma = [0, 0, 0] #FIXME half of x and z-axis size
+                                                                  ' returning 0/0/0 coordinates as *bregma*')
+        bregma = [0, 0, 0]  # FIXME half of x and z-axis size
 
     return bregma
 
-def create_regi_dict(input_path, regi_chan):
 
+def create_regi_dict(input_path, regi_chan):
     regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
     params_dict = load_params(input_path)
 
@@ -246,6 +250,7 @@ def create_regi_dict(input_path, regi_chan):
 
     return regi_dict
 
+
 def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
     # change indices of xyz triplet tuple to match atlas
     # list with [x,y,z] triplet
@@ -256,13 +261,14 @@ def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
 
     return triplet_new
 
-def get_decimal(res_tup): # res_tup is a list of arbitrary number of resolution(um) values
+
+def get_decimal(res_tup):  # res_tup is a list of arbitrary number of resolution(um) values
     decimal_list = []
     for r in res_tup:
         step_float = r / 1000
         # by default keep 2 decimals
         decimal = 2
-        while np.abs(np.round(step_float,decimal)-step_float) >= 0.01 * step_float:
+        while np.abs(np.round(step_float, decimal) - step_float) >= 0.01 * step_float:
             decimal += 1
         decimal_list.append(decimal)
     return decimal_list
@@ -278,41 +284,40 @@ def consider_decimals(func):
                 args.append(False)
             else:
                 args.append(kwargs['mm_to_coord'])
-        triplet, bregma, resolution_tuple, mm_to_coord = args # take out arguments
+        triplet, bregma, resolution_tuple, mm_to_coord = args  # take out arguments
 
         ## get z_step decimals
         decimal_list = get_decimal(resolution_tuple)
 
         if mm_to_coord:
             triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
-                       zip(triplet, bregma, resolution_tuple)]
+                           zip(triplet, bregma, resolution_tuple)]
         else:
             triplet_new = []
-            for coord, br_coord, res, decimal in zip(triplet,bregma,resolution_tuple,decimal_list):
-                triplet_new.append(round((br_coord - coord) * (res/1000), decimal))
+            for coord, br_coord, res, decimal in zip(triplet, bregma, resolution_tuple, decimal_list):
+                triplet_new.append(round((br_coord - coord) * (res / 1000), decimal))
 
         if len(triplet_new) == 1:
             return triplet_new[0]
         else:
             return triplet_new
-        
+
     return wrapper
 
 
-
 @consider_decimals
-def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord = False):
-
+def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord=False):
     if mm_to_coord:
         triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
     else:
-        triplet_new = [round((br_coord - coord) * (res/1000), 2) for coord, br_coord, res in
+        triplet_new = [round((br_coord - coord) * (res / 1000), 2) for coord, br_coord, res in
                        zip(triplet, bregma, resolution_tuple)]
     if len(triplet_new) == 1:
         return triplet_new[0]
     else:
         return triplet_new
+
 
 def sort_ap_dv_ml(triplet, atlas_tuple):
     # sort input triplet in respective atlas convention to new tipled in [ap, dv, ml] order
@@ -320,7 +325,6 @@ def sort_ap_dv_ml(triplet, atlas_tuple):
     index_match = [atlas_tuple.index(e) for e in tgt_tuple]
     triplet_new = [triplet[i] for i in index_match]
     return triplet_new
-
 
 
 def get_xyz(atlas, section_orient):
@@ -344,6 +348,7 @@ def get_xyz(atlas, section_orient):
 
     return xyz_dict
 
+
 def get_available_atlases():
     """
     from: https://github.com/brainglobe/brainreg-segment  -- July 2023
@@ -355,6 +360,7 @@ def get_available_atlases():
     )
     available_atlases = dict(available_atlases["atlases"])
     return available_atlases
+
 
 def get_atlas_dropdown():
     atlas_dict = {}
