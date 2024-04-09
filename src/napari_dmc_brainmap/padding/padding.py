@@ -18,6 +18,7 @@ def do_padding(input_path, channels, pad_folder, resolution):
         for im in pad_im_list:
             print('... ' + im)
             im_fn = pad_dir.joinpath(im)
+            # FIXME input 8-bit color LUT image will result in dynamic range loss
             im_array = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # 0 for grayscale mode
             im_padded = padding_for_atlas(im_array, resolution)
             cv2.imwrite(str(im_fn), im_padded)

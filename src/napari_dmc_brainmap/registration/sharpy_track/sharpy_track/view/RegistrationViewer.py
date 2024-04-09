@@ -79,6 +79,8 @@ class RegistrationViewer(QMainWindow):
         low = np.arange(np.max(self.singleWindowSize))
         low_up = (low/self.scaleFactor).astype(int)
         self.res_up = {k:v for k,v in zip(low,low_up)}
+        self.res_x_range = np.arange(self.singleWindowSize[0])
+        self.res_y_range = np.arange(self.singleWindowSize[1])
 
         high = np.arange(np.max(self.atlas_resolution))
         high_down = (high*self.scaleFactor).astype(int)
