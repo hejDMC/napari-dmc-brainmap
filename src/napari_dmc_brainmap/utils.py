@@ -18,13 +18,19 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
             data_dir = input_path.joinpath(folder_id, channel)
         else:
             data_dir = input_path.joinpath(folder_id)
-        data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.tif')])
+        if data_dir.exists():
+            data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.tif')])
+        else:
+            data_list = []
     else:
         if channel:
             data_dir = input_path.joinpath(folder_id, seg_type, channel)
         else:
             data_dir = input_path.joinpath(folder_id, seg_type)
-        data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.csv')])
+        if data_dir.exists():
+            data_list = natsorted([f.parts[-1] for f in data_dir.glob('*.csv')])
+        else:
+            data_list = []
     if create_dir:
         if not data_dir.exists():
             data_dir.mkdir(parents=True)
@@ -32,7 +38,10 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
     if only_dir:
         return data_dir
     else:
-        data_suffix = find_common_suffix(data_list, input_path=input_path, folder=folder_id, im_list_present=True)
+        if len(data_list) > 0:
+            data_suffix = find_common_suffix(data_list, input_path=input_path, folder=folder_id, im_list_present=True)
+        else:
+            data_suffix = ''
         return data_dir, data_list, data_suffix
 
 

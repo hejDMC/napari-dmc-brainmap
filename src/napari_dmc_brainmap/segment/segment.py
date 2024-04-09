@@ -149,7 +149,6 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
     if pre_seg:
         im_list = get_im_list(input_path)  # to return im base name for loading preseg
         im_name_candidates = [i for i in im_list if im.startswith(i)]
-        print(im_name_candidates)
         if len(im_name_candidates) == 1:
             im_name = im_name_candidates[0]
         elif len(im_name_candidates) == 2:
@@ -157,7 +156,6 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
         else:
             print("Can't identify image name, image candidates:")
             print(im_name_candidates)
-        print(im_name)
         return im_name
     else:
         return path_to_im
@@ -292,7 +290,6 @@ def create_projection_preseg(input_path, channels, binary_folder, output_folder)
         output_dir = get_info(input_path, output_folder, seg_type='projections', channel=chan, create_dir=True,
                               only_dir=True)
         binary_images = natsorted([im.parts[-1] for im in binary_dir.glob('*.tif')])
-        print(binary_images)
         for im_name in binary_images:
             path_to_im = binary_dir.joinpath(im_name)
             image = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
@@ -680,14 +677,14 @@ class SegmentWidget(QWidget):
         self.viewer.layers[chan + ' channel'].contrast_limits = contrast_dict[chan]
 
     def _load_preseg_object(self, input_path, chan, image_idx, seg_type):
-
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(im_name + '_')]
-        print(fn_to_load)
-        if fn_to_load:
-            df = pd.read_csv(pre_seg_dir.joinpath(fn_to_load[0]))  # load dataframe
+
+        if len(fn_to_load) > 0:
+            pre_seg_data_dir = pre_seg_dir.joinpath(fn_to_load[0])
+            df = pd.read_csv(pre_seg_data_dir)  # load dataframe
             try:
                 pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
             except KeyError:
