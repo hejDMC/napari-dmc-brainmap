@@ -375,6 +375,9 @@ def get_available_atlases():
         descriptors.remote_url_base.format("last_versions.conf")
     )
     available_atlases = dict(available_atlases["atlases"])
+    # move "example_mouse_100um" to the back of the list
+    available_atlases = {k: available_atlases[k] for k in available_atlases if k != 'example_mouse_100um'} \
+                        | {k: available_atlases[k] for k in ['example_mouse_100um'] if k in available_atlases}
     return available_atlases
 
 
