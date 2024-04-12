@@ -143,6 +143,7 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
             print("done! data saved to: " + str(fn))
         else:
             print("No segmentation images found in " + str(segment_dir))
+    print("DONE!")
 
 @thread_worker
 def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
