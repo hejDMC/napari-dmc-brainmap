@@ -327,6 +327,19 @@ class AtlasModel():
 
 
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
+                # check if dot coordinates are within boundary
+                if (xyAtlas[0] >=0) and (xyAtlas[0] < self.regViewer.atlas_resolution[0]) and (
+                    xyAtlas[1] >=0) and (xyAtlas[1] < self.regViewer.atlas_resolution[1]) and (
+                    xySample[0] >=0) and (xySample[0] < self.regViewer.atlas_resolution[0]) and (
+                    xySample[1] >=0) and (xySample[1] < self.regViewer.atlas_resolution[1]):
+                    pass
+                else:
+                    raise IndexError("Registration coordinates out of boundary! \n" 
+                                     "Check slide {} : atlasDots {}, sampleDots{}. \n"
+                                     "Must fulfill: [0=<i<{},0<=j<{}]".format(self.regViewer.status.currentSliceNumber,
+                                                                              xyAtlas,xySample,
+                                                                              self.regViewer.atlas_resolution[0],self.regViewer.atlas_resolution[1]))
+                
                 dotLeft = DotObject(self.regViewer.res_down[xyAtlas[0]], 
                                     self.regViewer.res_down[xyAtlas[1]], 
                                     self.regViewer.dotRR) # list to itemGroup
