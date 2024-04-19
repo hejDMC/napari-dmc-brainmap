@@ -108,9 +108,12 @@ def load_params(input_path):
     if params_fn.exists():
         with open(params_fn) as fn:
             params_dict = json.load(fn)
+        return params_dict
     else:
-        print("params file missing for " + get_animal_id(input_path))
-    return params_dict
+        raise FileNotFoundError(" ['Params.json'] file missing for " + get_animal_id(input_path) + " \n"
+                                "Check Data Integrity at folder: {} \n"
+                                "and try again!".format(input_path))
+    
 
 
 def clean_params_dict(params_dict, key):
