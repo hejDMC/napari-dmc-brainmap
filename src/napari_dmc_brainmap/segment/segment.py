@@ -621,6 +621,10 @@ class SegmentWidget(QWidget):
     def _save_and_load(self):
 
         input_path = self.segment.input_path.value
+        # check if user provided a valid input_path
+        if not input_path.is_dir():
+            raise IOError("Input path is not a valid directory \n"
+                          "Please make sure this exists: {}".format(input_path))
         image_idx = int(self.segment.image_idx.value)
         seg_type = self.segment.seg_type.value
         channels = self.segment.channels.value

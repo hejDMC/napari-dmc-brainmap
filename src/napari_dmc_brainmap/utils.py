@@ -144,7 +144,9 @@ def update_params_dict(input_path, params_dict):
 
         return params_dict_new
     else:
-        return params_dict
+        raise FileNotFoundError(" ['Params.json'] file missing for " + get_animal_id(input_path) + " \n"
+                                "Check Data Integrity at folder: {} \n"
+                                "and try again!".format(input_path))
 
 
 def split_strings_layers(s):

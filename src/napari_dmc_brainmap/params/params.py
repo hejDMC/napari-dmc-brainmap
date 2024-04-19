@@ -77,6 +77,10 @@ class ParamsWidget(QWidget):
 
     def _create_params_file(self):
         input_path = self.params.input_path.value
+        # check if user provided a valid input_path
+        if not input_path.is_dir():
+            raise IOError("Input path is not a valid directory \n"
+                          "Please make sure this exists: {}".format(input_path))
         animal_id = get_animal_id(input_path)
         injection_side = self.params.inj_side.value
         genotype = self.params.geno.value

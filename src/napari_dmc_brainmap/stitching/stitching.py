@@ -239,6 +239,10 @@ class StitchingWidget(QWidget):
         return params_dict
     def _do_stitching(self):
         input_path = self.stitching.input_path.value
+        # check if user provided a valid input_path
+        if not input_path.is_dir():
+            raise IOError("Input path is not a valid directory \n"
+                          "Please make sure this exists: {}".format(input_path))
         stitch_tiles = self.stitching.stitch_tiles.value
         params_dict = self._get_stitching_params()
         direct_sharpy_track = params_dict['operations']['sharpy_track']

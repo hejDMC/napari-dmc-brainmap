@@ -442,6 +442,10 @@ class PreprocessingWidget(QWidget):
 
     def _do_preprocessing(self):
         input_path = self.header.input_path.value
+        # check if user provided a valid input_path
+        if not input_path.is_dir():
+            raise IOError("Input path is not a valid directory \n"
+                          "Please make sure this exists: {}".format(input_path))
         preprocessing_params = self._get_preprocessing_params()
 
         save_dirs = create_dirs(preprocessing_params, input_path)
