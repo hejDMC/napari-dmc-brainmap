@@ -131,7 +131,7 @@ def clean_params_dict(params_dict, key):
     return params_dict
 
 
-def update_params_dict(input_path, params_dict):
+def update_params_dict(input_path, params_dict, create=False):
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
         print("params.json exists -- overriding existing values")
@@ -143,6 +143,10 @@ def update_params_dict(input_path, params_dict):
             json.dump(params_dict_new, fn, indent=4)
 
         return params_dict_new
+    elif create:
+        with open(params_fn, 'w') as fn:
+            json.dump(params_dict, fn, indent=4)
+        return params_dict
     else:
         raise FileNotFoundError(" ['Params.json'] file missing for " + get_animal_id(input_path) + " \n"
                                 "Check Data Integrity at folder: {} \n"

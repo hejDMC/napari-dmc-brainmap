@@ -113,7 +113,7 @@ class ParamsWidget(QWidget):
         }
         params_dict = clean_params_dict(params_dict, "general")  # remove empty keys, e.g. when no genotype specified
         params_fn = input_path.joinpath('params.json')
-        params_dict = update_params_dict(input_path, params_dict)
+        params_dict = update_params_dict(input_path, params_dict, create=True)
         with open(params_fn, 'w') as fn:
             json.dump(params_dict, fn, indent=4)
         print('params.json file for ' + animal_id + ' created !')
