@@ -345,6 +345,8 @@ class RegistrationHelper(QMainWindow):
         self.regViewer.widget.viewerRight.view.setInteractive(True)
     
     def closeEvent(self, event) -> None:
+        if self.preview_mode == 1:
+            self.abort_action()
         self.regViewer.del_reghelper_instance()
 
     
