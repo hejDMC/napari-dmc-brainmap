@@ -101,8 +101,10 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                 try:
                     injection_side = params_data['general']['injection_side']  # add the injection_side as a column
                 except KeyError:
-                    injection_side = input("no injection side specified in params.json file for " + animal_id +
-                                           ", please enter manually: ")
+                    # injection_side = input("no injection side specified in params.json file for " + animal_id +
+                    #                        ", please enter manually: ")
+                    print("WARNING: no injection side specified in params files, defaulting to right hemisphere")
+                    injection_side = 'right'
 
                 try:
                     genotype = params_data['general']['genotype']
