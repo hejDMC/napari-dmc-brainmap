@@ -670,7 +670,7 @@ class SegmentWidget(QWidget):
             self.viewer.add_image(im_loaded[:, :, 1], name='green channel', colormap='green', opacity=0.5)
             self.viewer.layers['green channel'].contrast_limits = contrast_dict['green']
         if 'dapi' in channels:
-            self.viewer.add_image(im_loaded[:, :, 0], name='dapi channel')
+            self.viewer.add_image(im_loaded[:, :, 0], name='dapi channel', colormap='blue', opacity=0.5)
             self.viewer.layers['dapi channel'].contrast_limits = contrast_dict['dapi']
 
     def _load_single(self, path_to_im, chan, contrast_dict):
