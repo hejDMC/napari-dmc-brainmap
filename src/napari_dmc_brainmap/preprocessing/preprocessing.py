@@ -71,7 +71,8 @@ def initialize_dorgb_widget() -> FunctionGui:
                                 label='set contrast limits for the cy3 channel',
                                 value='50,2000', 
                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     
     def do_rgb(
             self,
@@ -124,7 +125,8 @@ def initialize_dosinglechannel_widget() -> FunctionGui:
                                 label='set contrast limits for the cy5 channel',
                                 value='50,1000', 
                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     
     def do_single_channel(
             self,
@@ -179,7 +181,8 @@ def initialize_dostack_widget() -> FunctionGui:
                                 label='set contrast limits for the cy5 channel',
                                 value='50,1000', 
                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     
     def do_stack(
             self,
@@ -235,7 +238,8 @@ def initialize_dosharpy_widget() -> FunctionGui:
                                 label='set contrast limits for the cy5 channel',
                                 value='50,500', 
                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     
     def do_sharpy(
             self,
@@ -290,7 +294,8 @@ def initialize_dobinary_widget() -> FunctionGui:
                               label='set threshold for the cy5 channel',
                               value='2000', 
                               tooltip='enter threshold for creating binary image (default values for 16-bit image)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     
     def do_binary(
             self,
@@ -352,27 +357,34 @@ class PreprocessingWidget(QWidget):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
         self.header = initialize_header_widget()
+        self.header.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_rgb = QCollapsible('Create RGB: expand for more', self)
         self.rgb_widget = initialize_dorgb_widget()
-        self._collapse_rgb.addWidget(self.rgb_widget.native)
+        self.rgb_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_rgb.addWidget(self.rgb_widget.root_native_widget)
 
         self._collapse_single = QCollapsible('Processed single channels: expand for more', self)
         self.single_channel_widget = initialize_dosinglechannel_widget()
-        self._collapse_single.addWidget(self.single_channel_widget.native)
+        self.single_channel_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_single.addWidget(self.single_channel_widget.root_native_widget)
 
         self._collapse_stack = QCollapsible('Create image stacks: expand for more', self)
         self.stack_widget = initialize_dostack_widget()
-        self._collapse_stack.addWidget(self.stack_widget.native)
+        self.stack_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_stack.addWidget(self.stack_widget.root_native_widget)
 
         self._collapse_sharpy = QCollapsible('Create sharpy_track images: expand for more', self)
         self.sharpy_widget = initialize_dosharpy_widget()
-        self._collapse_sharpy.addWidget(self.sharpy_widget.native)
+        self.sharpy_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_sharpy.addWidget(self.sharpy_widget.root_native_widget)
 
         self._collapse_binary = QCollapsible('Create binary images: expand for more', self)
         self.binary_widget = initialize_dobinary_widget()
-        self._collapse_binary.addWidget(self.binary_widget.native)
+        self.binary_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_binary.addWidget(self.binary_widget.root_native_widget)
 
         self.footer = initialize_footer_widget()
+        self.footer.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
 
         btn = QPushButton("Do the preprocessing!")
         btn.clicked.connect(self._do_preprocessing)

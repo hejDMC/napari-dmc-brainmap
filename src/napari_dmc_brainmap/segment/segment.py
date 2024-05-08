@@ -421,7 +421,8 @@ def initialize_loadpreseg_widget() -> FunctionGui:
                                 '*segmentation* (default), manual curation will override existing data. '
                                 'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
                                 '*Position Y* for coordinates'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
 
     def load_preseg_widget(
         viewer: Viewer,
@@ -487,7 +488,9 @@ def initialize_dopreseg_widget():
                                  label='output folder',
                                  value='presegmentation',
                                  tooltip='name of output folder for storing the presegmentation results'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
+    
     def do_preseg_widget(
             viewer: Viewer,
             single_channel_bool,
@@ -520,7 +523,8 @@ def initialize_projectionpreseg_widget():
                                  label='output folder',
                                  value='presegmentation',
                                  tooltip='name of output folder for storing presegmentation data of projections (to be loaded)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     def create_projection_preseg(
             viewer: Viewer,
             binary_folder,
@@ -546,7 +550,8 @@ def initialize_findcentroids_widget():
                                  label='output folder', 
                                  value='presegmentation',
                                  tooltip='name of output folder for storing centroids of segmentation masks'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
     
     def find_centroids_widget(
         viewer: Viewer,
@@ -564,29 +569,34 @@ class SegmentWidget(QWidget):
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
         self.segment = initialize_segment_widget()
+        self.segment.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self.save_dict = default_save_dict()
 
         self._collapse_load_preseg = QCollapsible('Load pre-segmented data: expand for more', self)
         self.load_preseg = initialize_loadpreseg_widget()
-        self._collapse_load_preseg.addWidget(self.load_preseg.native)
+        self.load_preseg.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_load_preseg.addWidget(self.load_preseg.root_native_widget)
 
         self._collapse_do_preseg = QCollapsible('Do presegmentation of data: expand for more', self)
         self.do_preseg = initialize_dopreseg_widget()
-        self._collapse_do_preseg.addWidget(self.do_preseg.native)
+        self.do_preseg.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_do_preseg.addWidget(self.do_preseg.root_native_widget)
         btn_do_preseg = QPushButton("run presegmentation and store data")
         btn_do_preseg.clicked.connect(self._do_presegmentation)
         self._collapse_do_preseg.addWidget(btn_do_preseg)
 
         self._collapse_projections = QCollapsible('Create presegmentation data for projections: expand for more', self)
         self.projections = initialize_projectionpreseg_widget()
-        self._collapse_projections.addWidget(self.projections.native)
+        self.projections.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_projections.addWidget(self.projections.root_native_widget)
         btn_projections = QPushButton("create presegmentation of projections data")
         btn_projections.clicked.connect(self._create_projection_preseg)
         self._collapse_projections.addWidget(btn_projections)
 
         self._collapse_center = QCollapsible('Find centroids for pre-segmented data (masks): expand for more', self)
         self.center = initialize_findcentroids_widget()
-        self._collapse_center.addWidget(self.center.native)
+        self.center.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_center.addWidget(self.center.root_native_widget)
         btn_center = QPushButton("get center coordinates for pre-segmented data")
         btn_center.clicked.connect(self._get_center_coord)
         self._collapse_center.addWidget(btn_center)

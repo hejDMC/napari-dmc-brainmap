@@ -157,7 +157,8 @@ def initialize_barplot_widget() -> FunctionGui:
                                     label='plot absolute numbers', 
                                     value=False,
                                     tooltip='option to plot absolute numbers, if not ticked, relative percentages of used'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
 
     def barplot_widget(
         viewer: Viewer,
@@ -285,7 +286,8 @@ def initialize_heatmap_widget() -> FunctionGui:
                                     label='plot absolute numbers', 
                                     value=False,
                                     tooltip='option to plot absolute numbers, if not ticked, relative percentages of used'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
 
     def heatmap_widget(
         viewer: Viewer,
@@ -400,7 +402,8 @@ def initialize_brainsection_widget() -> FunctionGui:
                              label='colors (neuropixels)',
                              value='Red,Brown', 
                              tooltip='enter a COMMA SEPERATED list for colors to use for the neuropixels probes(s)'),
-              call_button=False)
+              call_button=False,
+              scrollable=True)
 
     def brain_section_widget(
         viewer: Viewer,
@@ -432,24 +435,28 @@ class VisualizationWidget(QWidget):
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
         self.header = initialize_header_widget()
+        self.header.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
 
         self._collapse_bar = QCollapsible('Bar plot: expand for more', self)
         self.barplot = initialize_barplot_widget()
-        self._collapse_bar.addWidget(self.barplot.native)
+        self.barplot.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_bar.addWidget(self.barplot.root_native_widget)
         btn_bar = QPushButton("Create bar plot")
         btn_bar.clicked.connect(self._do_bar_plot)
         self._collapse_bar.addWidget(btn_bar)
 
         self._collapse_heat = QCollapsible('Heatmap: expand for more', self)
         self.heatmap = initialize_heatmap_widget()
-        self._collapse_heat.addWidget(self.heatmap.native)
+        self.heatmap.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_heat.addWidget(self.heatmap.root_native_widget)
         btn_heat = QPushButton("Create heatmap")
         btn_heat.clicked.connect(self._do_heatmap)
         self._collapse_heat.addWidget(btn_heat)
 
         self._collapse_section = QCollapsible('Brain section plot: expand for more', self)
         self.brain_section = initialize_brainsection_widget()
-        self._collapse_section.addWidget(self.brain_section.native)
+        self.brain_section.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
+        self._collapse_section.addWidget(self.brain_section.root_native_widget)
         btn_section = QPushButton("Create brain section plot")
         btn_section.clicked.connect(self._do_brain_section_plot)
         self._collapse_section.addWidget(btn_section)
