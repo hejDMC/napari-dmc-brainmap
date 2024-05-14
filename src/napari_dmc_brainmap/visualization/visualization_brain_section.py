@@ -22,6 +22,7 @@ def get_brain_section_params(brainsec_widget):
         "section_list": split_to_list(brainsec_widget.section_list.value, out_format='float'),
         "section_range": float(brainsec_widget.section_range.value),
         "groups": brainsec_widget.groups.value,
+        "dot_size": int(brainsec_widget.dot_size.value),
         "bin_width": int(brainsec_widget.bin_width.value),
         "vmax": int(brainsec_widget.vmax.value),
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
@@ -192,10 +193,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if item == 'cells':
                     if color_dict[item]['single_color']:
                             sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                            color=color_dict[item]["cmap"])
+                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                     else:
                             sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
@@ -212,14 +213,14 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        color=color_dict[item]["cmap"], s=20)
+                                        color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         sns.regplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                     data=plot_dict[item],
                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
                         sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["cmap"], s=20)
+                                        hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                         for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
@@ -250,10 +251,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if item == 'cells':
                     if color_dict[item]["single_color"]:
                             sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                            color=color_dict[item]["cmap"])
+                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                     else:
                             sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
@@ -270,14 +271,14 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        color=color_dict[item]["cmap"], s=20)
+                                        color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                     data=plot_dict[item],
                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
                         sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["cmap"], s=20)
+                                        hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                         for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
@@ -306,10 +307,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if item == 'cells':
                     if color_dict[item]["single_color"]:
                             sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                            color=color_dict[item]["cmap"])
+                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                     else:
                             sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel",
@@ -327,14 +328,14 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        color=color_dict[item]["cmap"], s=20)
+                                        color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                     data=plot_dict[item],
                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
                         sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["cmap"], s=20)
+                                        hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                         for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
