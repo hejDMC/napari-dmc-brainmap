@@ -12,33 +12,6 @@ def load_meta(section_dir):
         meta_data = json.loads(tif.imagej_metadata['Info'])
     return meta_data
 
-# def get_meta(path):
-#     with tifffile.TiffFile(path) as tif:
-#         img_meta = tif.imagej_metadata['Info']
-#     img_meta_list = img_meta.split('DeviceCoordinatesUm":{"')[1:]
-#     meta_clean = pd.DataFrame(index=['focus', 'x', 'y'])
-#     for i in img_meta_list:
-#         s = i.split(',"GridRowIndex"')[0]
-#         depth, x, y, _, _, label = s.split(',')
-#         depth = depth.split('[')[1][:-1]
-#         x = x.split('[')[1]
-#         y = y[:-1]
-#         label = label.split(':')[1][1:-1]
-#         meta_clean[label] = [depth, x, y]
-#     # meta_clean.to_csv(path.split('/')[-1][:-8]+'_meta.csv')
-#     return meta_clean
-#
-#
-# def get_size(path_to_tiff):
-#     meta_data = get_meta(path_to_tiff)
-#     print('meta-data loaded')
-#     x_series = meta_data.iloc[1].values.astype(float)
-#     # y_series = meta_data.iloc[2].values.astype(float)
-#     height = np.sum(np.abs(np.diff(x_series).astype(int)) < 13) + 1
-#     width = int(len(x_series) / height)
-#     # print('this cover slide has *', width, '* patches in width, and *', height, '* patches in height.')
-#     return width, height
-
 def get_size_json(pos_list):
     pos = np.array(pos_list)
     pos_x = pos[:, 0]
@@ -187,10 +160,6 @@ def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled
         downsample(stitch_canvas, downsampled_path, tuple(resolution), contrast_tuple)
 
 
-
-
-
-
 def downsample(input_tiff, output_png, size_tuple, contrast_tuple):
     if isinstance(input_tiff, str):  # if input is a file path
         # read file to matrix
@@ -238,7 +207,6 @@ def padding_for_atlas(input_array, resolution):
             d_h = int((dest_h - h) / 2)
             output_array = np.pad(input_array, ((d_h, d_h), (0, 0)), 'constant',
                                   constant_values=0)  # pad with absolute black
-
     else:
         output_array = input_array
 

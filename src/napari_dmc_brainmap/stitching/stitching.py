@@ -120,11 +120,6 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
                                                resolution=resolution)
                     # remove stitched tiles from whole_stack
                     whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
-    # params_dict = clean_params_dict(params_dict, "operations")
-    # params_fn = input_path.joinpath('params.json')
-    # params_dict = update_params_dict(input_path, params_dict)
-    # with open(params_fn, 'w') as fn:
-    #     json.dump(params_dict, fn, indent=4)
     print('all finished!')
 
 

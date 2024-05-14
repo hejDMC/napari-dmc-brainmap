@@ -7,7 +7,6 @@ see: https://napari.org/stable/plugins/guides.html?#widgets
 Replace code below according to your needs.
 """
 from napari.qt.threading import thread_worker
-import json
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, load_params
@@ -16,7 +15,7 @@ from superqt import QCollapsible
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
-from bg_atlasapi import BrainGlobeAtlas
+
 
 
 def initialize_header_widget() -> FunctionGui:
