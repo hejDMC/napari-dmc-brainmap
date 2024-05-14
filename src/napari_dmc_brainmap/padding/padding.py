@@ -5,15 +5,44 @@ from napari.qt.threading import thread_worker
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 import cv2
-
+from natsort import natsorted
+import pandas as pd
 from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
 from napari_dmc_brainmap.utils import load_params, get_info
 
 @thread_worker
 def do_padding(input_path, channels, pad_folder, resolution):
+    # check if pad_folder name is "confocal"
+    if pad_folder == "confocal":
+        raise NotImplementedError("'confocal' is a keyword reserved for CZI file format,"
+                                "\nPlease rename the folder something else (such as 'to_pad'), if these are tif files to pad."
+                                "\nFor CZI files, please goto 'Stitch czi images' function."
+                                "\nExiting padding function!")
+
     print('doing padding of ...')
     for chan in channels:
         print('... channel ' + chan)
+        # check if to pad images has _stitched.tif suffix
+        # get first image name
+        if not [tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")][0].endswith("_stitched.tif"):
+            # rename image files
+            for im in [tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")]:
+                im_old = input_path.joinpath(pad_folder,chan,im)
+                im_new = input_path.joinpath(pad_folder,chan,im.split(".tif")[0]+"_stitched.tif")
+                print("renaming ===>" + str(im_old) + " \nto " + str(im_new)+"<===")
+                im_old.rename(im_new)
+            # save image_names.csv
+            # check if image_names.csv already exists
+            image_names_csv = input_path.joinpath("image_names.csv")
+            if image_names_csv.exists():
+                pass
+            else:
+                image_list = natsorted([tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")])
+                image_list = [tif.split("_stitched.tif")[0] for tif in image_list]
+                # store data as .csv file
+                image_list_store = pd.DataFrame(image_list)
+                image_list_store.to_csv(image_names_csv)
+
         pad_dir, pad_im_list, pad_suffix = get_info(input_path, pad_folder, channel=chan)
         for im in pad_im_list:
             print('... ' + im)

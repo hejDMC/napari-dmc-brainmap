@@ -49,7 +49,7 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
     # if image list is present, load and get suffix
     if im_list_present:
         im0 = image_list[0]
-        im_list = get_im_list(input_path)
+        im_list = get_im_list(input_path,folder_id=folder)
         im1 = [i for i in im_list if im0.startswith(i)]
         if len(im1) == 1:
             im1 = im1[0]
@@ -93,7 +93,7 @@ def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
         else:
             filter_dir = [f for f in data_dir.glob('**/*') if f.is_dir()][0]  # just take the first folder
             image_list = natsorted([f.parts[-1] for f in filter_dir.glob(file_id)])
-        common_suffix = find_common_suffix(image_list, folder=folder_id)
+        common_suffix = find_common_suffix(image_list, input_path=input_path,folder=folder_id)
         image_list = [image[:-len(common_suffix)] for image in image_list]  # delete the common_suffix
 
         # store data as .csv file
