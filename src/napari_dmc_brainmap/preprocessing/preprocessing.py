@@ -316,7 +316,7 @@ def initialize_footer_widget() -> FunctionGui:
                              label='enter the number of parallel processes', 
                              value=1, 
                              min=1,
-                             tooltip='select number of parallel processes for image processing'),
+                             tooltip='select number of parallel processes for image processing - NOT IMPLEMENTED'),
               call_button=False)
     
     def footer_widget(

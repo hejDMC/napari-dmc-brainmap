@@ -33,7 +33,13 @@ def load_stitched_images(input_path, filter, image):
     #
     # load and return stitched image in R-made folder of same name
     im_fn = input_path.joinpath('stitched', filter, image + '_stitched.tif')
-    image = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # 0 for grayscale mode
+    if im_fn.exists():
+        image = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # 0 for grayscale mode
+    else:
+        print(f'WARNING - no stitched images of name {image}_stitched.tif found in {im_fn}!')
+        print('Do padding on images if _stitched.tif suffix is missing.')
+        print('DMC-BrainMap requires single channel 16-bit tif images for preprocessing.')
+        image = False
     return image
 
 def adjust_contrast(data, contrast_tuple):
@@ -178,47 +184,54 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
     for f in filter_list:
         stack_dict[f] = load_stitched_images(input_path, f, im)  # todo change to not load all channels
     # todo this in one function, not all the same if clauses
-    if params['operations']['sharpy_track']:
-        chans = select_chans(params['sharpy_track_params']['channels'], filter_list, 'sharpy_track')
-        for chan in chans:
-            downsampled_image = make_sharpy_track(stack_dict[chan].copy(), chan, params, resolution_tuple)
-            ds_image_name = im + '_downsampled.tif'
-            ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
-            tiff.imwrite(str(ds_image_path), downsampled_image)
-            # use tifffile to write images, cv2.imwrite resulted in some errors
-
-    if params['operations']['rgb']:
-        chans = select_chans(params['rgb_params']['channels'], filter_list, 'rgb')
-        rgb_dict = dict((c, stack_dict[c]) for c in chans)
-        rgb_stack = make_rgb(rgb_dict, params)
-        rgb_fn = im + '_RGB.tif'
-        rgb_save_dir = save_dirs['rgb'].joinpath(rgb_fn)
-        tiff.imwrite(str(rgb_save_dir), rgb_stack)
-
-    if params['operations']['single_channel']:
-        chans = select_chans(params['single_channel_params']['channels'], filter_list, 'single_channel')
-        for chan in chans:
-            single_channel_image = make_single_channel(stack_dict[chan].copy(), chan, params)
-            single_fn = im + '_single.tif'
-            single_save_dir = save_dirs['single_channel'].joinpath(chan, single_fn)
-            cv2.imwrite(str(single_save_dir), single_channel_image)
-
-    if params['operations']['stack']:
-        if params['stack_params']['channels'] == ['all']:
-            image_stack = make_stack(stack_dict.copy(), filter_list, params)
+    if all(v is False for v in stack_dict.values()):  # no images
+        pass
+    else:
+        if any(v is False for v in stack_dict.values()):  # some channel missing
+            filter_pres = [f for f in stack_dict.keys() if isinstance(stack_dict[f], np.ndarray)]
         else:
-            image_stack = make_stack(stack_dict.copy(), params['stack_params']['channels'], params)
-        save_stack_name = im + '_stack.tif'
-        save_stack_path = save_dirs['stack'].joinpath(save_stack_name)
-        save_zstack(save_stack_path, image_stack)
+            filter_pres = filter_list
+        if params['operations']['sharpy_track']:
+            chans = select_chans(params['sharpy_track_params']['channels'], filter_pres, 'sharpy_track')
+            for chan in chans:
+                downsampled_image = make_sharpy_track(stack_dict[chan].copy(), chan, params, resolution_tuple)
+                ds_image_name = im + '_downsampled.tif'
+                ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
+                tiff.imwrite(str(ds_image_path), downsampled_image)
+                # use tifffile to write images, cv2.imwrite resulted in some errors
 
-    if params['operations']['binary']:
-        chans = select_chans(params['binary_params']['channels'], filter_list, 'binary_params')
-        for chan in chans:
-            binary_image = make_binary(stack_dict[chan].copy(), chan, params)
-            binary_image_name = im + '_binary.tif'
-            binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
-            tiff.imwrite(str(binary_image_path), binary_image)
+        if params['operations']['rgb']:
+            chans = select_chans(params['rgb_params']['channels'], filter_pres, 'rgb')
+            rgb_dict = dict((c, stack_dict[c]) for c in chans)
+            rgb_stack = make_rgb(rgb_dict, params)
+            rgb_fn = im + '_RGB.tif'
+            rgb_save_dir = save_dirs['rgb'].joinpath(rgb_fn)
+            tiff.imwrite(str(rgb_save_dir), rgb_stack)
+
+        if params['operations']['single_channel']:
+            chans = select_chans(params['single_channel_params']['channels'], filter_pres, 'single_channel')
+            for chan in chans:
+                single_channel_image = make_single_channel(stack_dict[chan].copy(), chan, params)
+                single_fn = im + '_single.tif'
+                single_save_dir = save_dirs['single_channel'].joinpath(chan, single_fn)
+                cv2.imwrite(str(single_save_dir), single_channel_image)
+
+        if params['operations']['stack']:
+            if params['stack_params']['channels'] == ['all']:
+                image_stack = make_stack(stack_dict.copy(), filter_pres, params)
+            else:
+                image_stack = make_stack(stack_dict.copy(), params['stack_params']['channels'], params)
+            save_stack_name = im + '_stack.tif'
+            save_stack_path = save_dirs['stack'].joinpath(save_stack_name)
+            save_zstack(save_stack_path, image_stack)
+
+        if params['operations']['binary']:
+            chans = select_chans(params['binary_params']['channels'], filter_pres, 'binary_params')
+            for chan in chans:
+                binary_image = make_binary(stack_dict[chan].copy(), chan, params)
+                binary_image_name = im + '_binary.tif'
+                binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
+                tiff.imwrite(str(binary_image_path), binary_image)
 
 
 
