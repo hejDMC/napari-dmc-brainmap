@@ -442,9 +442,9 @@ def initialize_loadpreseg_widget() -> FunctionGui:
                                   label='folder name with pre-segmented data', 
                                   value='presegmentation',
                                   tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called'
-                                '*segmentation* (default), manual curation will override existing data. '
+                                '*segmentation*, manual curation will override existing data. '
                                 'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
-                                '*Position Y* for coordinates'),
+                                '*Position Y* for coordinates. For loading neuropixels/optic fiber data specify the number of probes correctly.'),
               call_button=False,
               scrollable=True)
 
@@ -719,7 +719,6 @@ class SegmentWidget(QWidget):
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type, channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(im_name + '_')]
-
         if len(fn_to_load) > 0:
             pre_seg_data_dir = pre_seg_dir.joinpath(fn_to_load[0])
             df = pd.read_csv(pre_seg_data_dir)  # load dataframe
@@ -737,11 +736,16 @@ class SegmentWidget(QWidget):
     def _create_seg_objects(self, input_path, seg_type, channels, n_probes, image_idx):
         if seg_type == 'injection_side':
             cmap_dict = cmap_injection()
-            for chan in channels:
-                self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
+            if self.load_preseg.load_bool.value:
+                for chan in channels:
+                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
+                    self.viewer.add_shapes(pre_seg_data, name=chan, shape_type='polygon', face_color=cmap_dict[chan], opacity=0.4)
+            else:
+                for chan in channels:
+                    self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
         elif seg_type in ['cells', 'projections']:
             cmap_dict = cmap_cells()
-            if self.load_preseg.load_bool.value:  # loading presegmented cells
+            if self.load_preseg.load_bool.value:
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
                     self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=chan, face_color=cmap_dict[chan])
@@ -756,7 +760,12 @@ class SegmentWidget(QWidget):
                 else:
                     p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 p_id = seg_type + '_' + str(i)
-                self.viewer.add_points(size=int(self.segment.point_size.value), name=p_id, face_color=p_color)
+                print(p_id)
+                if self.load_preseg.load_bool.value:
+                    pre_seg_data = self._load_preseg_object(input_path, p_id, image_idx, seg_type)
+                    self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=p_id, face_color=p_color)
+                else:
+                    self.viewer.add_points(size=int(self.segment.point_size.value), name=p_id, face_color=p_color)
 
     def _save_data(self, input_path, channels, single_channel):
         # points data in [y, x] format
