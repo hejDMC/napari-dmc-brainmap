@@ -378,6 +378,10 @@ def initialize_segment_widget() -> FunctionGui:
                             value=1,
                             tooltip='number (int) of optic fibres and or probes used to segment, ignore this value for '
                                 'segmenting cells/areas/'),
+              point_size=dict(widget_type='LineEdit',
+                            label='point size',
+                            value=5,
+                            tooltip='enter the size of points for cells/projections/optic fibers/neuropixels probes'),
               channels=dict(widget_type='Select', 
                             label='selected channels', 
                             value=['green', 'cy3'],
@@ -415,6 +419,7 @@ def initialize_segment_widget() -> FunctionGui:
         input_path,  # posix path
         seg_type,
         n_probes,
+        point_size,
         channels,
         contrast_dapi,
         contrast_green,
@@ -735,18 +740,14 @@ class SegmentWidget(QWidget):
             for chan in channels:
                 self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
         elif seg_type in ['cells', 'projections']:
-            if seg_type == 'cells':
-                point_size = 5
-            else:
-                point_size = 3
             cmap_dict = cmap_cells()
             if self.load_preseg.load_bool.value:  # loading presegmented cells
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
-                    self.viewer.add_points(pre_seg_data, size=point_size, name=chan, face_color=cmap_dict[chan])
+                    self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=chan, face_color=cmap_dict[chan])
             else:
                 for chan in channels:
-                    self.viewer.add_points(size=point_size, name=chan, face_color=cmap_dict[chan])
+                    self.viewer.add_points(size=int(self.segment.point_size.value), name=chan, face_color=cmap_dict[chan])
         else:
             cmap_dict = cmap_npx()
             for i in range(n_probes):
@@ -755,7 +756,7 @@ class SegmentWidget(QWidget):
                 else:
                     p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 p_id = seg_type + '_' + str(i)
-                self.viewer.add_points(size=20, name=p_id, face_color=p_color)
+                self.viewer.add_points(size=int(self.segment.point_size.value), name=p_id, face_color=p_color)
 
     def _save_data(self, input_path, channels, single_channel):
         # points data in [y, x] format
