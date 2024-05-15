@@ -9,7 +9,8 @@ Replace code below according to your needs.
 from napari.qt.threading import thread_worker
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, load_params
+from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, load_params, \
+    get_threshold_dropdown
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
 from magicgui import magicgui
@@ -259,7 +260,10 @@ def initialize_dobinary_widget() -> FunctionGui:
     @magicgui(button=dict(widget_type='CheckBox', 
                           text='create binary images', 
                           value=False,
-                          tooltip='option to create binary images (yen-thresholding)'),  # todo add option for other methods and entering of threshold
+                          tooltip='option to create binary images'),
+              thresh_func=dict(label='thresholding method',
+                         tooltip='select a method to compute the threshold value'
+                                 '(from https://scikit-image.org/docs/stable/api/skimage.filters.html#module-skimage.filters'),
               thresh_bool=dict(widget_type='CheckBox',
                                text='manually set threshold',
                                value=False,
@@ -299,6 +303,7 @@ def initialize_dobinary_widget() -> FunctionGui:
     def do_binary(
             self,
             button,
+            thresh_func: get_threshold_dropdown(),
             thresh_bool,
             channels,
             ds_params,
@@ -441,7 +446,8 @@ class PreprocessingWidget(QWidget):
                 {
                     "channels": self.binary_widget.channels.value,
                     "downsampling": self.binary_widget.ds_params.value,
-                    "thresh": int(self.binary_widget.thresh_bool.value),
+                    "thresh_func": self.binary_widget.thresh_func.value.value,
+                    "thresh_bool": int(self.binary_widget.thresh_bool.value),
                     "dapi": int(self.binary_widget.thresh_dapi.value),
                     "green": int(self.binary_widget.thresh_green.value),
                     "n3": int(self.binary_widget.thresh_n3.value),
@@ -458,7 +464,6 @@ class PreprocessingWidget(QWidget):
             raise IOError("Input path is not a valid directory \n"
                           "Please make sure this exists: {}".format(input_path))
         preprocessing_params = self._get_preprocessing_params()
-
         save_dirs = create_dirs(preprocessing_params, input_path)
         filter_list = preprocessing_params['general']['chans_imaged']
         img_list = get_im_list(input_path)

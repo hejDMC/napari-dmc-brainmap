@@ -400,3 +400,10 @@ def get_atlas_dropdown():
 def get_threshold_dropdown():
     func_list = dir(filters)
     func_list = [f for f in func_list if f.startswith('threshold')]
+    idx_yen = func_list.index('threshold_yen')
+    func_list = [func_list.pop(idx_yen)] + func_list
+    func_dict = {}
+    for f in func_list:
+        func_dict.setdefault(f,f)
+    func_keys = Enum("func_key", func_dict)
+    return func_keys

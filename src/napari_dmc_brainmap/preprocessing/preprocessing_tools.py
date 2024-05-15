@@ -1,9 +1,10 @@
+import importlib
+
 import cv2
 import math
 import numpy as np
 
 from skimage.exposure import rescale_intensity
-from skimage.filters import threshold_yen
 import tifffile as tiff
 from napari_dmc_brainmap.utils import get_info
 
@@ -156,10 +157,13 @@ def make_binary(data, chan, params):
     if params['binary_params']['downsampling'] > 1:
         scale_factor = params['binary_params']['downsampling']
         data = downsample_image(data, scale_factor)
-    if params['binary_params']['thresh']:
+    if params['binary_params']['thresh_bool']:
         thresh = params['binary_params'][chan]
     else:
-        thresh = threshold_yen(data)
+        thresh_func = params['binary_params']['thresh_func']
+        module = importlib.import_module('skimage.filters')
+        func = getattr(module, thresh_func)
+        thresh = func(data)
     #
     # binary = data > thresh
     binary = do_8bit(data)
