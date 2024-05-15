@@ -55,7 +55,7 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
         group_ids = list(animal_dict.keys())
     cmap_groups = plotting_params[clr_id]
     num_groups = len(group_ids)
-    if cmap_groups[0]:
+    if cmap_groups:
         num_colors = len(cmap_groups)
     else:
         num_colors = 0

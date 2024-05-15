@@ -19,6 +19,21 @@ from bg_atlasapi import BrainGlobeAtlas
 import json
 
 
+# contour = plt.contour(annot_section, levels=np.unique(annot[slice_idx, :, :]), colors=['gainsboro'],
+#               linewidths=0.2)
+# plt.close() # todo not sure about this..
+# contour_lines = []
+# for collection in contour.collections:
+#     paths = collection.get_paths()
+#     for path in paths:
+#         contour_lines.append(path.vertices)
+
+# mask = np.zeros_like(annot_section, dtype=bool)
+# for line in contour_lines:
+#     line = np.round(line).astype(int)
+#     mask[line[:, 1], line[:, 0]] = True
+
+# or contours = measure.find_contours(Z, 0.5)
 
 def regi_points_polygon(x_scaled, y_scaled):
 
