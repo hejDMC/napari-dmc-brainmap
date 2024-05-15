@@ -5,7 +5,7 @@ from mergedeep import merge
 from enum import Enum
 from bg_atlasapi.list_atlases import descriptors, utils
 import numpy as np
-
+import skimage.filters as filters
 
 def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
@@ -396,3 +396,7 @@ def get_atlas_dropdown():
         atlas_dict.setdefault(k, k)
     atlas_keys = Enum("atlas_key", atlas_dict)
     return atlas_keys
+
+def get_threshold_dropdown():
+    func_list = dir(filters)
+    func_list = [f for f in func_list if f.startswith('threshold')]

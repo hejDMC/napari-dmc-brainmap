@@ -303,17 +303,68 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
 
 
 @thread_worker
-def create_projection_preseg(input_path, channels, binary_folder, output_folder):
+def create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_chan, binary_folder, output_folder):
+
+    xyz_dict = params_dict['atlas_info']['xyz_dict']
+    atlas_id = params_dict['atlas_info']['atlas']
+    if regi_bool:
+        regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
+        regi_fn = regi_dir.joinpath("registration.json")
+        if regi_fn.is_file():
+            with open(regi_fn, 'r') as f:
+                regi_data = json.load(f)
+            annot_bool = loadAnnotBool(atlas_id)
+            atlas = BrainGlobeAtlas(atlas_id)
+            z_idx = atlas.space.axes_description.index(xyz_dict['z'][0])
+            z_res = xyz_dict["z"][2]
+            bregma = get_bregma(atlas_id)
+        else:
+            print("NO REGISTRATION DATA FOUND")
+            regi_bool = False
+    print('running presegmentation of ...')
+
     for chan in channels:
-        binary_dir = get_info(input_path, binary_folder, channel=chan, only_dir=True)
+        binary_dir, binary_images, binary_suffix = get_info(input_path, binary_folder, channel=chan)
         output_dir = get_info(input_path, output_folder, seg_type='projections', channel=chan, create_dir=True,
                               only_dir=True)
-        binary_images = natsorted([im.parts[-1] for im in binary_dir.glob('*.tif')])
+        # binary_images = natsorted([im.parts[-1] for im in binary_dir.glob('*.tif')])
         for im_name in binary_images:
+            print('... ' + im_name)
             path_to_im = binary_dir.joinpath(im_name)
             image = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
             idx = np.where(image == 255)
-            csv_to_save = pd.DataFrame({'Position Y': idx[0], 'Position X': idx[1]})
+            if regi_bool:  # exclude idx outside of brain
+                dim_binary = image.shape
+                x_res = xyz_dict['x'][1]
+                y_res = xyz_dict['y'][1]
+                x_binary = idx[1] / dim_binary[1] * x_res
+                y_binary = idx[0] / dim_binary[0] * y_res
+                for k, v in regi_data['imgName'].items():
+                    if v.startswith(im_name[:-len(binary_suffix)]):
+                        regi_index = k
+                # get transformation
+                tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
+                # slice annotation volume
+                x_angle, y_angle, z = regi_data['atlasLocation'][regi_index]
+
+                annot_slice = angleSlice(x_angle, y_angle, z, annot_bool, z_idx, z_res, bregma, xyz_dict)
+                # mark invalid coordinates
+                drop_bool = []
+                for x, y in zip(x_binary, y_binary):
+                    x_atlas, y_atlas = mapPointTransform(x, y, tform)
+                    x_atlas, y_atlas = int(x_atlas), int(y_atlas)
+                    if (x_atlas < 0) | (y_atlas < 0) | (x_atlas >= xyz_dict['x'][1]) | (y_atlas >= xyz_dict['y'][1]):
+                        drop_bool.append(1)
+                    else:
+                        if annot_slice[y_atlas, x_atlas] == 0:
+                            drop_bool.append(1)
+                        else:
+                            drop_bool.append(0)
+                csv_to_save = pd.DataFrame({'Position Y': idx[0], 'Position X': idx[1]})
+                csv_to_save = csv_to_save.iloc[np.where(np.array(drop_bool) == 0)[0], :].copy().reset_index(
+                    drop=True)
+            else:
+                csv_to_save = pd.DataFrame({'Position Y': idx[0], 'Position X': idx[1]})
             csv_save_name = output_dir.joinpath(im_name.split('.')[0] + '_projections.csv')
             csv_to_save.to_csv(csv_save_name)
         print("Done with " + chan)
@@ -538,6 +589,16 @@ def initialize_dopreseg_widget():
 
 def initialize_projectionpreseg_widget():
     @magicgui(layout='vertical',
+              regi_bool=dict(widget_type='CheckBox',
+                             text='registration done?',
+                             value=True,
+                             tooltip='tick to indicate if brain was registered and segmentation artefacts outside of '
+                                     'the brain will be excluded'),
+              regi_chan=dict(widget_type='ComboBox',
+                             label='registration channel',
+                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                             value='green',
+                             tooltip='select the registration channel (images need to be in sharpy track folder)'),
               binary_folder=dict(widget_type='LineEdit',
                                label='folder name with pre-segmented projections',
                                value='binary',
@@ -551,6 +612,8 @@ def initialize_projectionpreseg_widget():
               scrollable=True)
     def create_projection_preseg(
             viewer: Viewer,
+            regi_bool,
+            regi_chan,
             binary_folder,
             output_folder):
         pass
@@ -601,7 +664,7 @@ class SegmentWidget(QWidget):
         self.load_preseg.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_load_preseg.addWidget(self.load_preseg.root_native_widget)
 
-        self._collapse_do_preseg = QCollapsible('Do presegmentation of data: expand for more', self)
+        self._collapse_do_preseg = QCollapsible('Create presegmentation data for cells: expand for more', self)
         self.do_preseg = initialize_dopreseg_widget()
         self.do_preseg.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_do_preseg.addWidget(self.do_preseg.root_native_widget)
@@ -849,8 +912,11 @@ class SegmentWidget(QWidget):
 
     def _create_projection_preseg(self):
         input_path = self.segment.input_path.value
+        params_dict = load_params(input_path)
         channels = self.segment.channels.value
+        regi_bool = self.projections.regi_bool.value
+        regi_chan = self.projections.regi_chan.value
         binary_folder = self.projections.binary_folder.value
         output_folder = self.projections.output_folder.value
-        projection_worker = create_projection_preseg(input_path, channels, binary_folder, output_folder)
+        projection_worker = create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_chan, binary_folder, output_folder)
         projection_worker.start()
