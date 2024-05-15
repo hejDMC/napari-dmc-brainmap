@@ -105,6 +105,25 @@ def cmap_cells():
     }
     return cmap
 
+
+def cmap_npx():
+    # return default colormap for channel and color of cells
+    cmap = {
+        '0': 'deepskyblue',
+        '1': 'orange',
+        '2': 'springgreen',
+        '3': 'darkgray',
+        '4': 'fuchsia',
+        '5': 'royalblue',
+        '6': 'gold',
+        '7': 'powderblue',
+        '8': 'lightsalmon',
+        '9': 'olive'
+    }
+
+    return cmap
+
+
 def cmap_injection():
     # return default colormap for channel and color of cells
     cmap = {
@@ -729,9 +748,12 @@ class SegmentWidget(QWidget):
                 for chan in channels:
                     self.viewer.add_points(size=point_size, name=chan, face_color=cmap_dict[chan])
         else:
-            # todo keep colors constant
+            cmap_dict = cmap_npx()
             for i in range(n_probes):
-                p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
+                if i < 10:
+                    p_color = cmap_dict[str(i)]
+                else:
+                    p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 p_id = seg_type + '_' + str(i)
                 self.viewer.add_points(size=20, name=p_id, face_color=p_color)
 
