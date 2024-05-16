@@ -347,7 +347,10 @@ def initialize_brainsection_widget() -> FunctionGui:
               brain_areas_color=dict(widget_type='LineEdit', 
                                      label='brain area colors',
                                      tooltip='enter the COMMA SEPERATED list of colors for brain areas '
-                                    '(no white spaces: red,blue,yellow)'),
+                                    '(no white spaces: red,blue,yellow)\n'
+                                             'if you want to color the brain sections in colored according to the '
+                                             'reference atlas type *ATLAS* (without the *). You can still adjust '
+                                             'transparency values.'),
               brain_areas_transparency=dict(widget_type='LineEdit', 
                                             label='brain area transparency',
                                             tooltip='enter the COMMA SEPERATED transparency values for colors for brain areas '

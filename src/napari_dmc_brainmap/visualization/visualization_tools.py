@@ -168,13 +168,21 @@ def match_lists(list1, list2, item):
         return list1, list2
 
 
-def brain_region_color(plotting_params):
+def brain_region_color(plotting_params, atlas):
     color_dict_regions = {}
     brain_areas = plotting_params['brain_areas']
     brain_areas_color = plotting_params['brain_areas_color']
+    if brain_areas_color:
+        if 'ATLAS' in brain_areas_color:
+            brain_areas_color = []
+            for b in brain_areas:
+                b_acronym = atlas.structures.acronym_to_id_map[b]
+                brain_areas_color.append(tuple([c / 255 for c in atlas.structures[b_acronym]['rgb_triplet']]))
     brain_areas_transparency = plotting_params['brain_areas_transparency']
-    if len(brain_areas_transparency) > 0 and [''] not in brain_areas_transparency:
+    if brain_areas_transparency:
         brain_areas_transparency = [int(b) for b in brain_areas_transparency]
+    else:
+        brain_areas_transparency = [255]
     brain_areas, brain_areas_color = match_lists(brain_areas, brain_areas_color, 'color')
     brain_areas, brain_areas_transparency = match_lists(brain_areas, brain_areas_transparency, 'transparency')
 
@@ -235,7 +243,7 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
                                 # linen=brain, lightgray=root, lightcyan=ventricles)
 
     if plotting_params['brain_areas']:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
-        brain_areas, brain_areas_color, brain_areas_transparency = brain_region_color(plotting_params)
+        brain_areas, brain_areas_color, brain_areas_transparency = brain_region_color(plotting_params, atlas)
         # add colors list of brain regions to cmap for plotting
         cmap_brain += brain_areas_color
     else:
