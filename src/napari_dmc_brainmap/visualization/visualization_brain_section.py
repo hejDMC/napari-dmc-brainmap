@@ -9,12 +9,13 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
-from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, coord_mm_transform
+from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic
 
 
 def get_brain_section_params(brainsec_widget):
     plotting_params = {
         "section_orient": brainsec_widget.section_orient.value,
+        "plot_outline": brainsec_widget.plot_outline.value,
         "plot_item": brainsec_widget.plot_item.value,
         "brain_areas": split_to_list(brainsec_widget.brain_areas.value),
         "brain_areas_color": split_to_list(brainsec_widget.brain_areas_color.value),
@@ -146,7 +147,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
     n_col = 0
     section_range = plotting_params["section_range"]
     bregma = get_bregma(atlas.atlas_name)
-    annot = atlas.annotation
+    # annot = atlas.annotation
     #for item in data_dict:
     #    data_dict[item] = coord_mm_transform(data_dict[item], bregma)
 
@@ -157,7 +158,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
                     for target in target_z]
         slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
-        annot_section_plt = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
+        annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
                                               & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
@@ -172,30 +173,32 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
             if len(section_list) > 2:
                 if cnt < 1:
                     static_ax[n_row, n_col].imshow(annot_section_plt)
-                    if orient_mapping['z_plot'][1] == 0:
-                        static_ax[n_row, n_col].contour(annot[slice_idx, :, :],
-                                                        levels=np.unique(annot[slice_idx, :, :]),
-                                                        colors=['gainsboro'],
-                                                        linewidths=0.2)
-                    elif orient_mapping['z_plot'][1] == 1:
-                        static_ax[n_row, n_col].contour(annot[:, slice_idx, :],
-                                                        levels=np.unique(annot[:, slice_idx, :]),
-                                                        colors=['gainsboro'],
-                                                        linewidths=0.2)
-                    else:
-                        static_ax[n_row, n_col].contour(annot[:, :, slice_idx],
-                                                        levels=np.unique(annot[:, :, slice_idx]),
-                                                        colors=['gainsboro'],
-                                                        linewidths=0.2)
+                    if annot_section_contours.any():
+                        static_ax[n_row, n_col].imshow(annot_section_contours)
+                    # if orient_mapping['z_plot'][1] == 0:
+                    #     static_ax[n_row, n_col].contour(annot[slice_idx, :, :],
+                    #                                     levels=np.unique(annot[slice_idx, :, :]),
+                    #                                     colors=['gainsboro'],
+                    #                                     linewidths=0.2)
+                    # elif orient_mapping['z_plot'][1] == 1:
+                    #     static_ax[n_row, n_col].contour(annot[:, slice_idx, :],
+                    #                                     levels=np.unique(annot[:, slice_idx, :]),
+                    #                                     colors=['gainsboro'],
+                    #                                     linewidths=0.2)
+                    # else:
+                    #     static_ax[n_row, n_col].contour(annot[:, :, slice_idx],
+                    #                                     levels=np.unique(annot[:, :, slice_idx]),
+                    #                                     colors=['gainsboro'],
+                    #                                     linewidths=0.2)
 
 
 
                 if item == 'cells':
                     if color_dict[item]['single_color']:
-                            sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+                            sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
                                             color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                     else:
-                            sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+                            sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
                                             hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
@@ -234,18 +237,20 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
             elif len(section_list) == 2:
                 if cnt < 1:
                     static_ax[n_col].imshow(annot_section_plt)
-                    if orient_mapping['z_plot'][1] == 0:
-                        static_ax[n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
-                                                 colors=['gainsboro'],
-                                                 linewidths=0.2)
-                    elif orient_mapping['z_plot'][1] == 1:
-                        static_ax[n_col].contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
-                                                 colors=['gainsboro'],
-                                                 linewidths=0.2)
-                    else:
-                        static_ax[n_col].contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
-                                                 colors=['gainsboro'],
-                                                 linewidths=0.2)
+                    if annot_section_contours.any():
+                        static_ax[n_col].imshow(annot_section_contours)
+                    # if orient_mapping['z_plot'][1] == 0:
+                    #     static_ax[n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
+                    #                              colors=['gainsboro'],
+                    #                              linewidths=0.2)
+                    # elif orient_mapping['z_plot'][1] == 1:
+                    #     static_ax[n_col].contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
+                    #                              colors=['gainsboro'],
+                    #                              linewidths=0.2)
+                    # else:
+                    #     static_ax[n_col].contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
+                    #                              colors=['gainsboro'],
+                    #                              linewidths=0.2)
 
 
                 if item == 'cells':
@@ -291,18 +296,20 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
             else:
                 if cnt < 1:
                     static_ax.imshow(annot_section_plt)
-                    if orient_mapping['z_plot'][1] == 0:
-                        static_ax.contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
-                                          colors=['gainsboro'],
-                                          linewidths=0.2)
-                    elif orient_mapping['z_plot'][1] == 1:
-                        static_ax.contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
-                                          colors=['gainsboro'],
-                                          linewidths=0.2)
-                    else:
-                        static_ax.contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
-                                          colors=['gainsboro'],
-                                          linewidths=0.2)
+                    if annot_section_contours.any():
+                        static_ax.imshow(annot_section_contours)
+                    # if orient_mapping['z_plot'][1] == 0:
+                    #     static_ax.contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
+                    #                       colors=['gainsboro'],
+                    #                       linewidths=0.2)
+                    # elif orient_mapping['z_plot'][1] == 1:
+                    #     static_ax.contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
+                    #                       colors=['gainsboro'],
+                    #                       linewidths=0.2)
+                    # else:
+                    #     static_ax.contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
+                    #                       colors=['gainsboro'],
+                    #                       linewidths=0.2)
 
                 if item == 'cells':
                     if color_dict[item]["single_color"]:

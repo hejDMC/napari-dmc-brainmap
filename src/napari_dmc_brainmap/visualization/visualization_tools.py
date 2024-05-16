@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import json
 import random
+import cv2
+import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from natsort import natsorted
 from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
@@ -200,6 +202,31 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
         annot_section = atlas.annotation[:, slice_idx, :].copy()
     else:
         annot_section = atlas.annotation[:, :, slice_idx].copy()
+    if plotting_params['plot_outline']:
+        # extract contours of brain areas
+        # annot_section_u8 = annot_section.astype(np.uint8)
+        # annot_section_contours = cv2.Canny(annot_section_u8, 0, 255)
+        # annot_section_contours[annot_section_contours > 0] = 1
+        contour = plt.contour(annot_section, levels=np.unique(annot_section), colors=['gray'],
+                              linewidths=0.2)
+        plt.close()
+        contour_lines = []
+        for collection in contour.collections:
+            paths = collection.get_paths()
+            for path in paths:
+                contour_lines.append(path.vertices)
+        annot_section_contours = np.zeros_like(annot_section)
+        for line in contour_lines:
+            line = np.round(line).astype(int)
+            annot_section_contours[line[:, 1], line[:, 0]] = 1
+
+
+        cmap_contours = ['white', 'gainsboro']
+        cmap_contours = np.array([[int(x * 255) for x in list(mcolors.to_rgba(c))] for c in cmap_contours])
+        cmap_contours[0][-1] = 0
+        annot_section_contours = cmap_contours[annot_section_contours]
+    else:
+        annot_section_contours = np.array(False)
 
     annot_section[annot_section > 0] = 1  # set all brain areas to 1
 
@@ -306,4 +333,4 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
 
     # transfer to RGB values and return annot_section
     annot_section_plt = cmap_brain[annot_section]
-    return annot_section_plt
+    return annot_section_plt, annot_section_contours
