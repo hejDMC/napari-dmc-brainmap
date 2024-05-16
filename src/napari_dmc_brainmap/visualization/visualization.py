@@ -67,7 +67,7 @@ def initialize_barplot_widget() -> FunctionGui:
               tgt_list=dict(widget_type='LineEdit', 
                             label='list of brain areas (ABA)',
                             value='area1,area2', 
-                            tooltip='enter the COMMA SEPERATED list of names of areas (ABA nomenclature)'
+                            tooltip='enter the COMMA SEPERATED list of names of areas (acronyms)'
                                             ' to plot (no white spaces: area1,area2)'),
               tgt_colors=dict(widget_type='LineEdit', 
                               label='list of colors',
@@ -207,7 +207,7 @@ def initialize_heatmap_widget() -> FunctionGui:
               tgt_list=dict(widget_type='LineEdit', 
                             label='list of brain areas (ABA)',
                             value='area1,area2', 
-                            tooltip='enter the COMMA SEPERATED list of names of areas (ABA nomenclature)'
+                            tooltip='enter the COMMA SEPERATED list of names of areas (acronyms)'
                                             ' to plot (no white spaces: area1,area2)'),
               intervals=dict(widget_type='LineEdit', 
                              label='intervals',
