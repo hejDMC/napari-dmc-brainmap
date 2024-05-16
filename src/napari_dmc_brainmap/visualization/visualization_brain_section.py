@@ -26,6 +26,7 @@ def get_brain_section_params(brainsec_widget):
         "dot_size": int(brainsec_widget.dot_size.value),
         "bin_width": int(brainsec_widget.bin_width.value),
         "vmax": int(brainsec_widget.vmax.value),
+        "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
         "color_projections": brainsec_widget.cmap_projection.value,
         "color_injection_side": split_to_list(brainsec_widget.color_inj.value),
@@ -194,12 +195,22 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
 
                 if item == 'cells':
-                    if color_dict[item]['single_color']:
-                            sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                    if plotting_params['color_cells_atlas']:
+                        palette = {}
+                        for s in plot_dict[item].structure_id.unique():
+                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+
+                        sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'], data=plot_dict[item],
+                                        hue='structure_id', palette=palette,
+                                        s=plotting_params["dot_size"], legend=False)
                     else:
-                            sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        if color_dict[item]['single_color']:
+                                sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        else:
+                                sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
@@ -254,12 +265,22 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
 
                 if item == 'cells':
-                    if color_dict[item]["single_color"]:
-                            sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                    if plotting_params['color_cells_atlas']:
+                        palette = {}
+                        for s in plot_dict[item].structure_id.unique():
+                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+
+                        sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'], data=plot_dict[item],
+                                        hue='structure_id', palette=palette,
+                                        s=plotting_params["dot_size"], legend=False)
                     else:
-                            sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        if color_dict[item]["single_color"]:
+                                sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        else:
+                                sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+                                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
@@ -312,12 +333,22 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     #                       linewidths=0.2)
 
                 if item == 'cells':
-                    if color_dict[item]["single_color"]:
-                            sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                    if plotting_params['color_cells_atlas']:
+                        palette = {}
+                        for s in plot_dict[item].structure_id.unique():
+                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+
+                        sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'], data=plot_dict[item],
+                                        hue='structure_id', palette=palette,
+                                        s=plotting_params["dot_size"], legend=False)
                     else:
-                            sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        if color_dict[item]["single_color"]:
+                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        else:
+                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel",
