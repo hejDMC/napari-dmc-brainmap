@@ -214,7 +214,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                                 hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
-                    sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
+                    sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                  cmap=color_dict[item]["geno_cmap"], binwidth=plotting_params['bin_width'],
                                  vmax=plotting_params['vmax'])
 
@@ -284,7 +284,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                                 hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
-                    sns.histplot(ax=static_ax[n_col], data=plot_dict['projections'], x="xpixel", y="ypixel",
+                    sns.histplot(ax=static_ax[n_col], data=plot_dict['projections'], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                  cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
                                  vmax=plotting_params['vmax'])
 
@@ -352,7 +352,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                                 hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                 elif item == 'projections':
-                    sns.histplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel",
+                    sns.histplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                  cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
                                  vmax=plotting_params['vmax'])
 
