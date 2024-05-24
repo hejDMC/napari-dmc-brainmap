@@ -215,7 +215,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
                 elif item == 'projections':
                     sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                 cmap=color_dict[item]["geno_cmap"], binwidth=plotting_params['bin_width'],
+                                 cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
                                  vmax=plotting_params['vmax'])
 
                 elif item == 'injection_side':
