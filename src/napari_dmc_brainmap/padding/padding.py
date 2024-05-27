@@ -4,7 +4,7 @@ from napari import Viewer
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
-import cv2
+import tifffile
 from natsort import natsorted
 import pandas as pd
 from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
@@ -47,11 +47,14 @@ def do_padding(input_path, channels, pad_folder, resolution):
         for im in pad_im_list:
             print('... ' + im)
             im_fn = pad_dir.joinpath(im)
-            # FIXME input 8-bit color LUT image will result in dynamic range loss
-            im_array = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # 0 for grayscale mode
+            # use tiffile to read instead of cv2
+            im_array = tifffile.imread(str(im_fn))
+            # im_array = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # 0 for grayscale mode
             im_padded = padding_for_atlas(im_array, resolution)
-            cv2.imwrite(str(im_fn), im_padded)
-
+            # use tifffile to write instead of cv2
+            tifffile.imwrite(str(im_fn), im_padded)
+            # cv2.imwrite(str(im_fn), im_padded)
+            
     print('done!')
 
 
