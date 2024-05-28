@@ -26,7 +26,10 @@ def get_brain_section_params(brainsec_widget):
         "groups": brainsec_widget.groups.value,
         "dot_size": int(brainsec_widget.dot_size.value),
         "bin_width": int(brainsec_widget.bin_width.value),
+        "vmin": int(brainsec_widget.vmin.value),
         "vmax": int(brainsec_widget.vmax.value),
+        "smooth_proj": brainsec_widget.smooth_proj.value,
+        "smooth_thresh": float(brainsec_widget.smooth_thresh.value),
         "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
@@ -217,8 +220,14 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     if plot_dict[item].empty:
                         pass
                     else:
-                        sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict['projections'], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                     cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
+                        if plotting_params['smooth_proj']:
+                            sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'],
+                                        cmap=color_dict[item]["cmap"],
+                                        thresh=plotting_params['smooth_thresh'], fill=True)
+                        else:
+                            sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                                     cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
                                      vmax=plotting_params['vmax'])
 
                 elif item == 'injection_side':
@@ -290,9 +299,16 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     if plot_dict[item].empty:
                         pass
                     else:
-                        sns.histplot(ax=static_ax[n_col], data=plot_dict['projections'], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                     cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
-                                     vmax=plotting_params['vmax'])
+                        if plotting_params['smooth_proj']:
+                            sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'],
+                                        cmap=color_dict[item]["cmap"],
+                                        thresh=plotting_params['smooth_thresh'], fill=True)
+                        else:
+                            sns.histplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
+                                         y=orient_mapping['y_plot'], cmap=color_dict[item]["cmap"],
+                                         binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
+                                         vmax=plotting_params['vmax'])
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
@@ -361,9 +377,15 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     if plot_dict[item].empty:
                         pass
                     else:
-                        sns.histplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                        if plotting_params['smooth_proj']:
+                            sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'],
+                                        cmap=color_dict[item]["cmap"],
+                                        thresh=plotting_params['smooth_thresh'], fill=True)
+                        else:
+                            sns.histplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                      cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
-                                     vmax=plotting_params['vmax'])
+                                     vmax=plotting_params['vmax'], vmin=plotting_params['vmin'])
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
