@@ -84,6 +84,7 @@ def make_rgb(stack_dict, params):
     # check which filter are there, and add a zero array for the missing one
     rgb_list = ['cy3', 'green', 'dapi'] # filters for R(ed)G(reen)B(lue) images
     missing_filters = list(set(rgb_list) - set(stack_dict.keys()))
+    default_dtype = "uint16"
 
     if params['rgb_params']['downsampling'] > 1:
         scale_factor = params['rgb_params']['downsampling']
@@ -96,12 +97,36 @@ def make_rgb(stack_dict, params):
             if f in rgb_list:
                 contrast_tuple = tuple(params['rgb_params'][f])
                 stack_dict[f] = adjust_contrast(stack_dict[f], contrast_tuple)
+    # dtype has to be either uint16 or uint8
+    dtype_list = []
+    dtype_chan = []
+    for k,v in stack_dict.items():
+        dtype_list.append(v.dtype)
+        dtype_chan.append(k)
+        if v.dtype == default_dtype:
+            pass
+        elif v.dtype == 'uint8':
+            print("INFO: Stitched Image for Channel: [{}] has data type of 'uint8', "
+                  "however 'uint16' is recommended. Please consider using 16-bit stitched image.\n"
+                  "Continue with 'uint8' data type".format(k))
+            default_dtype = "uint8"
+        else:
+            raise TypeError("ERROR: Stitched Image for Channel: [{}] has data type of {}, "
+                            "however 'uint16' (recommended) or 'uint8' is required. ".format(k, v.dtype))
+    # dtypes in stack_dict should be the same
+    dtype_same = True
+    for dtype,chan in zip(dtype_list,dtype_chan):
+        if dtype != default_dtype:
+            dtype_same = False
+            print("ERROR: Handling Stitched Image as type: {}, but type : {} was found in Channel: [{}].".format(default_dtype, dtype, chan))
+    if not dtype_same:
+        raise TypeError("ERROR: Data types of stitched images are not the same between channels! Please check the image data types.")
 
     image_size = stack_dict[next(iter(stack_dict))].shape  # get the shape of the images
     # add empty array for missing filters
     for missing_filter in missing_filters:
-        stack_dict[missing_filter] = np.zeros(image_size, dtype='uint16')
-    rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])).astype(stack_dict['cy3'].dtype) # create a stack of all three channels
+        stack_dict[missing_filter] = np.zeros(image_size, dtype=default_dtype)
+    rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])).astype(default_dtype) # create a stack of all three channels
     rgb_stack_8bit = do_8bit(rgb_stack)  # convert to 8bit (RGB is 0-255)
     return rgb_stack_8bit
 
