@@ -44,18 +44,21 @@ class MainWidget():
         if probeV.viewerID == 0: # coronal
             self.slice = probeV.template[probeV.currentAP, :, :].copy()
             cv2.putText(self.slice, "AP: " + str(probeV.currentAP), (10, text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # voxel coordinate
-            cv2.putText(self.slice, "(" + str(np.round((self.shape[0]/2 - probeV.currentAP) * self.resolution[0], probeV.decimal)) + " mm)", (10, text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "(" + str(np.round((probeV.bregma[0] - probeV.currentAP) * self.resolution[0], probeV.decimal)) + " mm)", 
+                        (10, text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
 
         elif probeV.viewerID == 1: # axial
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, probeV.currentDV, :].T.copy()
             cv2.putText(self.slice, "DV: "+str(probeV.currentDV), (10,text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((0-probeV.currentDV)*self.resolution[1],probeV.decimal))+" mm)" , (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "("+str(np.round((probeV.bregma[1] - probeV.currentDV)*self.resolution[1],probeV.decimal))+" mm)" , 
+                        (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
         else: # sagittal
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, :, probeV.currentML].T.copy()
             cv2.putText(self.slice, "ML: "+str(probeV.currentML), (10,text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((self.shape[2]/2-probeV.currentML) * self.resolution[2],probeV.decimal))+" mm)" , (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
+            cv2.putText(self.slice, "("+str(np.round((probeV.bregma[2] -probeV.currentML) * self.resolution[2],probeV.decimal))+" mm)" , 
+                        (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
         
         # add active probe to slice
         if hasattr(self,'probeDisplayList'):

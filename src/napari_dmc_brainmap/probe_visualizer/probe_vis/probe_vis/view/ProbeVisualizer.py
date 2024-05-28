@@ -203,8 +203,8 @@ class ProbeVisualizer(QMainWindow):
         windowWidth = self.size().width()
 
         if self.viewerID == 0: # switch QLabel size
-            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[2] * 1.5 * self.scaleFactor)),self.pos().y()) # pin to top-right of window
-            self.setFixedSize(int(self.annot.shape[2] * 1.5 * self.scaleFactor),int(self.annot.shape[1]*1.1*self.scaleFactor))
+            self.move(self.pos().x()+(windowWidth-int(self.annot.shape[0]*1.5*self.scaleFactor)),self.pos().y()) # pin to top-right of window
+            self.setFixedSize(int(self.annot.shape[0]*1.5*self.scaleFactor),int(self.annot.shape[1]*1.1*self.scaleFactor))
             self.widget.viewer.setFixedSize(self.annot.shape[2]*self.scaleFactor,self.annot.shape[1]*self.scaleFactor)
             self.widget.labelContour.setFixedSize(self.annot.shape[2]*self.scaleFactor,self.annot.shape[1]*self.scaleFactor)
         elif self.viewerID == 1:
