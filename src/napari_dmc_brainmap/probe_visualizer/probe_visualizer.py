@@ -152,13 +152,13 @@ def calculate_probe_tract(input_path, save_path, params_dict, probe_insert):
 
         linefit, linevox, ax_primary = get_linefit3d(probe_df, atlas)
         print(p_insert)
-        probe_tract, col_names = get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe,
+        probe_tract, _col_names = get_probe_tract(input_path, save_path, atlas, ax_primary, probe_df, probe,
                                                  p_insert, linefit, linevox)
         # save probe tract data
         save_fn = save_path.joinpath(probe + '_data.csv')
         probe_tract.to_csv(save_fn)
         probes_dict[probe] = {'axis': ax_map[atlas.space.axes_description[ax_primary]]}
-        probes_dict[probe]['Voxel'] = probe_tract[col_names].to_numpy().tolist()
+        probes_dict[probe]['Voxel'] = linevox[["a_coord","b_coord","c_coord"]].to_numpy().tolist()
 
     save_fn = save_path.joinpath('neuropixels_probes_data.json')
     with open(save_fn, 'w') as f:
