@@ -212,7 +212,7 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
         seg_im_list = natsorted(seg_im_list)
         if start_end_im:
             if len(start_end_im) == 2:
-                seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]]
+                seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]+1]
 
     for chan in channels:
         mask_dir = get_info(input_path, mask_folder, channel=chan, seg_type=seg_type,
@@ -225,7 +225,7 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
             seg_im_list = natsorted(seg_im_list)
             if start_end_im:
                 if len(start_end_im) == 2:
-                    seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]]
+                    seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]+1]
         for im in seg_im_list:
             print('... ' + im)
             im_fn = seg_im_dir.joinpath(im)
