@@ -421,14 +421,14 @@ def initialize_segment_widget() -> FunctionGui:
                             label='segmentation type',
                             choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe', 'projections'],
                             value='cells',
-                            tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'
-                                'IMPORTANT: before switching between types, load next image, delete all image layers'
+                            tooltip='select to either segment cells, projections, optic fiber tracts, probe tracts (points) or injection sides (areas) '
+                                'IMPORTANT: before switching between types, load next image, delete all image layers '
                                 'and reload image of interest!'),
               n_probes=dict(widget_type='LineEdit', 
                             label='number of fibers/probes', 
                             value=1,
-                            tooltip='number (int) of optic fibres and or probes used to segment, ignore this value for '
-                                'segmenting cells/areas/'),
+                            tooltip='number (int) of optic fibres and or probes used to segment, leave this value unchanged for '
+                                'segmenting cells/injection side/projections'),
               point_size=dict(widget_type='LineEdit',
                             label='point size',
                             value=5,
@@ -437,7 +437,7 @@ def initialize_segment_widget() -> FunctionGui:
                             label='selected channels', 
                             value=['green', 'cy3'],
                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels to be selected for cell segmentation, '
+                            tooltip='select channels to be used for segmentation, '
                                 'to select multiple hold ctrl/shift'),
               contrast_dapi=dict(widget_type='LineEdit', 
                                  label='set contrast limits for the dapi channel',
@@ -492,7 +492,7 @@ def initialize_loadpreseg_widget() -> FunctionGui:
               pre_seg_folder=dict(widget_type='LineEdit', 
                                   label='folder name with pre-segmented data', 
                                   value='presegmentation',
-                                  tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called'
+                                  tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called '
                                 '*segmentation*, manual curation will override existing data. '
                                 'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
                                 '*Position Y* for coordinates. For loading neuropixels/optic fiber data specify the number of probes correctly.'),
@@ -518,14 +518,14 @@ def initialize_dopreseg_widget():
               regi_bool=dict(widget_type='CheckBox',
                                        text='registration done?',
                                        value=True,
-                                       tooltip='tick to indicate if brain was registered (it is advised to register'
+                                       tooltip='tick to indicate if brain was registered (it is advised to register '
                                                'the brain first to exclude presegmentation artefacts outside of the '
                                                'brain'),
               regi_chan=dict(widget_type='ComboBox',
                                      label='registration channel',
                                      choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                                      value='green',
-                                     tooltip='select the registration channel (images need to be in sharpy track folder)'),
+                                     tooltip='select the registration channel (images need to be in sharpy_track folder)'),
               seg_type=dict(widget_type='ComboBox',
                             label='segmentation type',
                             choices=['cells'], value='cells',
@@ -598,12 +598,12 @@ def initialize_projectionpreseg_widget():
                              label='registration channel',
                              choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                              value='green',
-                             tooltip='select the registration channel (images need to be in sharpy track folder)'),
+                             tooltip='select the registration channel (images need to be in sharpy_track folder)'),
               binary_folder=dict(widget_type='LineEdit',
                                label='folder name with pre-segmented projections',
                                value='binary',
-                               tooltip='folder needs to contain sub-folders with channel names and .tif binary images '
-                                       'of segmented of projections.'),
+                               tooltip='folder needs to contain subfolders with channel names and .tif binary images '
+                                       'of segmented of projections'),
               output_folder=dict(widget_type='LineEdit',
                                  label='output folder',
                                  value='presegmentation',
@@ -626,8 +626,8 @@ def initialize_findcentroids_widget():
               mask_folder=dict(widget_type='LineEdit', 
                                label='folder name with pre-segmented data', 
                                value='segmentation_masks',
-                               tooltip='folder needs to contain sub-folders with channel names and .tif images with segmented '
-                                'of cells.'),
+                               tooltip='folder needs to contain subfolders with channel names and .tif images with segmented '
+                                'of cells'),
               mask_type=dict(widget_type='ComboBox', 
                              label='segmentation type',
                              choices=['cells'], 
