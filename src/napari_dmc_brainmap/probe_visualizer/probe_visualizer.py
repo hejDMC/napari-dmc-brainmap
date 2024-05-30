@@ -178,7 +178,7 @@ def initiate_widget() -> FunctionGui:
                              label='save path: ', 
                              mode='d',
                              value='',
-                             tooltip='select a folder for saving plots, default will save in *input path*'),
+                             tooltip='select a folder for saving neuropixels probe files and plots, default will save in *input path*'),
               probe_insert=dict(widget_type='LineEdit', 
                                 label='insertion depth of probe (um)', 
                                 value='4000',
