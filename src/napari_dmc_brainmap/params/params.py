@@ -23,8 +23,8 @@ def initialize_widget() -> FunctionGui:
               input_path=dict(widget_type='FileEdit', 
                               label='input path (animal_id): ', 
                               mode='d',
-                              tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                        'folder containing segmentation results'),
+                              tooltip='directory of folder containing subfolders with e.g. raw data, images, segmentation results, NOT '
+                                        'folder containing images'),
               inj_side=dict(widget_type='ComboBox', 
                             label='injection side',
                             choices=['','left', 'right'], 
@@ -44,11 +44,11 @@ def initialize_widget() -> FunctionGui:
                                 tooltip='select all channels imaged, to select multiple hold ctrl/shift'),
               section_orient=dict(widget_type='ComboBox', label='orientation of sectioning',
                                   choices=['coronal', 'sagittal', 'horizontal'], value='coronal',
-                                  tooltip="select the how you sliced the brain"),
+                                  tooltip="select the orientation you sliced the brain in"),
               atlas=dict(label='reference atlas',
                          tooltip='select the reference atlas using for registration '
                             '(from https://github.com/brainglobe/bg-atlasapi/ and '
-                            'https://github.com/brainglobe/brainreg-segment'),
+                            'https://github.com/brainglobe/brainreg-segment )'),
               call_button=False)
     
     def params_widget(
