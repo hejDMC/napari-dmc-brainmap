@@ -64,12 +64,12 @@ def initialize_widget() -> FunctionGui:
                               label='input path (animal_id): ', 
                               mode='d',
                               tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                    'folder containing segmentation results'),
+                                    'folder containing images'),
               pad_folder=dict(widget_type='LineEdit', 
                               label='folder name images to be padded: ', 
                               value='stitched',
                               tooltip='name of folder containing the stitched images to be padded '
-                                '(animal_id/>pad_folder</chan1'),
+                                '(animal_id/>pad_folder</chan1)'),
               channels=dict(widget_type='Select', 
                             label='imaged channels', 
                             value=['green', 'cy3'],
