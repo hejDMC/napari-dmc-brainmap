@@ -211,12 +211,12 @@ def initialize_results_widget() -> FunctionGui:
                             label='segmentation type',
                             choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'], 
                             value='cells',
-                            tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
+                            tooltip='select the segmentation type you want to create results from'),
               channels=dict(widget_type='Select', 
                             label='selected channels', 
                             value=['green', 'cy3'],
                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels to be selected for cell segmentation, '
+                            tooltip='select channels for results files, '
                             'to select multiple hold ctrl/shift'),
               call_button=False)
 
