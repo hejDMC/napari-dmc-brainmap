@@ -1,4 +1,5 @@
 import json
+import re
 from natsort import natsorted
 import pandas as pd
 from mergedeep import merge
@@ -153,19 +154,33 @@ def update_params_dict(input_path, params_dict, create=False):
                                 "and try again!".format(input_path))
 
 
+# def split_strings_layers(s):
+#     # from: https://stackoverflow.com/questions/430079/how-to-split-strings-into-text-and-number
+#     if s.startswith('TEa'):  # special case due to small 'a', will otherwise split 'TE' + 'a1', not 'TEa' + '1'
+#         head = s[:3]
+#         tail = s[3:]
+#     elif s.startswith('CA'):
+#         head = s
+#         tail = []
+#     else:
+#         head = s.rstrip('0123456789/ab')
+#         tail = s[len(head):]
+#     return head, tail
+
 def split_strings_layers(s):
-    # from: https://stackoverflow.com/questions/430079/how-to-split-strings-into-text-and-number
-    if s.startswith('TEa'):  # special case due to small 'a', will otherwise split 'TE' + 'a1', not 'TEa' + '1'
-        head = s[:3]
-        tail = s[3:]
-    elif s.startswith('CA'):
+    # likely not working for other atlases than ABA
+    if s.startswith('CA'):
         head = s
         tail = []
     else:
-        head = s.rstrip('0123456789/ab')
-        tail = s[len(head):]
+        match = re.match(r"([A-Za-z]+)(\d+.*)", s)
+        if match:
+            head = match.group(1)
+            tail = match.group(2)
+        else:
+            head = s
+            tail = []
     return head, tail
-
 
 def get_parent(a, st):
     # dummy function to get parent id for quick and dirty quantification of injection side

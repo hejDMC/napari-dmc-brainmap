@@ -27,20 +27,35 @@ def get_ipsi_contra(df):
     return df
 
 
-def get_tgt_data_only(df, atlas, tgt_list):
+# def get_tgt_data_only(df, atlas, tgt_list):
+#
+#     tgt_only_data = pd.DataFrame()
+#     for tgt in tgt_list:
+#         tgt_list_childs = atlas.get_structure_descendants(tgt)
+#         if tgt_list_childs:
+#             dummy_df = df[df['acronym'].isin(tgt_list_childs)]
+#         else:
+#             dummy_df = df[df['acronym'].isin([tgt])]
+#         dummy_df['tgt_name'] = [tgt] * len(dummy_df)
+#         tgt_only_data = pd.concat([tgt_only_data, dummy_df])
+#
+#     return tgt_only_data
+def get_tgt_data_only(df, atlas, tgt_list, negative=False):
+    # get IDs of all regions
+    ids = [atlas.structures[reg]['id'] for reg in tgt_list]
+    # get child IDs
+    ids_child = [atlas.hierarchy.is_branch(id) for id in ids]
+    ids_child = [c for c_g in ids_child for c in c_g]
+    ids += ids_child
 
-    tgt_only_data = pd.DataFrame()
-    for tgt in tgt_list:
-        tgt_list_childs = atlas.get_structure_descendants(tgt)
-        if tgt_list_childs:
-            dummy_df = df[df['acronym'].isin(tgt_list_childs)]
-        else:
-            dummy_df = df[df['acronym'].isin([tgt])]
-        dummy_df['tgt_name'] = [tgt] * len(dummy_df)
-        tgt_only_data = pd.concat([tgt_only_data, dummy_df])
-
-    return tgt_only_data
-
+    # delete non tgt cells from df
+    if negative:
+        tgt_data = df[~df.structure_id.isin(ids)].reset_index(drop=True)
+    else:
+        tgt_data = df[df.structure_id.isin(ids)].reset_index(drop=True)
+    tgt_data['tgt_name'] = [atlas.structures[s]['acronym'] if atlas.structures[s]['acronym'] in tgt_list
+                      else list(set(atlas.get_structure_ancestors(s)) & set(tgt_list))[0] for s in tgt_data['structure_id']]  # add plotting acronyms
+    return tgt_data
 def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
     # function to resort brain areas from alphabetic to tgt_list sorting
     # create list of len brain areas
@@ -379,3 +394,12 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
     for g, c in zip(group_ids, cmap_groups):
         cmap[g] = c
     return cmap
+
+def get_descendants(tgt_list, atlas):
+    tgt_layer_list = []
+    for tgt in tgt_list:
+        descendents = atlas.get_structure_descendants(tgt)
+        if not descendents:  # if no descendents found, return tgt
+            descendents = [tgt]
+        tgt_layer_list += descendents
+    return tgt_layer_list
