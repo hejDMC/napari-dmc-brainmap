@@ -4,7 +4,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list
-from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_unique_filename
+from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_unique_filename, \
+    create_cmap
 
 def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting_params):
 
@@ -15,8 +16,12 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         rel_percentage = True
     df = get_tgt_data_only(df_all, atlas, tgt_list)
     df_geno = df.copy() # copy df to extract genotype of mice later on
-    df = df.pivot_table(index='tgt_name', columns=['animal_id'],
-                                                        aggfunc='count').fillna(0)
+    if plotting_params["groups"] == "channel":
+        df = df.pivot_table(index='tgt_name', columns=['animal_id', plotting_params["groups"]],
+                                                            aggfunc='count').fillna(0)
+    else:
+        df = df.pivot_table(index='tgt_name', columns=['animal_id'],
+                            aggfunc='count').fillna(0)
     # add "missing" brain structures -- brain structures w/o cells
     if len(df.index.values.tolist()) > 0:
         miss_areas = list(set(df.index.values.tolist()) ^ set(tgt_list))
@@ -27,6 +32,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         dd = pd.DataFrame(0, index=miss_areas, columns=df.columns.values)
         # concat dataframes
         df = pd.concat([df, dd])
+    print(df)
     # calculate percentages
     df_to_plot = pd.DataFrame()
     for animal_id in animal_list:
@@ -34,24 +40,36 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         if absolute_numbers: # if absolute numbers
             dummy_df = pd.DataFrame(df['ap_mm'][animal_id])
         elif rel_percentage: # if relative percentage for cells in tgt_regions
-            dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / df['ap_mm'][
-                animal_id].sum()) * 100)
+            if plotting_params["groups"] == "channel":
+                dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / df['ap_mm'][
+                    animal_id].sum().sum()) * 100)
+            else:
+                dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / df['ap_mm'][
+                    animal_id].sum()) * 100)
         else: # to percentage for all cells
             dummy_df = pd.DataFrame((df['ap_mm'][animal_id] /
-                                     len(df_all[df_all['animal_id']==animal_id]))*100)
-        dummy_df = dummy_df.rename(columns={animal_id: "percent_cells"})
-        dummy_df['animal_id'] = [animal_id] * len(tgt_list)
-        # dummy_df['genotype'] = [genotype] * len(tgt_list)
+                                     len(df_all[df_all['animal_id'] == animal_id]))*100)
+        if plotting_params["groups"] == "channel":
+            dummy_df = dummy_df.stack().reset_index()
+            dummy_df = dummy_df.rename(columns={'channel': "groups", 0: 'percent_cells'})
+        else:
+            dummy_df = dummy_df.rename(columns={animal_id: "percent_cells"})
+        dummy_df['animal_id'] = [animal_id] * len(dummy_df)
+        print(dummy_df)
+        if plotting_params["groups"] in ['group', 'genotype']:
+            dummy_df['groups'] = [df_all[df_all['animal_id'] == animal_id][plotting_params["groups"]].unique()[0]] * len(dummy_df)
         df_to_plot = pd.concat([df_to_plot, dummy_df])
 
-    df_to_plot.index.name = 'tgt_name'
-    df_to_plot.reset_index(inplace=True)
+    if not plotting_params['groups'] == 'channel':
+        df_to_plot.index.name = 'tgt_name'
+        df_to_plot.reset_index(inplace=True)
 
     return df_to_plot
 
 def get_bar_plot_params(barplot_widget):
     plotting_params = {
         "hemisphere": barplot_widget.hemisphere.value,
+        "groups": barplot_widget.groups.value,
         "horizontal": barplot_widget.orient.value,
         "xlabel": [barplot_widget.xlabel.value, int(barplot_widget.xlabel_size.value)],  # 0: label, 1: fontsize
         "ylabel": [barplot_widget.ylabel.value, int(barplot_widget.ylabel_size.value)],
@@ -107,12 +125,21 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
     static_ax = mpl_widget.figure.subplots()
 
     sns.set(style=plotting_params["style"])  # set style todo: dark style not really implemented
-    sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
-                capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
-    if plotting_params["scatter_hue"]:  # color code dots by animals
-        sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
-                      palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
-                      orient=plot_orient)
+    if plotting_params["groups"] == '':
+        sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
+                    capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
+        if plotting_params["scatter_hue"]:  # color code dots by animals
+            sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
+                          palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
+                          orient=plot_orient)
+    else:
+        cmap = create_cmap([], plotting_params, "bar_palette", df=tgt_data_to_plot, hue_id='groups')
+        sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, hue='groups', palette=cmap,
+                    capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
+        if plotting_params["scatter_hue"]:  # color code dots by animals
+            sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
+                          palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
+                          dodge=True, orient=plot_orient)
     # else:
     #     sns.swarmplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot,
     #                   palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],

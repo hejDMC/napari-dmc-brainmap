@@ -1,7 +1,6 @@
 import math
 import random
 import matplotlib.colors as mcolors
-import matplotlib.cm as cm
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -9,7 +8,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
-from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic
+from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap
 
 
 def get_brain_section_params(brainsec_widget):
@@ -51,40 +50,6 @@ def get_rows_cols(section_list):
         n_rows = n_cols
     return n_rows, n_cols
 
-
-def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id='channel'):
-
-    cmap = {}
-    if not df.empty:
-        group_ids = list(df[hue_id].unique())
-    else:
-        group_ids = list(animal_dict.keys())
-    cmap_groups = plotting_params[clr_id]
-    num_groups = len(group_ids)
-    if cmap_groups:
-        num_colors = len(cmap_groups)
-    else:
-        num_colors = 0
-        cmap_groups = []
-    if num_groups > num_colors:  # more groups than colors
-        print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
-              " cmap groups --> adding random colors")
-        diff = num_groups - num_colors
-        if clr_id == 'colors_projections':
-            colormaps = [cc for cc in cm.datad]
-            for d in range(diff):
-                cmap_groups.append(random.choice(colormaps))
-        else:
-            for d in range(diff):
-                cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
-    elif num_groups < num_colors:  # less groups than colors
-        print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
-              " cmap groups --> dropping colors")
-        diff = num_colors - num_groups
-        cmap_groups = cmap_groups[:-diff]
-    for g, c in zip(group_ids, cmap_groups):
-        cmap[g] = c
-    return cmap
 
 
 def create_color_dict(input_path, animal_list, data_dict, plotting_params):

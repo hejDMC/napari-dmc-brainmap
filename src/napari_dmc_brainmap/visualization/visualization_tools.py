@@ -5,6 +5,7 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 from natsort import natsorted
 from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
 
@@ -340,3 +341,41 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
     # transfer to RGB values and return annot_section
     annot_section_plt = cmap_brain[annot_section]
     return annot_section_plt, annot_section_contours
+
+
+def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id='channel'):
+
+    cmap = {}
+    if not df.empty:
+        group_ids = list(df[hue_id].unique())
+    else:
+        group_ids = list(animal_dict.keys())
+    cmap_groups = plotting_params[clr_id]
+    if not isinstance(cmap_groups, list):
+        print("not possible to combine c:cmap with colors, random colors will be assigned, use comma seperate list of colors instead")
+        cmap_groups = []
+    num_groups = len(group_ids)
+    if cmap_groups:
+        num_colors = len(cmap_groups)
+    else:
+        num_colors = 0
+        cmap_groups = []
+    if num_groups > num_colors:  # more groups than colors
+        print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
+              " cmap groups --> adding random colors")
+        diff = num_groups - num_colors
+        if clr_id == 'colors_projections':
+            colormaps = [cc for cc in cm.datad]
+            for d in range(diff):
+                cmap_groups.append(random.choice(colormaps))
+        else:
+            for d in range(diff):
+                cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+    elif num_groups < num_colors:  # less groups than colors
+        print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
+              " cmap groups --> dropping colors")
+        diff = num_colors - num_groups
+        cmap_groups = cmap_groups[:-diff]
+    for g, c in zip(group_ids, cmap_groups):
+        cmap[g] = c
+    return cmap
