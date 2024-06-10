@@ -5,7 +5,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list, split_strings_layers
-from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_bregma
+from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_bregma, \
+    get_unique_filename
 
 def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_list, tgt_list, sub_list):
 
@@ -134,6 +135,8 @@ def get_heatmap_params(heatmap_widget):
         "transpose": heatmap_widget.transpose.value,
         "save_name": heatmap_widget.save_name.value,
         "save_fig": heatmap_widget.save_fig.value,
+        "save_data_name": heatmap_widget.save_data_name.value,
+        "save_data": heatmap_widget.save_data.value,
         "absolute_numbers": heatmap_widget.absolute_numbers.value
     }
     return plotting_params
@@ -157,6 +160,11 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
     tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
     if plotting_params["transpose"]:
         tgt_data_to_plot = tgt_data_to_plot.transpose()
+    if plotting_params["save_data"]:
+        data_fn = save_path.joinpath(plotting_params["save_data_name"])
+        if data_fn.exists():
+            data_fn = get_unique_filename(data_fn)
+        tgt_data_to_plot.to_csv(data_fn)
     max_range = tgt_data_to_plot.max().max()
     interval_labels = plotting_params["interval_labels"]
     sns.set(style=plotting_params["style"])

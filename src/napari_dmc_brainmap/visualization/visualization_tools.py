@@ -56,21 +56,19 @@ def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
 
     return tgt_data_to_plot
 
-def get_ipsi_contra(df):
-    '''
-    Function to add a column specifying if cells if ipsi or contralateral to injection side
-    ML_location values of <0 are on the 'left' hemisphere, >0 are on the 'right hemisphere
-    :param df: dataframe with results for animal, not the merged across animals
-    :return:
-    '''
 
-    df['ipsi_contra'] = ['ipsi'] * len(df)  # add a column defaulting to 'ipsi'
-    # change values to contra with respect to the location of the injection side
-    if df['injection_side'][0] == 'left':
-        df.loc[(df['ml_mm'] < 0), 'ipsi_contra'] = 'contra'
-    elif df['injection_side'][0] == 'right':
-        df.loc[(df['ml_mm'] > 0), 'ipsi_contra'] = 'contra'
-    return df
+def get_unique_filename(data_fn):
+    """
+    Generate a unique filename by appending a suffix if the file already exists.
+    """
+    counter = 1
+    data_fn_old = data_fn
+    while data_fn.exists():
+        data_fn = data_fn_old.with_name(f"{data_fn_old.stem}_{counter:03d}{data_fn_old.suffix}")
+        counter += 1
+
+    return data_fn
+
 
 def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
 

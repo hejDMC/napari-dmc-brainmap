@@ -4,7 +4,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from napari_dmc_brainmap.utils import split_to_list
-from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df
+from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_unique_filename
 
 def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting_params):
 
@@ -68,9 +68,12 @@ def get_bar_plot_params(barplot_widget):
         "scatter_legend_hide": barplot_widget.scatter_legend_hide.value,
         "save_name": barplot_widget.save_name.value,
         "save_fig": barplot_widget.save_fig.value,
+        "save_data": barplot_widget.save_data.value,
+        "save_data_name": barplot_widget.save_data_name.value,
         "absolute_numbers": barplot_widget.absolute_numbers.value
     }
     return plotting_params
+
 
 def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widget, save_path):
 
@@ -91,7 +94,11 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
         x_var = "tgt_name"
     # get re-structured dataframe for plotting
     tgt_data_to_plot = calculate_percentage_bar_plot(df, atlas, animal_list, tgt_list, plotting_params)
-
+    if plotting_params["save_data"]:
+        data_fn = save_path.joinpath(plotting_params["save_data_name"])
+        if data_fn.exists():
+            data_fn = get_unique_filename(data_fn)
+        tgt_data_to_plot.to_csv(data_fn)
     if not plotting_params[
         "alphabetic"]:  # re-structuring of df creates alphabetic order of brain areas, if tgt_list order should be kept do resort
         tgt_data_to_plot = resort_df(tgt_data_to_plot, tgt_list)
