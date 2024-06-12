@@ -197,11 +197,11 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
-                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
+                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
                                     color=color_dict[item]["cmap"])
                     else:
-                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
-                                    hue=plotting_params["groups"], color=color_dict[item]["cmap"])
+                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+                                    hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
@@ -277,11 +277,11 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
-                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
+                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
                                     color=color_dict[item]["cmap"])
                     else:
-                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
-                                    hue=plotting_params["groups"], color=color_dict[item]["cmap"])
+                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+                                    hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
                         sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
@@ -354,11 +354,11 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
                 elif item == 'injection_side':
                     if color_dict[item]['single_color']:
-                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
+                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
                                     color=color_dict[item]["cmap"])
                     else:
-                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x="xpixel", y="ypixel", fill=True,
-                                    hue=plotting_params["groups"], color=color_dict[item]["cmap"])
+                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+                                    hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
 
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
