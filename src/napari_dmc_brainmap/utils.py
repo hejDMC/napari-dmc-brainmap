@@ -167,19 +167,23 @@ def update_params_dict(input_path, params_dict, create=False):
 #         tail = s[len(head):]
 #     return head, tail
 
-def split_strings_layers(s):
+def split_strings_layers(s, atlas_name='allen_mouse'):
     # likely not working for other atlases than ABA
-    if s.startswith('CA'):
-        head = s
-        tail = []
-    else:
-        match = re.match(r"([A-Za-z]+)(\d+.*)", s)
-        if match:
-            head = match.group(1)
-            tail = match.group(2)
-        else:
+    if atlas_name == 'allen_mouse':
+        if s.startswith('CA'):
             head = s
             tail = []
+        else:
+            match = re.match(r"([A-Za-z]+)(\d+.*)", s)
+            if match:
+                head = match.group(1)
+                tail = match.group(2)
+            else:
+                head = s
+                tail = []
+    else:
+        head = s
+        tail = []
     return head, tail
 
 def get_parent(a, st):

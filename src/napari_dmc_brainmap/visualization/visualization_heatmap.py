@@ -235,7 +235,7 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
         if t > 0:
             static_ax[t].set_yticks([])
         if plotting_params["descendants"]:
-            tl = [split_strings_layers(t)[1] for t in tgt_col]
+            tl = [split_strings_layers(t, atlas_name=atlas.metadata['name'])[1] for t in tgt_col]
         else:
             tl = [tgt]
         static_ax[t].set_xticks(np.arange(len(tl)))

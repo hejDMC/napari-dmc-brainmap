@@ -164,7 +164,7 @@ def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
     results_data = clean_results_df(results_data, atlas)
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data
-    acronym_parent = [split_strings_layers(s)[0] for s in results_data['acronym']]
+    acronym_parent = [split_strings_layers(s, atlas_name=atlas.metadata['name'])[0] for s in results_data['acronym']]
     results_data['acronym_parent'] = acronym_parent
     # count pixels (injection side) for each cell, add 0 for empty regions
     quant_df = pd.DataFrame()
