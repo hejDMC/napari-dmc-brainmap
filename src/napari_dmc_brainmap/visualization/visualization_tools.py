@@ -12,14 +12,14 @@ from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
 
 def get_ipsi_contra(df):
     '''
-    Function to add a column specifying if cells if ipsi or contralateral to injection side
+    Function to add a column specifying if cells if ipsi or contralateral to injection site
     ml_mm values of <0 are on the 'left' hemisphere, >0 are on the 'right hemisphere
     :param df: dataframe with results for animal, not the merged across animals
     :return:
     '''
 
     df['ipsi_contra'] = ['ipsi'] * len(df)  # add a column defaulting to 'ipsi'
-    # change values to contra with respect to the location of the injection side
+    # change values to contra with respect to the location of the injection site
     if df['injection_side'][0] == 'left':
         df.loc[(df['ml_mm'] < 0), 'ipsi_contra'] = 'contra'
     elif df['injection_side'][0] == 'right':
@@ -117,9 +117,9 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                 try:
                     injection_side = params_data['general']['injection_side']  # add the injection_side as a column
                 except KeyError:
-                    # injection_side = input("no injection side specified in params.json file for " + animal_id +
+                    # injection_site = input("no injection site specified in params.json file for " + animal_id +
                     #                        ", please enter manually: ")
-                    print("WARNING: no injection side specified in params files, defaulting to right hemisphere")
+                    print("WARNING: no injection site specified in params files, defaulting to right hemisphere")
                     injection_side = 'right'
 
                 try:
@@ -142,7 +142,7 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                 results_data = get_ipsi_contra(results_data)
                 results_data['genotype'] = [genotype] * len(results_data)
                 results_data['group'] = [group] * len(results_data)
-                # add if the location of a cell is ipsi or contralateral to the injection side
+                # add if the location of a cell is ipsi or contralateral to the injection site
                 results_data = get_ipsi_contra(results_data)
                 results_data_merged = pd.concat([results_data_merged, results_data])
         print("loaded data from " + animal_id)

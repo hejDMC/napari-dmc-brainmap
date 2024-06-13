@@ -58,7 +58,7 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
     for item in plotting_params['plot_item']:
         color_dict[item] = {}
         clr_id = 'color_' + item
-        if item in ['cells', 'projections', 'injection_side']:
+        if item in ['cells', 'projections', 'injection_site']:
             if plotting_params["groups"] in ['genotype', 'group']:
                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
                 cmap = create_cmap(animal_dict, plotting_params, clr_id)
@@ -195,7 +195,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                      cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
                                      vmax=plotting_params['vmax'])
 
-                elif item == 'injection_side':
+                elif item == 'injection_site':
                     if color_dict[item]['single_color']:
                         sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
                                     color=color_dict[item]["cmap"])
@@ -275,7 +275,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                          binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
                                          vmax=plotting_params['vmax'])
 
-                elif item == 'injection_side':
+                elif item == 'injection_site':
                     if color_dict[item]['single_color']:
                         sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
                                     color=color_dict[item]["cmap"])
@@ -352,7 +352,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                      cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
                                      vmax=plotting_params['vmax'], vmin=plotting_params['vmin'])
 
-                elif item == 'injection_side':
+                elif item == 'injection_site':
                     if color_dict[item]['single_color']:
                         sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
                                     color=color_dict[item]["cmap"])
