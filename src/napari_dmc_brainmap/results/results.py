@@ -62,7 +62,7 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
     x_pos.append(x_im)
     y_scaled = np.ceil(minmax_scale(y_pos, feature_range=(0, y_low)))[:-2].astype(int)
     x_scaled = np.ceil(minmax_scale(x_pos, feature_range=(0, x_low)))[:-2].astype(int)
-    if seg_type == 'injection_side':
+    if seg_type == 'injection_site':
         for n in segment_data['idx_shape'].unique():
             n_idx = segment_data.index[segment_data['idx_shape'] == n].tolist()
             curr_x = np.array([x_scaled[i] for i in n_idx])
@@ -83,20 +83,20 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
     section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
     return section_data
 
-# def plot_quant_injection_side(df): #(input_path, c):
+# def plot_quant_injection_site(df): #(input_path, c):
 #
-#     # results_dir = get_info(input_path, 'results', channel=c, seg_type='injection_side', only_dir=True)
-#     # fn = results_dir.joinpath('quantification_injection_side.csv')
+#     # results_dir = get_info(input_path, 'results', channel=c, seg_type='injection_site', only_dir=True)
+#     # fn = results_dir.joinpath('quantification_injection_site.csv')
 #     # df = pd.read_csv(fn)
 #     # df = df.drop('animal_id', axis=1)
 #     clrs = sns.color_palette(quant_inj_widget.cmap.value)
 #     mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
 #     static_ax = mpl_widget.figure.subplots()
 #     static_ax.pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
-#     # static_ax.title.set_text('quantification of the injection side in ' + c + " channel")
+#     # static_ax.title.set_text('quantification of the injection site in ' + c + " channel")
 #     static_ax.axis('off')
 #     # if quant_inj_widget.save_fig.value:
-#         # save_fn = results_dir.joinpath('quantification_injection_side.svg')
+#         # save_fn = results_dir.joinpath('quantification_injection_site.svg')
 #         # mpl_widget.figure.savefig(save_fn)
 #     return mpl_widget
 
@@ -145,10 +145,10 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
     print("DONE!")
 
 @thread_worker
-def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
+def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
 
-    if seg_type not in ['injection_side', 'cells']:
-        print("not implemented! please, select 'injection_side' as segmentation type")
+    if seg_type not in ['injection_site', 'cells']:
+        print("not implemented! please, select 'injection_site' as segmentation type")
         return
 
     animal_id = get_animal_id(input_path)
@@ -166,7 +166,7 @@ def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
     # add parent acronym to the injection data
     acronym_parent = [split_strings_layers(s, atlas_name=atlas.metadata['name'])[0] for s in results_data['acronym']]
     results_data['acronym_parent'] = acronym_parent
-    # count pixels (injection side) for each cell, add 0 for empty regions
+    # count pixels (injection site) for each cell, add 0 for empty regions
     quant_df = pd.DataFrame()
     temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
                                          ["acronym_parent"].value_counts())
@@ -182,7 +182,7 @@ def quantify_injection_side(input_path, atlas, chan, seg_type='injection_side'):
     quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
                                     index='animal_id')
 
-    save_fn = results_dir.joinpath('quantification_injection_side.csv')
+    save_fn = results_dir.joinpath('quantification_injection_site.csv')
     quant_df_pivot.to_csv(save_fn)
     print("Relative injection side for " + chan + " channel:")
     print(quant_df_pivot)
@@ -209,7 +209,7 @@ def initialize_results_widget() -> FunctionGui:
                              tooltip='select the channel you registered to the brain atlas'),
               seg_type=dict(widget_type='ComboBox', 
                             label='segmentation type',
-                            choices=['cells', 'injection_side', 'projections', 'optic_fiber', 'neuropixels_probe'], 
+                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe'],
                             value='cells',
                             tooltip='select the segmentation type you want to create results from'),
               channels=dict(widget_type='Select', 
@@ -269,11 +269,11 @@ class ResultsWidget(QWidget):
         btn_results = QPushButton("create results file")
         btn_results.clicked.connect(self._create_results_file)
 
-        self._collapse_quant = QCollapsible('Quantify injection side: expand for more', self)
+        self._collapse_quant = QCollapsible('Quantify injection site: expand for more', self)
         self.quant_inj = initialize_quantinj_widget()
         self._collapse_quant.addWidget(self.quant_inj.native)
-        btn_quant_inj = QPushButton("quantify injection side")
-        btn_quant_inj.clicked.connect(self._quantify_injection_side)
+        btn_quant_inj = QPushButton("quantify injection site")
+        btn_quant_inj.clicked.connect(self._quantify_injection_site)
         self._collapse_quant.addWidget(btn_quant_inj)
 
 
@@ -293,19 +293,19 @@ class ResultsWidget(QWidget):
         worker_results_file.start()
 
 
-    def _quantify_injection_side(self):
+    def _quantify_injection_site(self):
         input_path = self.results.input_path.value
         channels = self.results.channels.value
         seg_type = self.results.seg_type.value
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas("allen_mouse_10um")
         for chan in channels:
-            worker_quantification = quantify_injection_side(input_path, atlas, chan, seg_type=seg_type)
-            worker_quantification.returned.connect(self._plot_quant_injection_side)
+            worker_quantification = quantify_injection_site(input_path, atlas, chan, seg_type=seg_type)
+            worker_quantification.returned.connect(self._plot_quant_injection_site)
             worker_quantification.start()
 
 
-    def _plot_quant_injection_side(self, in_data):
+    def _plot_quant_injection_site(self, in_data):
         df, chan, seg_type, results_data = in_data
         input_path = self.results.input_path.value
         results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
@@ -336,7 +336,7 @@ class ResultsWidget(QWidget):
         static_ax[1].spines['right'].set_visible(False)
         static_ax[1].title.set_text('kde plot of ' + seg_type + ' in ' + chan + " channel")
         if self.quant_inj.save_fig.value:
-            save_fn = results_dir.joinpath('quantification_injection_side.svg')
+            save_fn = results_dir.joinpath('quantification_injection_site.svg')
             mpl_widget.figure.savefig(save_fn)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 
