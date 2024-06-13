@@ -26,7 +26,7 @@ def initialize_widget() -> FunctionGui:
                               tooltip='directory of folder containing subfolders with e.g. raw data, images, segmentation results, NOT '
                                         'folder containing images'),
               inj_side=dict(widget_type='ComboBox', 
-                            label='injection side',
+                            label='injection site',
                             choices=['','left', 'right'], 
                             value='',
                             tooltip='select the injection hemisphere (if applicable)'),
@@ -82,7 +82,7 @@ class ParamsWidget(QWidget):
             raise IOError("Input path is not a valid directory \n"
                           "Please make sure this exists: {}".format(input_path))
         animal_id = get_animal_id(input_path)
-        injection_side = self.params.inj_side.value
+        injection_site = self.params.inj_side.value
         genotype = self.params.geno.value
         group = self.params.group.value
         chans_imaged = self.params.chans_imaged.value
@@ -98,7 +98,7 @@ class ParamsWidget(QWidget):
         params_dict = {
             "general": {
                 "animal_id": animal_id,
-                "injection_side": injection_side,
+                "injection_site": injection_site,
                 "genotype": genotype,
                 "group": group,
                 "chans_imaged": chans_imaged

@@ -426,3 +426,6 @@ def get_threshold_dropdown():
         func_dict.setdefault(f,f)
     func_keys = Enum("func_key", func_dict)
     return func_keys
+
+def injection_site_typo():
+    pass
