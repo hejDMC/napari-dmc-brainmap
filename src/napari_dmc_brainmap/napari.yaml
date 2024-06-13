@@ -6,9 +6,9 @@ contributions:
       python_name: napari_dmc_brainmap.params:ParamsWidget
       title: Create params.json file
 
-    - id: napari-dmc-brainmap.ConfocalWidget
-      python_name: napari_dmc_brainmap.confocal:ConfocalWidget
-      title: Stitch confocal images
+#    - id: napari-dmc-brainmap.ConfocalWidget
+#      python_name: napari_dmc_brainmap.confocal:ConfocalWidget
+#      title: Stitch confocal images
 
     - id: napari-dmc-brainmap.StitchingWidget
       python_name: napari_dmc_brainmap.stitching:StitchingWidget
@@ -46,8 +46,8 @@ contributions:
     - command: napari-dmc-brainmap.ParamsWidget
       display_name: Create params file (general info -- ALWAYS start with this!)
 
-    - command: napari-dmc-brainmap.ConfocalWidget
-      display_name: Stitch czi images
+#    - command: napari-dmc-brainmap.ConfocalWidget
+#      display_name: Stitch czi images
 
     - command: napari-dmc-brainmap.StitchingWidget
       display_name: Stitch tif images
