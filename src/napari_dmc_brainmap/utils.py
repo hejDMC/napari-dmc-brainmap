@@ -187,7 +187,7 @@ def split_strings_layers(s, atlas_name='allen_mouse'):
     return head, tail
 
 def get_parent(a, st):
-    # dummy function to get parent id for quick and dirty quantification of injection side
+    # dummy function to get parent id for quick and dirty quantification of injection site
     level_dict = {
         7: ['Isocortex', 'HPF', 'TH'],
         6: ['OLF', 'HY'],
