@@ -419,16 +419,16 @@ def initialize_segment_widget() -> FunctionGui:
                                         'multiple channels'),
               seg_type=dict(widget_type='ComboBox', 
                             label='segmentation type',
-                            choices=['cells', 'injection_side', 'optic_fiber', 'neuropixels_probe', 'projections'],
+                            choices=['cells', 'injection_site', 'optic_fiber', 'neuropixels_probe', 'projections'],
                             value='cells',
-                            tooltip='select to either segment cells, projections, optic fiber tracts, probe tracts (points) or injection sides (areas) '
+                            tooltip='select to either segment cells, projections, optic fiber tracts, probe tracts (points) or injection sites (regions) '
                                 'IMPORTANT: before switching between types, load next image, delete all image layers '
                                 'and reload image of interest!'),
               n_probes=dict(widget_type='LineEdit', 
                             label='number of fibers/probes', 
                             value=1,
                             tooltip='number (int) of optic fibres and or probes used to segment, leave this value unchanged for '
-                                'segmenting cells/injection side/projections'),
+                                'segmenting cells/injection site/projections'),
               point_size=dict(widget_type='LineEdit',
                             label='point size',
                             value=5,
@@ -797,7 +797,7 @@ class SegmentWidget(QWidget):
 
 
     def _create_seg_objects(self, input_path, seg_type, channels, n_probes, image_idx):
-        if seg_type == 'injection_side':
+        if seg_type == 'injection_site':
             cmap_dict = cmap_injection()
             if self.load_preseg.load_bool.value:
                 for chan in channels:
@@ -840,7 +840,7 @@ class SegmentWidget(QWidget):
             seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
         path_to_im = seg_im_dir.joinpath(seg_im_list[save_idx])
         im_name_str = path_to_im.with_suffix('').parts[-1]
-        if seg_type_save not in ['cells', 'injection_side', 'projections']:
+        if seg_type_save not in ['cells', 'injection_site', 'projections']:
             channels = [seg_type_save + '_' + str(i) for i in range(self.save_dict['n_probes'])]
         for chan in channels:
             try:
@@ -848,7 +848,7 @@ class SegmentWidget(QWidget):
                 segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
                                     create_dir=True,
                                     only_dir=True)
-                if seg_type_save == 'injection_side':
+                if seg_type_save == 'injection_site':
                     data = pd.DataFrame()
                     for i in range(len(self.viewer.layers[chan].data)):
                         data_temp = pd.DataFrame(self.viewer.layers[chan].data[i], columns=['Position Y', 'Position X'])
