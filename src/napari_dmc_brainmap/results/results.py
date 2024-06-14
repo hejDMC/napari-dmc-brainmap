@@ -165,6 +165,7 @@ def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data
     print(results_data['acronym'].unique())
+    print(atlas.metadata['name'])
     acronym_parent = [split_strings_layers(s, atlas_name=atlas.metadata['name'])[0] for s in results_data['acronym']]
     results_data['acronym_parent'] = acronym_parent
     print(acronym_parent)

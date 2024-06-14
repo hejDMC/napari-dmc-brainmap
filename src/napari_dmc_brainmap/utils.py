@@ -167,7 +167,7 @@ def update_params_dict(input_path, params_dict, create=False):
 #         tail = s[len(head):]
 #     return head, tail
 
-def split_strings_layers(s, atlas_name='allen_mouse'):
+def split_strings_layers(s, atlas_name):
     # likely not working for other atlases than ABA
     if atlas_name == 'allen_mouse':
         if s.startswith('CA'):
