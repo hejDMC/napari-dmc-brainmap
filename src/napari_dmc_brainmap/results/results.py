@@ -161,7 +161,8 @@ def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
         # add the injection hemisphere stored in params.json file
     else:
         return
-    results_data = clean_results_df(results_data, atlas)
+    if atlas.metadata['name'] == 'allen_mouse':
+        results_data = clean_results_df(results_data, atlas)
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data
     print(results_data['acronym'].unique())
