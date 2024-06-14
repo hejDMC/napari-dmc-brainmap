@@ -298,10 +298,11 @@ class ResultsWidget(QWidget):
 
     def _quantify_injection_site(self):
         input_path = self.results.input_path.value
+        params_dict = load_params(input_path)
         channels = self.results.channels.value
         seg_type = self.results.seg_type.value
         print("loading reference atlas...")
-        atlas = BrainGlobeAtlas("allen_mouse_10um")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
         for chan in channels:
             worker_quantification = quantify_injection_site(input_path, atlas, chan, seg_type=seg_type)
             worker_quantification.returned.connect(self._plot_quant_injection_site)
