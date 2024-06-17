@@ -27,7 +27,7 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
     :param filter_list: list of channels to stitch
     :param params_dict: dict loaded from params.json
     :param stitch_tiles: bool, whether to stitch individual tiles, if False use DMC-FluoImager data as input
-    :param direct_sharpy_track: bool, whether to directly create data for SHARPy
+    :param direct_sharpy_track: bool, whether to directly create data for SHARPy-track
     :return:
     """
 
@@ -142,9 +142,9 @@ def initialize_widget() -> FunctionGui:
                             tooltip='select the imaged channels, '
                                 'to select multiple hold ctrl/shift'),
               sharpy_bool=dict(widget_type='CheckBox', 
-                               text='get images for registration (sharpy-track)', 
+                               text='get images for registration (SHARPy-track)',
                                value=True,
-                               tooltip='option to create downsampled images [1140x800 px] for brain registration using sharpy-track'),
+                               tooltip='option to create downsampled images [1140x800 px] for brain registration using SHARPy-track'),
               sharpy_chan=dict(widget_type='Select', 
                                label='selected channels', 
                                value='green',

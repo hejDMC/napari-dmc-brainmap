@@ -202,18 +202,18 @@ def initialize_dostack_widget() -> FunctionGui:
 
 def initialize_dosharpy_widget() -> FunctionGui:
     @magicgui(button=dict(widget_type='CheckBox', 
-                          text='create downsampled images for sharpy-track', 
+                          text='create downsampled images for SHARPy-track',
                           value=False,
-                          tooltip='tick to create downsampled images [1140x800 px] for brain registration using sharpy-track'),
+                          tooltip='tick to create downsampled images [1140x800 px] for brain registration using SHARPy-track'),
               channels=dict(widget_type='Select', 
                             label='selected channels', 
                             value='all',
                             choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels for sharpy-track, to select multiple hold ctrl/shift'),
+                            tooltip='select channels for SHARPy-track, to select multiple hold ctrl/shift'),
               ds_params=dict(widget_type='CheckBox', 
                              text='perform downsampling on images', 
                              value=True,
-                             tooltip='downsample image to resolution in sharpy track'),
+                             tooltip='downsample image to resolution in SHARPy track'),
               contrast_bool=dict(widget_type='CheckBox', 
                                  text='perform contrast adjustment on images for registration', 
                                  value=True,
@@ -377,7 +377,7 @@ class PreprocessingWidget(QWidget):
         self.stack_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_stack.addWidget(self.stack_widget.root_native_widget)
 
-        self._collapse_sharpy = QCollapsible('Create sharpy_track images: expand for more', self)
+        self._collapse_sharpy = QCollapsible('Create SHARPy-track images: expand for more', self)
         self.sharpy_widget = initialize_dosharpy_widget()
         self.sharpy_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_sharpy.addWidget(self.sharpy_widget.root_native_widget)

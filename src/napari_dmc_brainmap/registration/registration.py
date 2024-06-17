@@ -9,8 +9,8 @@ def initialize_widget() -> FunctionGui:
     @magicgui(input_path=dict(widget_type='FileEdit', 
                               label='input path (animal_id): ', 
                               mode='d',
-                              tooltip='directory of folder containing subfolders with sharpy-track images, '
-                                'NOT folder containing sharpy-track images itself'),
+                              tooltip='directory of folder containing subfolders with SHARPy-track images, '
+                                'NOT folder containing SHARPy-track images itself'),
               regi_chan=dict(widget_type='ComboBox', 
                              label='registration channel',
                              choices=['dapi', 'green', 'n3', 'cy3', 'cy5'], 

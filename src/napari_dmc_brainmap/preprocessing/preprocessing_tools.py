@@ -52,7 +52,7 @@ def downsample_image(data, scale_factor=False, resolution_tuple=False):
     # downsampling of image; default is just downsampling the image
     if scale_factor:
         size_tuple = (math.floor(data.shape[1]/scale_factor), math.floor(data.shape[0]/scale_factor))
-    # if no scale factor provided  downsample to sharpy-track size: max-[800-1140]
+    # if no scale factor provided  downsample to sharpy_track size: max-[800-1140]
     else:
         size_tuple = resolution_tuple  # (1140, 800)
     data_resized = cv2.resize(data, size_tuple)
