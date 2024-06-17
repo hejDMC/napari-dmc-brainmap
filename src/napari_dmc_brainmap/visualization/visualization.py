@@ -76,7 +76,7 @@ def initialize_barplot_widget() -> FunctionGui:
                           label='channel/group/genotype/animals separately?',
                           choices=['', 'channel', 'group', 'genotype', 'animal_id'],
                           value='',
-                          tooltip="if you want to plot channel/group/genotype or individual animals in different colors, "
+                          tooltip="if you want to plot channel/group/genotype or individual animals in different colors (no colormaps), "
                                   "select accordingly, otherwise leave empty"),
               tgt_list=dict(widget_type='LineEdit', 
                             label='list of brain areas (ABA)',
@@ -87,8 +87,9 @@ def initialize_barplot_widget() -> FunctionGui:
                               label='list of colors',
                               value='c:Blues', 
                               tooltip='enter the COMMA SEPERATED list of colors used for plotting '
-                                                '(no white spaces: color1,color2); '
-                                                'for using a colormap start with "c:NAMEOFCMAP"'),
+                                      '(no white spaces: color1,color2); '
+                                      'for using a colormap start with "c:NAMEOFCMAP. '
+                                      'colormaps only work when no grouping parametrs is selected.'),
               plot_size=dict(widget_type='LineEdit', 
                              label='enter plot size',
                              value='8,6', 
