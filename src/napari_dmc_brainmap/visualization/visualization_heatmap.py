@@ -131,7 +131,7 @@ def check_brain_area_in_bin(df, atlas):
 def get_heatmap_params(heatmap_widget):
     plotting_params = {
         "hemisphere": heatmap_widget.hemisphere.value,
-        "xlabel": [heatmap_widget.xlabel.value, int(heatmap_widget.xlabel_size.value)],  # 0: label, 1: fontsize
+        # "xlabel": [heatmap_widget.xlabel.value, int(heatmap_widget.xlabel_size.value)],  # 0: label, 1: fontsize
         "ylabel": [heatmap_widget.ylabel.value, int(heatmap_widget.ylabel_size.value)],
         "tick_size": [int(heatmap_widget.xticklabel_size.value), int(heatmap_widget.yticklabel_size.value)],
         # "rotate_xticks": int(heatmap_widget.rotate_xticks.value),  # set to False of no rotation
