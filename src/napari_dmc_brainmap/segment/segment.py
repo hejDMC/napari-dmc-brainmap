@@ -555,7 +555,7 @@ def initialize_dopreseg_widget():
                                   tooltip='if you only want to segment a subset of images enter COMMA SEPARATED indices '
                                           'of the first and last image to presegment, e.g. 0,10'),
               mask_folder=dict(widget_type='LineEdit',
-                                 label='masks folder)',
+                                 label='masks folder',
                                  value='segmentation_masks',
                                  tooltip='name of output folder for storing segmentation masks'),
 
