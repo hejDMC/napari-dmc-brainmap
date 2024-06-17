@@ -187,7 +187,7 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
     cmap_max = plotting_params["cmap_min_max"][1]
     cmap = plotting_params["cmap"]
     figsize = [int(i) for i in heatmap_widget.plot_size.value.split(',')]
-    mpl_widget = FigureCanvas(Figure(figsize=(figsize)))
+    mpl_widget = FigureCanvas(Figure(figsize=figsize))
     static_ax = mpl_widget.figure.subplots(1, (len(tgt_list) + 1),
                                            gridspec_kw={'width_ratios': [1] * len(tgt_list) + [0.15]}) #, figsize=figsize)
     #for a in range(len(static_ax)):

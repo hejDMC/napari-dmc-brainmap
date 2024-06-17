@@ -315,7 +315,8 @@ class ResultsWidget(QWidget):
         input_path = self.results.input_path.value
         results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
         clrs = sns.color_palette(self.quant_inj.cmap.value)
-        mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in self.quant_inj.plot_size.value.split(',')])))
+        figsize = [int(i) for i in self.quant_inj.plot_size.value.split(',')]
+        mpl_widget = FigureCanvas(Figure(figsize=figsize))
 
         plt_axis = self.quant_inj.kde_axis.value.split('/')
         axis_dict = {

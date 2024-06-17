@@ -120,8 +120,8 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
     if not plotting_params[
         "alphabetic"]:  # re-structuring of df creates alphabetic order of brain areas, if tgt_list order should be kept do resort
         tgt_data_to_plot = resort_df(tgt_data_to_plot, tgt_list)
-
-    mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in barplot_widget.plot_size.value.split(',')])))
+    figsize = [int(i) for i in barplot_widget.plot_size.value.split(',')]
+    mpl_widget = FigureCanvas(Figure(figsize=figsize))
     static_ax = mpl_widget.figure.subplots()
 
     sns.set(style=plotting_params["style"])  # set style todo: dark style not really implemented

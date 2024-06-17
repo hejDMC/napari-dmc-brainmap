@@ -111,7 +111,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
     section_list = plotting_params["section_list"]  # in mm AP coordinates for coronal sections
     n_rows, n_cols = get_rows_cols(section_list)
     figsize = [int(i) for i in brain_section_widget.plot_size.value.split(',')]
-    mpl_widget = FigureCanvas(Figure(figsize=(figsize)))
+    mpl_widget = FigureCanvas(Figure(figsize=figsize))
     static_ax = mpl_widget.figure.subplots(n_rows, n_cols)
     n_row = 0
     n_col = 0
