@@ -309,8 +309,8 @@ def initialize_dobinary_widget() -> FunctionGui:
             ds_params,
             thresh_dapi,
             thresh_green,
-            thresh_cy3,
             thresh_n3,
+            thresh_cy3,
             thresh_cy5):
         pass
     return do_binary
