@@ -486,15 +486,15 @@ def initialize_segment_widget() -> FunctionGui:
 def initialize_loadpreseg_widget() -> FunctionGui:
     @magicgui(layout='vertical',
               load_bool=dict(widget_type='CheckBox', 
-                             label='load pre-segmented data', 
+                             label='load presegmented data',
                              value=False,
-                             tooltip='tick to load pre-segmented data for manual curation'),
+                             tooltip='tick to load presegmented data for manual curation'),
               pre_seg_folder=dict(widget_type='LineEdit', 
-                                  label='folder name with pre-segmented data', 
+                                  label='folder name with presegmented data',
                                   value='presegmentation',
                                   tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called '
                                 '*segmentation*, manual curation will override existing data. '
-                                'Pre-segmented data needs to be .csv file and column names specifying *Position X* and '
+                                'Presegmented data needs to be .csv file and column names specifying *Position X* and '
                                 '*Position Y* for coordinates. For loading neuropixels/optic fiber data specify the number of probes correctly.'),
               call_button=False,
               scrollable=True)
@@ -600,7 +600,7 @@ def initialize_projectionpreseg_widget():
                              value='green',
                              tooltip='select the registration channel (images need to be in sharpy_track folder)'),
               binary_folder=dict(widget_type='LineEdit',
-                               label='folder name with pre-segmented projections',
+                               label='folder name with presegmented projections',
                                value='binary',
                                tooltip='folder needs to contain subfolders with channel names and .tif binary images '
                                        'of segmented of projections'),
@@ -624,7 +624,7 @@ def initialize_projectionpreseg_widget():
 def initialize_findcentroids_widget():
     @magicgui(layout='vertical',
               mask_folder=dict(widget_type='LineEdit', 
-                               label='folder name with pre-segmented data', 
+                               label='folder name with presegmented data',
                                value='segmentation_masks',
                                tooltip='folder needs to contain subfolders with channel names and .tif images with segmented '
                                 'of cells'),
@@ -659,7 +659,7 @@ class SegmentWidget(QWidget):
         self.segment.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self.save_dict = default_save_dict()
 
-        self._collapse_load_preseg = QCollapsible('Load pre-segmented data: expand for more', self)
+        self._collapse_load_preseg = QCollapsible('Load presegmented data: expand for more', self)
         self.load_preseg = initialize_loadpreseg_widget()
         self.load_preseg.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_load_preseg.addWidget(self.load_preseg.root_native_widget)
@@ -680,11 +680,11 @@ class SegmentWidget(QWidget):
         btn_projections.clicked.connect(self._create_projection_preseg)
         self._collapse_projections.addWidget(btn_projections)
 
-        self._collapse_center = QCollapsible('Find centroids for pre-segmented data (masks): expand for more', self)
+        self._collapse_center = QCollapsible('Find centroids for presegmented data (masks): expand for more', self)
         self.center = initialize_findcentroids_widget()
         self.center.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_center.addWidget(self.center.root_native_widget)
-        btn_center = QPushButton("get center coordinates for pre-segmented data")
+        btn_center = QPushButton("get center coordinates for presegmented data")
         btn_center.clicked.connect(self._get_center_coord)
         self._collapse_center.addWidget(btn_center)
 
@@ -788,7 +788,7 @@ class SegmentWidget(QWidget):
             try:
                 pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
             except KeyError:
-                print("csv file missing columns (Position Y/X), no pre-segmented data loaded")
+                print("csv file missing columns (Position Y/X), no presegmented data loaded")
                 pre_seg_data = []
         else:
             pre_seg_data = []
