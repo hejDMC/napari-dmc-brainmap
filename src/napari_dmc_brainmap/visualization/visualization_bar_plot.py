@@ -83,7 +83,7 @@ def get_bar_plot_params(barplot_widget):
         "scatter_palette": split_to_list(barplot_widget.scatter_palette.value),
         "scatter_hue": barplot_widget.scatter_hue.value,
         "scatter_size": int(barplot_widget.scatter_size.value),
-        "scatter_legend_hide": barplot_widget.scatter_legend_hide.value,
+        # "legend_hide": barplot_widget.legend_hide.value,
         "save_name": barplot_widget.save_name.value,
         "save_fig": barplot_widget.save_fig.value,
         "save_data": barplot_widget.save_data.value,
@@ -131,7 +131,7 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
         if plotting_params["scatter_hue"]:  # color code dots by animals
             sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
                           palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
-                          orient=plot_orient)
+                          orient=plot_orient, legend=False)
     else:
         cmap = create_cmap([], plotting_params, "bar_palette", df=tgt_data_to_plot, hue_id='groups')
         sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, hue='groups', palette=cmap,
@@ -139,7 +139,7 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
         if plotting_params["scatter_hue"]:  # color code dots by animals
             sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
                           palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
-                          dodge=True, orient=plot_orient)
+                          dodge=True, orient=plot_orient, legend=False)
     # else:
     #     sns.swarmplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot,
     #                   palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
@@ -154,16 +154,18 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
     static_ax.set_title(plotting_params["title"][0], fontsize=plotting_params["title"][1])
     static_ax.spines['top'].set_visible(False)
     static_ax.spines['right'].set_visible(False)
-    if plotting_params["scatter_hue"]:  # adjust color for legend
+    if plotting_params["groups"] != '':  # adjust color for legend
         leg = static_ax.get_legend()
+        leg.set_title(plotting_params['groups'])
         leg.get_title().set_color(plotting_params["color"])
         frame = leg.get_frame()
         frame.set_alpha(None)
         frame.set_facecolor((0, 0, 1, 0))
         for text in leg.get_texts():
             text.set_color(plotting_params["color"])
-        if plotting_params["scatter_legend_hide"]:  # remove legend from scatter plot
-            static_ax.legend_.remove()
+        # if plotting_params["scatter_legend_hide"]:  # remove legend from scatter plot
+        #     static_ax.legend_.remove()
+
     static_ax.spines['bottom'].set_color(plotting_params["color"])
     static_ax.spines['left'].set_color(plotting_params["color"])
     static_ax.xaxis.label.set_color(plotting_params["color"])

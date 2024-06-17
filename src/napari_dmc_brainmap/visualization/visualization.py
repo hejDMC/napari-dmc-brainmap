@@ -73,8 +73,8 @@ def initialize_barplot_widget() -> FunctionGui:
                               value='both',
                               tooltip="select hemisphere to visualize (relative to injection site)"),
               groups=dict(widget_type='ComboBox',
-                          label='channel/group/genotype/animals separately?',
-                          choices=['', 'channel', 'group', 'genotype', 'animal_id'],
+                          label='channel/group/genotype separately?',
+                          choices=['', 'channel', 'group', 'genotype'],
                           value='',
                           tooltip="if you want to plot channel/group/genotype or individual animals in different colors (no colormaps), "
                                   "select accordingly, otherwise leave empty"),
@@ -164,10 +164,10 @@ def initialize_barplot_widget() -> FunctionGui:
                                 value=5, 
                                 min=1,
                                 tooltip='select the size individual data points'),
-              scatter_legend_hide=dict(widget_type='CheckBox', 
-                                       label='hide data points legend', 
-                                       value=True,
-                                       tooltip='option to hide legend for individual data points'),
+              # scatter_legend_hide=dict(widget_type='CheckBox',
+              #                          label='hide data points legend',
+              #                          value=True,
+              #                          tooltip='option to hide legend for individual data points'),
               absolute_numbers=dict(widget_type='CheckBox', 
                                     label='plot absolute numbers', 
                                     value=False,
@@ -201,7 +201,7 @@ def initialize_barplot_widget() -> FunctionGui:
         scatter_hue,
         scatter_palette,
         scatter_size,
-        scatter_legend_hide,
+        # scatter_legend_hide,
         absolute_numbers):
         pass
     return barplot_widget
