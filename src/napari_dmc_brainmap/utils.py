@@ -174,7 +174,7 @@ def split_strings_layers(s, atlas_name):
             head = s
             tail = []
         else:
-            match = re.match(r"([A-Za-z]+)(\d+.*)", s)
+            match = re.match(r"([A-Za-z-]+)(\d+.*)", s)  # re.match(r"([A-Za-z]+)(\d+.*)", s)
             if match:
                 head = match.group(1)
                 tail = match.group(2)
