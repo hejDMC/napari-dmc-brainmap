@@ -16,10 +16,6 @@ def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_lis
     df['bin'] = pd.cut(df['ap_mm'], intervals, labels=interval_labels)
 
     absolute_numbers = plotting_params["absolute_numbers"]  # use absolute numbers
-    if absolute_numbers:
-        rel_percentage = False
-    else:
-        rel_percentage = True
 
     if sub_list:  # sub data to calculate relative count for
         sub_data = get_tgt_data_only(df_all, atlas, sub_list)
@@ -49,9 +45,9 @@ def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_lis
     df_plot = pd.DataFrame(np.zeros((len(tgt_list), len(interval_labels))), index=tgt_list, columns=interval_labels)
     for animal_id in animal_list:
         # todo here can be the bug by dividing by zero!
-        if absolute_numbers:
+        if absolute_numbers == 'cell_numbers':
             data = df['ap_coords'][animal_id]
-        elif rel_percentage:
+        elif absolute_numbers == 'percentage_selection':
             data = (df['ap_coords'][animal_id] / df['ap_coords'][animal_id].sum().sum()) * 100
         elif sub_list:
             data = (df['ap_coords'][animal_id] / len(sub_data[sub_data['animal_id']==animal_id])) * 100
@@ -141,9 +137,9 @@ def get_heatmap_params(heatmap_widget):
         "color": heatmap_widget.color.value,
         "cmap": split_to_list(heatmap_widget.cmap.value),
         "cbar_label": heatmap_widget.cbar_label.value,
-        "cmap_min_max":  [float(i) for i in heatmap_widget.cmap_min_max.value.split(',')],  # [0] is absolute value for vmin, [1] is value to multiply max_range value with
-        "intervals": sorted([float(i) for i in heatmap_widget.intervals.value.split(',')]),  # assure ascending order
-        "interval_labels": get_interval_labels(split_to_list(heatmap_widget.intervals.value)),
+        "cmap_min_max":  split_to_list(heatmap_widget.cmap_min_max.value, out_format='float'), #[float(i) for i in heatmap_widget.cmap_min_max.value.split(',')],  # [0] is absolute value for vmin, [1] is value to multiply max_range value with
+        "intervals": sorted(split_to_list(heatmap_widget.intervals.value, out_format='float')),  # assure ascending order
+        "interval_labels": get_interval_labels(split_to_list(heatmap_widget.intervals.value, out_format='float')),
         "descendants": heatmap_widget.descendants.value,
         "transpose": heatmap_widget.transpose.value,
         "save_name": heatmap_widget.save_name.value,

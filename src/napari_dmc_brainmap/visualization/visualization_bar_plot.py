@@ -10,10 +10,6 @@ from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_o
 def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting_params):
 
     absolute_numbers = plotting_params["absolute_numbers"]
-    if absolute_numbers:
-        rel_percentage = False
-    else:
-        rel_percentage = True
     df = get_tgt_data_only(df_all, atlas, tgt_list)
     df_geno = df.copy() # copy df to extract genotype of mice later on
     if plotting_params["groups"] == "channel":
