@@ -114,7 +114,7 @@ def initialize_barplot_widget() -> FunctionGui:
                                  tooltip='enter rotation of xticklabels, set to 0 for no rotation'),
               ylabel=dict(widget_type='LineEdit', 
                           label='enter the ylabel',
-                          value='Proportion of cells [%]', 
+                          value='Number of cells',  #'Proportion of cells [%]'
                           tooltip='enter the ylabel of the plot'),
               ylabel_size=dict(widget_type='SpinBox', 
                                label='size of ylabel', 
@@ -168,10 +168,15 @@ def initialize_barplot_widget() -> FunctionGui:
               #                          label='hide data points legend',
               #                          value=True,
               #                          tooltip='option to hide legend for individual data points'),
-              absolute_numbers=dict(widget_type='CheckBox', 
-                                    label='plot absolute numbers', 
-                                    value=False,
-                                    tooltip='option to plot absolute numbers, if not ticked, relative percentages of used'),
+              # absolute_numbers=dict(widget_type='CheckBox',
+              #                       label='plot absolute numbers',
+              #                       value=True,
+              #                       tooltip='option to plot absolute numbers, if not ticked, relative percentages of used'),
+              absolute_numbers=dict(widget_type='ComboBox',
+                          label='plotting absolute numbers or percentage',
+                          value='cell_numbers',
+                          choices=['cell_numbers', 'percentage_dataset', 'percentage_selection'],
+                          tooltip='select to plot absolute cell numbers, percentage relative to all cells in dataset or relative to cells in selected regions'),
               call_button=False,
               scrollable=True)
 
