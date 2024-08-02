@@ -32,7 +32,7 @@ def get_brain_section_params(brainsec_widget):
         "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
-        "color_injection_side": split_to_list(brainsec_widget.color_inj.value),
+        "color_injection_site": split_to_list(brainsec_widget.color_inj.value),
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),
         "color_neuropixels_probe": split_to_list(brainsec_widget.color_npx.value),
         "save_name": brainsec_widget.save_name.value,

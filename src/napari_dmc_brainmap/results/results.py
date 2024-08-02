@@ -3,85 +3,21 @@ from superqt import QCollapsible
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
-import cv2
-import numpy as np
 import pandas as pd
-from matplotlib import path
+
 from natsort import natsorted
-from sklearn.preprocessing import minmax_scale
+
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import seaborn as sns
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df, load_params, \
-    create_regi_dict
-from napari_dmc_brainmap.results.find_structure import sliceHandle
+    create_regi_dict, split_to_list
+from napari_dmc_brainmap.results.results_tools import sliceHandle, transform_points_to_regi
+from napari_dmc_brainmap.results.tract_calculation import load_probe_data, get_linefit3d, get_probe_tract
+from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from bg_atlasapi import BrainGlobeAtlas
 import json
 
-
-def regi_points_polygon(x_scaled, y_scaled):
-
-    poly_points = [(x_scaled[i], y_scaled[i]) for i in range(0, len(x_scaled))]
-    polygon = path.Path(poly_points)
-    x_min, x_max = x_scaled.min(), x_scaled.max()
-    y_min, y_max = y_scaled.min(), y_scaled.max()
-    xx, yy = np.meshgrid(np.linspace(x_min, x_max, (x_max - x_min) + 1),
-                         np.linspace(y_min, y_max, (y_max - y_min) + 1))
-    canvas_points = [(np.ndarray.flatten(xx)[i], np.ndarray.flatten(yy)[i]) for i in
-                     range(0, len(np.ndarray.flatten(xx)))]
-    idx_in_polygon = polygon.contains_points(canvas_points)
-    points_in_polygon = [c for c, i in zip(canvas_points, idx_in_polygon) if i]
-    x_poly = [p[0] for p in points_in_polygon]
-    y_poly = [p[1] for p in points_in_polygon]
-    coords = np.stack([x_poly, y_poly], axis=1)
-    return coords
-
-
-
-def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir, seg_im_suffix, regi_data, regi_dir, regi_suffix):
-    # todo input differently?
-    curr_im = im[:-len(segment_suffix)]
-    img = cv2.imread(str(seg_im_dir.joinpath(curr_im + seg_im_suffix)))
-    y_im, x_im, z_im = img.shape  # original resolution of image
-    # correct for 0 indices
-    y_im -= 1
-    x_im -= 1
-    img_regi = cv2.imread(str(regi_dir.joinpath(curr_im + regi_suffix)))
-    y_low, x_low, z_low = img_regi.shape  # original resolution of image
-    # correct for 0 indices
-    y_low -= 1
-    x_low -= 1
-
-    segment_data = pd.read_csv(segment_dir.joinpath(im))
-    y_pos = list(segment_data['Position Y'])
-    x_pos = list(segment_data['Position X'])
-    # append mix max values for rescaling
-    y_pos.append(0)
-    y_pos.append(y_im)
-    x_pos.append(0)
-    x_pos.append(x_im)
-    y_scaled = np.ceil(minmax_scale(y_pos, feature_range=(0, y_low)))[:-2].astype(int)
-    x_scaled = np.ceil(minmax_scale(x_pos, feature_range=(0, x_low)))[:-2].astype(int)
-    if seg_type == 'injection_site':
-        for n in segment_data['idx_shape'].unique():
-            n_idx = segment_data.index[segment_data['idx_shape'] == n].tolist()
-            curr_x = np.array([x_scaled[i] for i in n_idx])
-            curr_y = np.array([y_scaled[i] for i in n_idx])
-            curr_coords = regi_points_polygon(curr_x, curr_y)
-            if n == 0:
-                coords = curr_coords
-            else:
-                coords = np.concatenate((coords, curr_coords), axis=0)
-
-    else:
-        coords = np.stack([x_scaled, y_scaled], axis=1)
-
-    # slice_idx = list(regi_data['imgName'].values()).index(curr_im + regi_suffix)
-    s.setImgFolder(regi_dir)
-    # set which slice in there
-    s.setSlice(curr_im + regi_suffix)
-    section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
-    return section_data
 
 # def plot_quant_injection_site(df): #(input_path, c):
 #
@@ -100,9 +36,46 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
 #         # mpl_widget.figure.savefig(save_fn)
 #     return mpl_widget
 
+def calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert):
+    # get number of probes
+    results_dir = get_info(input_path, 'results', seg_type=seg_type, only_dir=True)
+    probes_list = natsorted([p.parts[-1] for p in results_dir.iterdir() if p.is_dir()])
+    probes_dict = {}
+    ax_map = {'ap': 'AP', 'si': 'DV', 'rl': 'ML'}
+    # if len(probe_insert) != len(probes_list):
+    #     print("WARNING, different number of probes and probe insert lengths detected!")
+    #     diff = len(probe_insert) - len(probes_list)
+    #     if diff < 0:
+    #         for d in range(diff):
+    #             probe_insert.append(4000)
+
+    print("calculating probe tract for...")
+    for i in range(len(probes_list) - len(probe_insert)):  # append false value if less probe insert values that probes found
+        print("Warning -- less manipulator values than probes provides, estimation of probe track from clicked points "
+              "is still experimental!")
+        probe_insert.append(False)
+
+    for probe, p_insert in zip(probes_list, probe_insert):
+        print("... " + probe)
+        probe_df = load_probe_data(results_dir, probe, s.atlas)
+
+        linefit, linevox, ax_primary = get_linefit3d(probe_df, s.atlas)
+        print(p_insert)
+        probe_tract, _col_names = get_probe_tract(input_path, s.atlas, seg_type, ax_primary, probe_df, probe,
+                                                 p_insert, linefit, linevox)
+        # save probe tract data
+        save_fn = results_dir.joinpath(probe + '_data.csv')
+        probe_tract.to_csv(save_fn)
+        probes_dict[probe] = {'axis': ax_map[s.atlas.space.axes_description[ax_primary]]}
+        probes_dict[probe]['Voxel'] = linevox[["a_coord","b_coord","c_coord"]].to_numpy().tolist()
+
+    save_fn = results_dir.joinpath(f'{seg_type}_data.json')
+    with open(save_fn, 'w') as f:
+        json.dump(probes_dict, f)  # write multiple voxelized probes, file can be opened in probe visualizer
+    print("DONE!")
 
 @thread_worker
-def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict):
+def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict, probe_insert):
 
 
     animal_id = get_animal_id(input_path)
@@ -112,7 +85,7 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
 
     regi_dict = create_regi_dict(input_path, regi_chan)
     s = sliceHandle(regi_dict)
-    if seg_type == "optic_fiber" or seg_type == "neuropixels_probe":
+    if seg_type in["optic_fiber", "neuropixels_probe"]:
         seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
         channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
 
@@ -136,13 +109,18 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
                         data = pd.concat((data, section_data))
                 except KeyError: # something wrong with registration data
                     print("Registration data for {} is not complete, skip.".format(im))
-                
             fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
             data.to_csv(fn)
             print("done! data saved to: " + str(fn))
         else:
             print("No segmentation images found in " + str(segment_dir))
     print("DONE!")
+    if seg_type in ["optic_fiber", "neuropixels_probe"]:
+        print(f'..calculating {seg_type} trajectory for {chan} ...')
+        calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert)
+
+
+
 
 @thread_worker
 def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
@@ -216,6 +194,11 @@ def initialize_results_widget() -> FunctionGui:
                             choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe'],
                             value='cells',
                             tooltip='select the segmentation type you want to create results from'),
+              probe_insert=dict(widget_type='LineEdit',
+                                label='insertion depth of probe (um)',
+                                value='4000',
+                                tooltip='specifiy the depth of optic fibers/neuropixels probe in brain in um, if left '
+                                        'empty insertion depth will be estimated based on segmentation (experimental)'),
               channels=dict(widget_type='Select', 
                             label='selected channels', 
                             value=['green', 'cy3'],
@@ -229,6 +212,7 @@ def initialize_results_widget() -> FunctionGui:
             seg_folder,
             regi_chan,
             seg_type,
+            probe_insert,
             channels):
         pass
     return results_widget
@@ -264,6 +248,14 @@ def initialize_quantinj_widget() -> FunctionGui:
     return quant_inj_widget
 
 
+def initialize_probevis_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              call_button=False)
+    def probe_visualizer():
+        pass
+
+    return probe_visualizer
+
 class ResultsWidget(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
@@ -280,11 +272,17 @@ class ResultsWidget(QWidget):
         btn_quant_inj.clicked.connect(self._quantify_injection_site)
         self._collapse_quant.addWidget(btn_quant_inj)
 
-
+        self._collapse_probe_vis = QCollapsible('Launch probe visualizer: expand for more', self)
+        self.probe_vis = initialize_probevis_widget()
+        self._collapse_probe_vis.addWidget(self.probe_vis.native)
+        btn_probe_vis = QPushButton("start probe visualizer")
+        btn_probe_vis.clicked.connect(self._start_probe_visualizer)
+        self._collapse_probe_vis.addWidget(btn_probe_vis)
 
         self.layout().addWidget(self.results.native)
         self.layout().addWidget(btn_results)
         self.layout().addWidget(self._collapse_quant)
+        self.layout().addWidget(self._collapse_probe_vis)
 
     def _create_results_file(self):
         input_path = self.results.input_path.value
@@ -293,7 +291,11 @@ class ResultsWidget(QWidget):
         seg_type = self.results.seg_type.value
         channels = self.results.channels.value
         params_dict = load_params(input_path)
-        worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict)
+        probe_insert = split_to_list(self.results.probe_insert.value, out_format='int')
+        if not probe_insert:
+            probe_insert = []
+        worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict,
+                                                  probe_insert)
         worker_results_file.start()
 
 
@@ -346,3 +348,8 @@ class ResultsWidget(QWidget):
             mpl_widget.figure.savefig(save_fn)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 
+    def _start_probe_visualizer(self):
+        input_path = self.results.input_path.value
+        params_dict = load_params(input_path)
+        probe_vis = ProbeVisualizer(self.viewer, params_dict)
+        probe_vis.show()
