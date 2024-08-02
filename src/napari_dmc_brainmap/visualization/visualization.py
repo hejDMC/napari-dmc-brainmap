@@ -415,7 +415,7 @@ def initialize_brainsection_widget() -> FunctionGui:
               dot_size=dict(widget_type='LineEdit',
                              label='enter dot size',
                              value='10',
-                             tooltip='enter the size of the dots (only for visualizing cells, neuropixels and optic fibres'),
+                             tooltip='enter the size of the dots (only for visualizing cells'),
               section_list=dict(widget_type='LineEdit', 
                                 label='list of sections',
                                 value='-0.5,0.0,0.5,1.0,1.5', 

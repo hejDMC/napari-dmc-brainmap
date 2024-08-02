@@ -103,6 +103,8 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
 
             if results_file.exists():
                 results_data = pd.read_csv(results_file)  # load the data
+                if data_type in ["optic_fiber", "neuropixels_probe"]:
+                    results_data = results_data[results_data['inside_brain']]
                 results_data['ml_mm'] *= (-1)  # so that negative values are left hemisphere
                 results_data['animal_id'] = [animal_id] * len(
                     results_data)  # add the animal_id as a column for later identification

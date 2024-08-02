@@ -64,7 +64,8 @@ def calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert):
         probe_tract, _col_names = get_probe_tract(input_path, s.atlas, seg_type, ax_primary, probe_df, probe,
                                                  p_insert, linefit, linevox)
         # save probe tract data
-        save_fn = results_dir.joinpath(probe + '_data.csv')
+        animal_id = get_animal_id(input_path)
+        save_fn = results_dir.joinpath(probe, f'{animal_id}_{seg_type}.csv')  # override file
         probe_tract.to_csv(save_fn)
         probes_dict[probe] = {'axis': ax_map[s.atlas.space.axes_description[ax_primary]]}
         probes_dict[probe]['Voxel'] = linevox[["a_coord","b_coord","c_coord"]].to_numpy().tolist()
@@ -85,7 +86,7 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
 
     regi_dict = create_regi_dict(input_path, regi_chan)
     s = sliceHandle(regi_dict)
-    if seg_type in["optic_fiber", "neuropixels_probe"]:
+    if seg_type in ["optic_fiber", "neuropixels_probe"]:
         seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
         channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
 

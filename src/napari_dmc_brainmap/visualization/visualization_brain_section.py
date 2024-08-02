@@ -204,15 +204,15 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                     hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
-                        sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        # sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                        #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         sns.regplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                     data=plot_dict[item],
                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
-                        sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        # sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                        #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                         for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
@@ -284,15 +284,15 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                     hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
-                        sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        # sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                        #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                     data=plot_dict[item],
                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
-                        sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        # sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                        #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                         for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
@@ -362,15 +362,15 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
                 elif item in ['optic_fiber', 'neuropixels_probe']:
                     if color_dict[item]["single_color"]:
-                        sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                        #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                                     data=plot_dict[item],
                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
                                     scatter=None, ci=None)
                     else:
-                        sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                        #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
 
                         for c in plot_dict[item]['channel'].unique():
                             sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
