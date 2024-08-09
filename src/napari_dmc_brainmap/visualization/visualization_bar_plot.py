@@ -2,7 +2,10 @@ import seaborn as sns
 import pandas as pd
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
-
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.sans-serif'] = 'Arial'
+mpl.rcParams['svg.fonttype'] = 'none'
 from napari_dmc_brainmap.utils import split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_only, resort_df, get_unique_filename, \
     create_cmap
@@ -10,7 +13,7 @@ from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_o
 def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting_params):
 
     absolute_numbers = plotting_params["absolute_numbers"]
-    df = get_tgt_data_only(df_all, atlas, tgt_list)
+    df = get_tgt_data_only(df_all, atlas, tgt_list, bar_plot=True)
     df_geno = df.copy() # copy df to extract genotype of mice later on
     if plotting_params["groups"] == "channel":
         df = df.pivot_table(index='tgt_name', columns=['animal_id', plotting_params["groups"]],
@@ -119,7 +122,6 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
     figsize = [int(i) for i in barplot_widget.plot_size.value.split(',')]
     mpl_widget = FigureCanvas(Figure(figsize=figsize))
     static_ax = mpl_widget.figure.subplots()
-
     sns.set(style=plotting_params["style"])  # set style todo: dark style not really implemented
     if plotting_params["groups"] == '':
         sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
@@ -129,8 +131,12 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
                           palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
                           orient=plot_orient, legend=False)
     else:
-        cmap = create_cmap([], plotting_params, "bar_palette", df=tgt_data_to_plot, hue_id='groups')
-        sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, hue='groups', palette=cmap,
+        if plotting_params["groups"] == 'animal_id':
+            hue = 'animal_id'
+        else:
+            hue = 'groups'
+        cmap = create_cmap([], plotting_params, "bar_palette", df=tgt_data_to_plot, hue_id=hue)
+        sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, hue=hue, palette=cmap,
                     capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
         if plotting_params["scatter_hue"]:  # color code dots by animals
             sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,

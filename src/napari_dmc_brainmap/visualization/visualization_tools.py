@@ -40,22 +40,49 @@ def get_ipsi_contra(df):
 #         tgt_only_data = pd.concat([tgt_only_data, dummy_df])
 #
 #     return tgt_only_data
-def get_tgt_data_only(df, atlas, tgt_list, negative=False):
+def get_tgt_data_only(df, atlas, tgt_list, negative=False, bar_plot=False):
     # get IDs of all regions
-    ids = [atlas.structures[reg]['id'] for reg in tgt_list]
+    # ids = [atlas.structures[reg]['id'] for reg in tgt_list]
+    ids = []
+    for reg in tgt_list:
+        try:
+            ids.append(atlas.structures[reg]['id'])
+        except KeyError:
+            print(f'No region called >> {reg} <<, skipping that region.')
+            pass
     # get child IDs
     ids_child = [atlas.hierarchy.is_branch(id) for id in ids]
     ids_child = [c for c_g in ids_child for c in c_g]
     ids += ids_child
-
+    if 'NA' in tgt_list and bar_plot:
+        ids.append(-42)
+        df.loc[~df.structure_id.isin(ids), 'structure_id'] = -42
     # delete non tgt cells from df
     if negative:
         tgt_data = df[~df.structure_id.isin(ids)].reset_index(drop=True)
     else:
         tgt_data = df[df.structure_id.isin(ids)].reset_index(drop=True)
-    tgt_data['tgt_name'] = [atlas.structures[s]['acronym'] if atlas.structures[s]['acronym'] in tgt_list
-                      else list(set(atlas.get_structure_ancestors(s)) & set(tgt_list))[0] for s in tgt_data['structure_id']]  # add plotting acronyms
+    tgt_data['tgt_name'] = [get_tgt_name(s, atlas, tgt_list) for s in tgt_data['structure_id']]
+    # tgt_data['tgt_name'] = [atlas.structures[s]['acronym'] if atlas.structures[s]['acronym'] in tgt_list
+    #                   else list(set(atlas.get_structure_ancestors(s)) & set(tgt_list))[0] for s in tgt_data['structure_id']]  # add plotting acronyms
     return tgt_data
+
+
+def get_tgt_name(s, atlas, tgt_list):
+    try:
+        acronym = atlas.structures[s]['acronym']
+        if acronym in tgt_list:
+            return acronym
+        else:
+            ancestors = list(set(atlas.get_structure_ancestors(s)) & set(tgt_list))
+            if ancestors:
+                return ancestors[0]
+            else:
+                return 'NA'
+    except KeyError:
+        return 'NA'
+
+
 def resort_df(tgt_data_to_plot, tgt_list, index_sort=False):
     # function to resort brain areas from alphabetic to tgt_list sorting
     # create list of len brain areas

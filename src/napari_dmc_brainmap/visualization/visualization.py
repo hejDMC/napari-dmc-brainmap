@@ -67,14 +67,19 @@ def initialize_barplot_widget() -> FunctionGui:
                              label='enter name of datafile to save',
                              value='test.csv',
                              tooltip='enter name of data (extension will be added if file exists)'),
+              plot_item=dict(widget_type='ComboBox',
+                              label='item to plot',
+                              choices=['cells', 'injection_site', 'projections'],
+                              value='cells',
+                              tooltip="select item to plot"),
               hemisphere=dict(widget_type='ComboBox', 
                               label='hemisphere',
                               choices=['ipsi', 'contra', 'both'], 
                               value='both',
                               tooltip="select hemisphere to visualize (relative to injection site)"),
               groups=dict(widget_type='ComboBox',
-                          label='channel/group/genotype separately?',
-                          choices=['', 'channel', 'group', 'genotype'],
+                          label='channel/group/genotype/animals separately?',
+                          choices=['', 'channel', 'group', 'genotype', 'animal_id'],
                           value='',
                           tooltip="if you want to plot channel/group/genotype or individual animals in different colors (no colormaps), "
                                   "select accordingly, otherwise leave empty"),
@@ -182,6 +187,7 @@ def initialize_barplot_widget() -> FunctionGui:
         save_name,
         save_data,
         save_data_name,
+        plot_item,
         hemisphere,
         groups,
         tgt_list,
@@ -226,6 +232,11 @@ def initialize_heatmap_widget() -> FunctionGui:
                                   label='enter name of datafile to save',
                                   value='test.csv',
                                   tooltip='enter name of data (extension will be added if file exists)'),
+              plot_item=dict(widget_type='ComboBox',
+                             label='item to plot',
+                             choices=['cells', 'injection_site', 'projections'],
+                             value='cells',
+                             tooltip="select item to plot"),
               hemisphere=dict(widget_type='ComboBox', 
                               label='hemisphere',
                               choices=['ipsi', 'contra', 'both'], 
@@ -338,6 +349,7 @@ def initialize_heatmap_widget() -> FunctionGui:
         save_name,
         save_data,
         save_data_name,
+        plot_item,
         hemisphere,
         tgt_list,
         intervals,
@@ -564,11 +576,12 @@ class VisualizationWidget(QWidget):
             save_path = self.header.save_path.value
         animal_list = split_to_list(self.header.animal_list.value)
         channels = self.header.channels.value
+        plot_item = self.barplot.plot_item.value
         plotting_params = get_bar_plot_params(self.barplot)
         params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
-        df = load_data(input_path, atlas, animal_list, channels)
+        df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item)
         tgt_list = split_to_list(self.barplot.tgt_list.value)
         mpl_widget = do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, self.barplot, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
@@ -582,11 +595,12 @@ class VisualizationWidget(QWidget):
             save_path = self.header.save_path.value
         animal_list = split_to_list(self.header.animal_list.value)
         channels = self.header.channels.value
+        plot_item = self.heatmap.plot_item.value
         plotting_params = get_heatmap_params(self.heatmap)
         params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
-        df = load_data(input_path, atlas, animal_list, channels)
+        df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item)
         tgt_list = split_to_list(self.heatmap.tgt_list.value)
         mpl_widget = do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, self.heatmap, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)

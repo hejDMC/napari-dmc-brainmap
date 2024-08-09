@@ -6,6 +6,10 @@ import pandas as pd
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.sans-serif'] = 'Arial'
+mpl.rcParams['svg.fonttype'] = 'none'
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
 from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap

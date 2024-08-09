@@ -9,6 +9,11 @@ from natsort import natsorted
 
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.sans-serif'] = 'Arial'
+mpl.rcParams['svg.fonttype'] = 'none'
+
 import seaborn as sns
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df, load_params, \
     create_regi_dict, split_to_list
