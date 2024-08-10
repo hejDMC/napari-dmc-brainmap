@@ -130,7 +130,6 @@ def check_brain_area_in_bin(df, atlas):
 
 def get_heatmap_params(heatmap_widget):
     plotting_params = {
-        "hemisphere": heatmap_widget.hemisphere.value,
         # "xlabel": [heatmap_widget.xlabel.value, int(heatmap_widget.xlabel_size.value)],  # 0: label, 1: fontsize
         "ylabel": [heatmap_widget.ylabel.value, int(heatmap_widget.ylabel_size.value)],
         "tick_size": [int(heatmap_widget.xticklabel_size.value), int(heatmap_widget.yticklabel_size.value)],
@@ -155,12 +154,6 @@ def get_heatmap_params(heatmap_widget):
     return plotting_params
 
 def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget, save_path, sub_list=False):
-    # if applicable only get the ipsi or contralateral cells
-    hemisphere = plotting_params['hemisphere']
-    if hemisphere == 'ipsi':
-        df = df[df['ipsi_contra'] == 'ipsi']
-    elif hemisphere == 'contra':
-        df = df[df['ipsi_contra'] == 'contra']
 
     if plotting_params["descendants"]:
         new_tgt_list = get_descendants(tgt_list, atlas)

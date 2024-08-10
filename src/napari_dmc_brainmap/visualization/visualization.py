@@ -79,9 +79,9 @@ def initialize_barplot_widget() -> FunctionGui:
                               tooltip="select hemisphere to visualize (relative to injection site)"),
               groups=dict(widget_type='ComboBox',
                           label='channel/group/genotype/animals separately?',
-                          choices=['', 'channel', 'group', 'genotype', 'animal_id'],
+                          choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra'],
                           value='',
-                          tooltip="if you want to plot channel/group/genotype or individual animals in different colors (no colormaps), "
+                          tooltip="if you want to plot channel/group/genotype/individual animals or ipsi/contralateral to injection site in different colors (no colormaps), "
                                   "select accordingly, otherwise leave empty"),
               tgt_list=dict(widget_type='LineEdit', 
                             label='list of brain areas (ABA)',
@@ -404,7 +404,13 @@ def initialize_brainsection_widget() -> FunctionGui:
                               label='hemisphere',
                               choices=['ipsi', 'contra', 'both'],
                               value='both',
-                              tooltip="select hemisphere to visualize (relative to injection site) - NOT IMPLEMENTED YET"),
+                              tooltip="select hemisphere to visualize (relative to injection site)"),
+              unilateral=dict(widget_type='ComboBox',
+                              label='plotting hemisphere',
+                              choices=['both', 'left', 'right'],
+                              value='both',
+                              tooltip="choose to either plot both hemisphere, or left (ML<0 mm)/right (ML > 0 mm) "
+                                      "hemisphere (only for coronal/horizontal orientations)"),
               brain_areas=dict(widget_type='LineEdit', 
                                label='list of brain areas',
                                tooltip='enter the COMMA SEPERATED list of names of brain areas (acronym)'
@@ -506,6 +512,7 @@ def initialize_brainsection_widget() -> FunctionGui:
         plot_outline,
         plot_item,
         hemisphere,
+        unilateral,
         section_orient,
         brain_areas,
         brain_areas_color,
@@ -581,7 +588,8 @@ class VisualizationWidget(QWidget):
         params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
-        df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item)
+        df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item,
+                       hemisphere=self.barplot.hemisphere.value)
         tgt_list = split_to_list(self.barplot.tgt_list.value)
         mpl_widget = do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, self.barplot, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
@@ -600,7 +608,8 @@ class VisualizationWidget(QWidget):
         params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
-        df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item)
+        df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item,
+                       hemisphere=self.heatmap.hemisphere.value)
         tgt_list = split_to_list(self.heatmap.tgt_list.value)
         mpl_widget = do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, self.heatmap, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
@@ -621,7 +630,8 @@ class VisualizationWidget(QWidget):
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
 
         for item in plot_item:
-            data_dict[item] = load_data(input_path, atlas, animal_list, channels, data_type=item)
+            data_dict[item] = load_data(input_path, atlas, animal_list, channels, data_type=item,
+                                        hemisphere=self.brain_section.hemisphere.value)
 
         mpl_widget = do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, self.brain_section,
                                                      save_path)

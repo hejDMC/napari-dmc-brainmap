@@ -14,8 +14,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
 
     absolute_numbers = plotting_params["absolute_numbers"]
     df = get_tgt_data_only(df_all, atlas, tgt_list, bar_plot=True)
-    df_geno = df.copy() # copy df to extract genotype of mice later on
-    if plotting_params["groups"] == "channel":
+    if plotting_params["groups"] in ["channel", "ipsi_contra"]:
         df = df.pivot_table(index='tgt_name', columns=['animal_id', plotting_params["groups"]],
                                                             aggfunc='count').fillna(0)
     else:
@@ -39,7 +38,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         if absolute_numbers == 'cell_numbers': # if absolute numbers
             dummy_df = pd.DataFrame(df['ap_mm'][animal_id])
         elif absolute_numbers == 'percentage_selection': # if relative percentage for cells in tgt_regions
-            if plotting_params["groups"] == "channel":
+            if plotting_params["groups"] in ["channel", "ipsi_contra"]:
                 dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / df['ap_mm'][
                     animal_id].sum().sum()) * 100)
             else:
@@ -48,9 +47,9 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         else: # to percentage for all cells
             dummy_df = pd.DataFrame((df['ap_mm'][animal_id] /
                                      len(df_all[df_all['animal_id'] == animal_id]))*100)
-        if plotting_params["groups"] == "channel":
+        if plotting_params["groups"] in ["channel", "ipsi_contra"]:
             dummy_df = dummy_df.stack().reset_index()
-            dummy_df = dummy_df.rename(columns={'channel': "groups", 0: 'percent_cells'})
+            dummy_df = dummy_df.rename(columns={plotting_params["groups"]: "groups", 0: 'percent_cells'})
         else:
             dummy_df = dummy_df.rename(columns={animal_id: "percent_cells"})
         dummy_df['animal_id'] = [animal_id] * len(dummy_df)
@@ -59,7 +58,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
             dummy_df['groups'] = [df_all[df_all['animal_id'] == animal_id][plotting_params["groups"]].unique()[0]] * len(dummy_df)
         df_to_plot = pd.concat([df_to_plot, dummy_df])
 
-    if not plotting_params['groups'] == 'channel':
+    if not plotting_params["groups"] in ["channel", "ipsi_contra"]:
         df_to_plot.index.name = 'tgt_name'
         df_to_plot.reset_index(inplace=True)
 
@@ -67,7 +66,6 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
 
 def get_bar_plot_params(barplot_widget):
     plotting_params = {
-        "hemisphere": barplot_widget.hemisphere.value,
         "groups": barplot_widget.groups.value,
         "horizontal": barplot_widget.orient.value,
         "xlabel": [barplot_widget.xlabel.value, int(barplot_widget.xlabel_size.value)],  # 0: label, 1: fontsize
@@ -94,12 +92,6 @@ def get_bar_plot_params(barplot_widget):
 
 def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widget, save_path):
 
-    # if applicable only get the ipsi or contralateral cells
-    hemisphere = plotting_params["hemisphere"]
-    if hemisphere == 'ipsi':
-        df = df[df['ipsi_contra'] == 'ipsi']
-    elif hemisphere == 'contra':
-        df = df[df['ipsi_contra'] == 'contra']
 
     if plotting_params["horizontal"] == "horizontal":
         plot_orient = 'h'

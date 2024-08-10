@@ -131,9 +131,9 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
 @thread_worker
 def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
 
-    if seg_type not in ['injection_site', 'cells']:
-        print("not implemented! please, select 'injection_site' as segmentation type")
-        return
+    # if seg_type not in ['injection_site', 'cells']:
+    #     print("not implemented! please, select 'injection_site' as segmentation type")
+    #     return
 
     animal_id = get_animal_id(input_path)
     results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
@@ -149,11 +149,11 @@ def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
         results_data = clean_results_df(results_data, atlas)
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data
-    print(results_data['acronym'].unique())
-    print(atlas.metadata['name'])
+    # print(results_data['acronym'].unique())
+    # print(atlas.metadata['name'])
     acronym_parent = [split_strings_layers(s, atlas_name=atlas.metadata['name'])[0] for s in results_data['acronym']]
     results_data['acronym_parent'] = acronym_parent
-    print(acronym_parent)
+    # print(acronym_parent)
     # count pixels (injection site) for each cell, add 0 for empty regions
     quant_df = pd.DataFrame()
     temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]

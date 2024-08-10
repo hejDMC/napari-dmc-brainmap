@@ -5,6 +5,7 @@ import pandas as pd
 from mergedeep import merge
 from enum import Enum
 from bg_atlasapi.list_atlases import descriptors, utils
+from bg_atlasapi import BrainGlobeAtlas
 import numpy as np
 import skimage.filters as filters
 
@@ -274,9 +275,15 @@ def get_bregma(atlas_id):
         bregma = bregma_dict[atlas_id]
     else:
         print('no bregma coordinates specified for ' + atlas_id + '\n'
-                                                                  ' returning 0/0/0 coordinates as *bregma*')
-        bregma = [0, 0, 0]  # FIXME half of x and z-axis size
-
+                                                                  ' estimating bregma from atlas dimensions')
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas(atlas_id)
+        bregma = list(atlas.shape)
+        for i in range(len(bregma)):
+            if i in atlas.space.index_pairs[atlas.space.axes_description.index('si')]:
+                bregma[i] = int(bregma[i] / 2)
+            else:
+                bregma[i] = 0
     return bregma
 
 

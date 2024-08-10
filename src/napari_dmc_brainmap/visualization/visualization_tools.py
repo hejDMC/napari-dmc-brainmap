@@ -20,9 +20,9 @@ def get_ipsi_contra(df):
 
     df['ipsi_contra'] = ['ipsi'] * len(df)  # add a column defaulting to 'ipsi'
     # change values to contra with respect to the location of the injection site
-    if df['injection_side'][0] == 'left':
+    if df['injection_site'][0] == 'left':
         df.loc[(df['ml_mm'] < 0), 'ipsi_contra'] = 'contra'
-    elif df['injection_side'][0] == 'right':
+    elif df['injection_site'][0] == 'right':
         df.loc[(df['ml_mm'] > 0), 'ipsi_contra'] = 'contra'
     return df
 
@@ -113,7 +113,7 @@ def get_unique_filename(data_fn):
     return data_fn
 
 
-def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
+def load_data(input_path, atlas, animal_list, channels, data_type='cells', hemisphere='both'):
 
 
     #  loop over animal_ids
@@ -144,12 +144,12 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                 with open(params_file) as fn:  # load the file
                     params_data = json.load(fn)
                 try:
-                    injection_side = params_data['general']['injection_side']  # add the injection_side as a column
+                    injection_site = params_data['general']['injection_site']  # add the injection_site as a column
                 except KeyError:
                     # injection_site = input("no injection site specified in params.json file for " + animal_id +
                     #                        ", please enter manually: ")
                     print("WARNING: no injection site specified in params files, defaulting to right hemisphere")
-                    injection_side = 'right'
+                    injection_site = 'right'
 
                 try:
                     genotype = params_data['general']['genotype']
@@ -167,8 +167,7 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                     #     "use the create params.json function to enter experimental group")
                     group = 0
 
-                results_data['injection_side'] = [injection_side] * len(results_data)
-                results_data = get_ipsi_contra(results_data)
+                results_data['injection_site'] = [injection_site] * len(results_data)
                 results_data['genotype'] = [genotype] * len(results_data)
                 results_data['group'] = [group] * len(results_data)
                 # add if the location of a cell is ipsi or contralateral to the injection site
@@ -176,6 +175,10 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells'):
                 results_data_merged = pd.concat([results_data_merged, results_data])
         print("loaded data from " + animal_id)
         results_data_merged = clean_results_df(results_data_merged, atlas)
+        if hemisphere == 'ipsi':
+            results_data_merged = results_data_merged[results_data_merged['ipsi_contra'] == 'ipsi']
+        elif hemisphere == 'contra':
+            results_data_merged = results_data_merged[results_data_merged['ipsi_contra'] == 'contra']
         results_data_merged = results_data_merged.reset_index(drop=True)
     return results_data_merged
 
@@ -232,7 +235,7 @@ def brain_region_color(plotting_params, atlas):
     return brain_areas, brain_areas_color, brain_areas_transparency
 
 
-def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilateral_target=False, transparent=True):
+def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, transparent=True):
     """
     # todo orientation for plot
     Function to plot brain schematics as colored plots
@@ -246,7 +249,7 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
     :param transparent: BOOLEAN for setting white pixels to transparent (e.g. plotting on black background)
     :return: annot_section in RGBA values on x-y coordintaes for plotting
     """
-
+    unilateral = plotting_params['unilateral']
     if orient_idx == 0:
         annot_section = atlas.annotation[slice_idx, :, :].copy()
     elif orient_idx == 1:

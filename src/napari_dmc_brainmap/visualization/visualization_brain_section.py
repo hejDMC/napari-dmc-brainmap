@@ -22,6 +22,7 @@ def get_brain_section_params(brainsec_widget):
         "plot_outline": brainsec_widget.plot_outline.value,
         "plot_item": brainsec_widget.plot_item.value,
         "hemisphere": brainsec_widget.hemisphere.value,
+        "unilateral": brainsec_widget.unilateral.value,
         "brain_areas": split_to_list(brainsec_widget.brain_areas.value),
         "brain_areas_color": split_to_list(brainsec_widget.brain_areas_color.value),
         "brain_areas_transparency": split_to_list(brainsec_widget.brain_areas_transparency.value, out_format='int'),
