@@ -249,7 +249,6 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, transpar
     :param transparent: BOOLEAN for setting white pixels to transparent (e.g. plotting on black background)
     :return: annot_section in RGBA values on x-y coordintaes for plotting
     """
-    unilateral = plotting_params['unilateral']
     if orient_idx == 0:
         annot_section = atlas.annotation[slice_idx, :, :].copy()
     elif orient_idx == 1:
@@ -394,6 +393,13 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, transpar
 
     # transfer to RGB values and return annot_section
     annot_section_plt = cmap_brain[annot_section]
+    unilateral = plotting_params['unilateral']
+    if unilateral in ['left', 'right'] and orient_idx < 2:
+        bregma = get_bregma(atlas.atlas_name)
+        if unilateral == 'left':
+            annot_section_plt = annot_section_plt[:, bregma[atlas.space.axes_description.index('rl')]:]
+        else:
+            annot_section_plt = annot_section_plt[:, :bregma[atlas.space.axes_description.index('rl')]]
     return annot_section_plt, annot_section_contours
 
 

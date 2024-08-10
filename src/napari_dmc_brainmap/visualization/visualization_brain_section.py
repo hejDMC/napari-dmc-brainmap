@@ -138,8 +138,17 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
                                               & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
-
-
+            if plotting_params['unilateral'] in ['left', 'right'] and orient_mapping['z_plot'][1] < 2:
+                if plotting_params['unilateral'] == 'left':
+                    # delete values on other hemisphere if still in dataset
+                    plot_dict[item] = plot_dict[item][plot_dict[item]['ml_coords'] > bregma[atlas.space.axes_description.index('rl')]]
+                    # adjust ml_coords
+                    plot_dict[item].loc[:,'ml_coords'] -= bregma[atlas.space.axes_description.index('rl')]
+                else:
+                    # delete values on other hemisphere if still in dataset
+                    plot_dict[item] = plot_dict[item][
+                        plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
+                plot_dict[item] = plot_dict[item].reset_index(drop=True)
         cnt = 0
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours
