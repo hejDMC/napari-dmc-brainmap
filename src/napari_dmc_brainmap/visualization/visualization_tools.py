@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import json
 import random
-import cv2
+from skimage import measure
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -280,6 +280,11 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
         annot_section_contours = np.array(False)
 
     annot_section[annot_section > 0] = 1  # set all brain areas to 1
+    # get indices for brain outline
+    contours = measure.find_contours(annot_section, level=0.5)
+    brain_outline_idx = []
+    for contour in contours:
+        brain_outline_idx.append(contour.astype(int))
 
     cmap_brain = ['white', 'linen', 'lightgray',
                   'lightcyan']  # colormap for the brain outline (white: empty space,
@@ -313,6 +318,8 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, unilater
         else:
             tgt_mask = atlas.get_structure_mask(tgt)[:, :, slice_idx]
         annot_section[tgt_mask > 0] = n + 2  # for setting color, 0 = background, 1 = non target brain, 2 = fibers, 3 = ventricles, >3 tgt structures
+    annot_section[brain_outline_idx[0][:, 0], brain_outline_idx[0][:, 1]] = n + 3
+    cmap_brain = np.append(cmap_brain, np.array([[int(x * 255) for x in mcolors.to_rgba('black')]]), axis=0)
     #
     #
     #

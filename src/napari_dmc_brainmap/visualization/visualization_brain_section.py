@@ -4,6 +4,7 @@ import matplotlib.colors as mcolors
 import seaborn as sns
 import pandas as pd
 import numpy as np
+from skimage import measure
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib as mpl
