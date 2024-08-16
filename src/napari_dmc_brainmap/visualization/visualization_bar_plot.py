@@ -13,7 +13,7 @@ from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_o
 def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting_params):
 
     absolute_numbers = plotting_params["absolute_numbers"]
-    df = get_tgt_data_only(df_all, atlas, tgt_list, bar_plot=True)
+    df = get_tgt_data_only(df_all, atlas, tgt_list, use_na=True)
     if plotting_params["groups"] in ["channel", "ipsi_contra"]:
         df = df.pivot_table(index='tgt_name', columns=['animal_id', plotting_params["groups"]],
                                                             aggfunc='count').fillna(0)

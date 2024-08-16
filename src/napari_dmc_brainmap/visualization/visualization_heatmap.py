@@ -14,7 +14,7 @@ from napari_dmc_brainmap.visualization.visualization_tools import get_tgt_data_o
 
 def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_list, tgt_list, sub_list):
 
-    df = get_tgt_data_only(df_all, atlas, tgt_list)
+    df = get_tgt_data_only(df_all, atlas, tgt_list, use_na=True)
     interval_labels = plotting_params["interval_labels"]
     intervals = plotting_params["intervals"]
     df['bin'] = pd.cut(df['ap_mm'], intervals, labels=interval_labels)

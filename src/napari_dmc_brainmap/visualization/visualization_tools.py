@@ -40,7 +40,7 @@ def get_ipsi_contra(df):
 #         tgt_only_data = pd.concat([tgt_only_data, dummy_df])
 #
 #     return tgt_only_data
-def get_tgt_data_only(df, atlas, tgt_list, negative=False, bar_plot=False):
+def get_tgt_data_only(df, atlas, tgt_list, negative=False, use_na=False):
     # get IDs of all regions
     # ids = [atlas.structures[reg]['id'] for reg in tgt_list]
     ids = []
@@ -54,7 +54,7 @@ def get_tgt_data_only(df, atlas, tgt_list, negative=False, bar_plot=False):
     ids_child = [atlas.hierarchy.is_branch(id) for id in ids]
     ids_child = [c for c_g in ids_child for c in c_g]
     ids += ids_child
-    if 'NA' in tgt_list and bar_plot:
+    if 'NA' in tgt_list and use_na:
         ids.append(-42)
         df.loc[~df.structure_id.isin(ids), 'structure_id'] = -42
     # delete non tgt cells from df
