@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
+from pathlib import Path
 import random
 from skimage import measure
 import matplotlib.pyplot as plt
@@ -234,10 +235,26 @@ def brain_region_color(plotting_params, atlas):
 
     return brain_areas, brain_areas_color, brain_areas_transparency
 
-def brain_region_color_genes(df, cmap):
+def brain_region_color_genes(df, cmap, atlas):
     count_clusters = df.groupby(['acronym', 'structure_id', 'cluster_id']).size().reset_index(name='count')
     brain_region_colors = count_clusters.loc[count_clusters.groupby('acronym')['count'].idxmax()]
     brain_region_colors['brain_areas_color'] = brain_region_colors['cluster_id'].map(cmap)
+    # drop colors if brain region has descendants otherwise these parent structures will overwrite descendants
+    # vs_list = get_descendants(['VS'], atlas)
+    # mask = brain_region_colors['acronym'].apply(lambda tgt: check_descendants(tgt, atlas, vs_list))
+    # brain_region_colors = brain_region_colors[mask]
+    brain_region_colors['len'] = brain_region_colors['structure_id'].apply(
+        lambda a: len(atlas.structures.data[a]['structure_id_path']))
+    # exclude root, fiber tracts and ventricles
+    drop_list = ['root']
+    drop_list += get_descendants(['VS'], atlas)
+    drop_list += get_descendants(['fiber tracts'], atlas)
+    brain_region_colors = brain_region_colors[~brain_region_colors['acronym'].isin(drop_list)]
+    brain_region_colors.sort_values(by='len', inplace=True)
+    brain_areas = brain_region_colors.acronym.to_list()
+    brain_areas_colors = brain_region_colors.brain_areas_color.to_list()
+    brain_areas_transparency = [100] * len(brain_areas)
+    return [brain_areas, brain_areas_colors, brain_areas_transparency]
 
 
 
@@ -293,14 +310,21 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
     brain_outline_idx = []
     for contour in contours:
         brain_outline_idx.append(contour.astype(int))
-
-    cmap_brain = ['white', 'linen', 'lightgray',
+    if gene_color:
+        cmap_brain = ['white', 'white', 'lightgray',
+                      'white']  # colormap for the brain outline (white: empty space,
+        # linen=brain, lightgray=root, lightcyan=ventricles)
+    else:
+         cmap_brain = ['white', 'linen', 'lightgray',
                   'lightcyan']  # colormap for the brain outline (white: empty space,
                                 # linen=brain, lightgray=root, lightcyan=ventricles)
 
     if plotting_params['brain_areas']:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
         brain_areas, brain_areas_color, brain_areas_transparency = brain_region_color(plotting_params, atlas)
         # add colors list of brain regions to cmap for plotting
+        cmap_brain += brain_areas_color
+    elif gene_color:
+        brain_areas, brain_areas_color, brain_areas_transparency = gene_color
         cmap_brain += brain_areas_color
     else:
         brain_areas = False
@@ -437,12 +461,13 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
             for d in range(diff):
                 cmap_groups.append(random.choice(colormaps))
         else:
-            if num_groups > 954:
-                print("Number of groups exceeds matplotlib standard colors (148) using xkcd colors instead, overriding"
+            if num_groups > 148:
+                print("Number of groups exceeds matplotlib standard colors (148) using xkcd colors instead, overriding "
                       "input of colors. If you want to provide input use xkcd colors instead (add 'xkcd:' before color "
                       "name, e.g. xkcd:red,xkcd:blue")
                 # load xkcd.json file
-                with open('xkcd.json') as fn:
+
+                with open(Path(__file__).resolve().parent.joinpath('xkcd.json')) as fn:
                     xcol_data = json.load(fn)
                 xcol_list = []
                 for i in xcol_data['colors']:
@@ -470,3 +495,10 @@ def get_descendants(tgt_list, atlas):
             descendents = [tgt]
         tgt_layer_list += descendents
     return tgt_layer_list
+
+# def check_descendants(tgt, atlas, vs_list):
+#     tgt_layer_list = get_descendants([tgt], atlas)
+#     if any(t in vs_list for t in tgt_layer_list):
+#         return False
+#     else:
+#         return len(tgt_layer_list) == 1

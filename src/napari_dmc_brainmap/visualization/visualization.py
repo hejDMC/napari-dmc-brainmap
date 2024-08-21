@@ -453,9 +453,9 @@ def initialize_brainsection_widget() -> FunctionGui:
                           tooltip="if you want to plot channel/group/genotype or individual animals in different colors, "
                             "select accordingly, otherwise leave empty"),
               color_cells_atlas=dict(widget_type='CheckBox',
-                            label='color cells according to atlas?',
+                            label='color dots according to atlas?',
                             value=False,
-                            tooltip='tick to color cells according to atlas (if ticked this override manual colors '
+                            tooltip='tick to color cells/spots (genes) according to atlas (if ticked this override manual colors '
                                     'entered below (e.g. colors of different groups).'),
               color_cells=dict(widget_type='LineEdit', 
                                label='colors (cell plot)',

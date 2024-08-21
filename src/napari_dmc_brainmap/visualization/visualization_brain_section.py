@@ -13,7 +13,8 @@ mpl.rcParams['font.sans-serif'] = 'Arial'
 mpl.rcParams['svg.fonttype'] = 'none'
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
-from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap
+from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap, \
+    brain_region_color_genes
 
 
 def get_brain_section_params(brainsec_widget):
@@ -159,10 +160,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 plot_dict[item] = plot_dict[item].reset_index(drop=True)
             if item == 'genes' and plotting_params['color_brain_genes']:
                 # calculate colors according to number of cluster_ids in brain regions
-                brain_region_color_genes(plot_dict[item], color_dict['genes']['cmap'])
+                gene_color = brain_region_color_genes(plot_dict[item], color_dict['genes']['cmap'], atlas)
                 annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
                                                                                  orient_mapping['z_plot'][1],
-                                                                                 plotting_params, gene_color=brain_region_colors)
+                                                                                 plotting_params, gene_color=gene_color)
         cnt = 0
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours
@@ -407,6 +408,16 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                         line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
                 elif item == 'genes':
+                    if plotting_params['color_cells_atlas']:
+                        palette = {}
+                        for s in plot_dict[item].structure_id.unique():
+                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+
+                        sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'], data=plot_dict[item],
+                                        hue='structure_id', palette=palette,
+                                        s=plotting_params["dot_size"], legend=False)
+                    else:
                         if color_dict[item]["single_color"]:
                                 sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
                                                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
