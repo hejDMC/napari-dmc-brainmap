@@ -42,6 +42,7 @@ def get_brain_section_params(brainsec_widget):
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),
         "color_neuropixels_probe": split_to_list(brainsec_widget.color_npx.value),
         "color_genes": split_to_list(brainsec_widget.color_genes.value),
+        "color_brain_genes": brainsec_widget.color_brain_genes.value,
         "save_name": brainsec_widget.save_name.value,
         "save_fig": brainsec_widget.save_fig.value,
     }
@@ -138,7 +139,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
                     for target in target_z]
         slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
-        annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
+        if plotting_params['color_brain_genes']:
+            pass  # don't get brain section to plot if brain areas are colored according to clusters
+        else:
+            annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
                                               & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
@@ -153,6 +157,12 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     plot_dict[item] = plot_dict[item][
                         plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
                 plot_dict[item] = plot_dict[item].reset_index(drop=True)
+            if item == 'genes' and plotting_params['color_brain_genes']:
+                # calculate colors according to number of cluster_ids in brain regions
+                brain_region_color_genes(plot_dict[item], color_dict['genes']['cmap'])
+                annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+                                                                                 orient_mapping['z_plot'][1],
+                                                                                 plotting_params, gene_color=brain_region_colors)
         cnt = 0
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours

@@ -234,8 +234,14 @@ def brain_region_color(plotting_params, atlas):
 
     return brain_areas, brain_areas_color, brain_areas_transparency
 
+def brain_region_color_genes(df, cmap):
+    count_clusters = df.groupby(['acronym', 'structure_id', 'cluster_id']).size().reset_index(name='count')
+    brain_region_colors = count_clusters.loc[count_clusters.groupby('acronym')['count'].idxmax()]
+    brain_region_colors['brain_areas_color'] = brain_region_colors['cluster_id'].map(cmap)
 
-def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, transparent=True):
+
+
+def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_color=False, transparent=True):
     """
     # todo orientation for plot
     Function to plot brain schematics as colored plots
@@ -408,6 +414,8 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
     cmap = {}
     if not df.empty:
         group_ids = list(df[hue_id].unique())
+        if hue_id == 'cluster_id':
+            group_ids = natsorted(group_ids)
     else:
         group_ids = list(animal_dict.keys())
     cmap_groups = plotting_params[clr_id]
@@ -429,8 +437,22 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
             for d in range(diff):
                 cmap_groups.append(random.choice(colormaps))
         else:
-            for d in range(diff):
-                cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+            if num_groups > 954:
+                print("Number of groups exceeds matplotlib standard colors (148) using xkcd colors instead, overriding"
+                      "input of colors. If you want to provide input use xkcd colors instead (add 'xkcd:' before color "
+                      "name, e.g. xkcd:red,xkcd:blue")
+                # load xkcd.json file
+                with open('xkcd.json') as fn:
+                    xcol_data = json.load(fn)
+                xcol_list = []
+                for i in xcol_data['colors']:
+                    xcol_list.append(f"xkcd:{i['color']}")
+                cmap_groups = random.sample(xcol_list, num_groups)
+            else:
+                diff_cmap = random.sample(list(mcolors.CSS4_COLORS.keys()), diff)
+                cmap_groups.extend(diff_cmap)
+            # for d in range(diff):
+                # cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
     elif num_groups < num_colors:  # less groups than colors
         print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
               " cmap groups --> dropping colors")

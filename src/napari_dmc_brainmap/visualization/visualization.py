@@ -506,6 +506,11 @@ def initialize_brainsection_widget() -> FunctionGui:
                              label='colors (gene clusters)',
                              value='Purple,Blue',
                              tooltip='enter a COMMA SEPERATED list for colors to use for the gene clusters'),
+              color_brain_genes=dict(widget_type='CheckBox',
+                            label='color brain areas according to gene cluster?',
+                            value=False,
+                            tooltip='Tick to color brain areas on section according to gene cluster (majority of '
+                                    'cluster in brain area defines color). No dots plotted if this option is ticked.'),
               call_button=False,
               scrollable=True)
 
@@ -537,7 +542,8 @@ def initialize_brainsection_widget() -> FunctionGui:
         color_inj,
         color_optic,
         color_npx,
-        color_genes):
+        color_genes,
+        color_brain_genes):
         pass
     return brain_section_widget
 
