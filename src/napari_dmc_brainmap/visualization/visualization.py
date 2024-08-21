@@ -393,7 +393,7 @@ def initialize_brainsection_widget() -> FunctionGui:
                             tooltip='tick to plot contours of brain areas'),
               plot_item=dict(widget_type='Select', 
                              label='item to plot',
-                             choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe'],
+                             choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe', 'genes'],
                              tooltip='select items to plot cells/injection site/projection density, hold ctrl/shift to select multiple'),
               section_orient=dict(widget_type='ComboBox', 
                                   label='section orientation',
@@ -502,6 +502,10 @@ def initialize_brainsection_widget() -> FunctionGui:
                              label='colors (neuropixels)',
                              value='Red,Brown', 
                              tooltip='enter a COMMA SEPERATED list for colors to use for the neuropixels probes(s)'),
+              color_genes=dict(widget_type='LineEdit',
+                             label='colors (gene clusters)',
+                             value='Purple,Blue',
+                             tooltip='enter a COMMA SEPERATED list for colors to use for the gene clusters'),
               call_button=False,
               scrollable=True)
 
@@ -532,7 +536,8 @@ def initialize_brainsection_widget() -> FunctionGui:
         smooth_thresh,
         color_inj,
         color_optic,
-        color_npx):
+        color_npx,
+        color_genes):
         pass
     return brain_section_widget
 

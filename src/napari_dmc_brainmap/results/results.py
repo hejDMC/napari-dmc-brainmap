@@ -81,7 +81,7 @@ def calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert):
     print("DONE!")
 
 @thread_worker
-def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict, probe_insert):
+def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict, include_all, probe_insert):
 
 
     animal_id = get_animal_id(input_path)
@@ -109,6 +109,8 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
                     section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
                                                                 seg_im_suffix, regi_data,
                                                                 regi_dir, regi_suffix)
+                    if not include_all:
+                        section_data = section_data[section_data['structure_id'] != 0].reset_index(drop=True)
                     if section_data is None:
                         pass
                     else:
@@ -197,7 +199,7 @@ def initialize_results_widget() -> FunctionGui:
                              tooltip='select the channel you registered to the brain atlas'),
               seg_type=dict(widget_type='ComboBox', 
                             label='segmentation type',
-                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe'],
+                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe', 'genes'],
                             value='cells',
                             tooltip='select the segmentation type you want to create results from'),
               probe_insert=dict(widget_type='LineEdit',
@@ -211,6 +213,10 @@ def initialize_results_widget() -> FunctionGui:
                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                             tooltip='select channels for results files, '
                             'to select multiple hold ctrl/shift'),
+              include_all=dict(widget_type='CheckBox',
+                            label='include segmented objects outside of brain?',
+                            value=False,
+                            tooltip='tick to include segmented objects that are outside of the brain'),
               call_button=False)
 
     def results_widget(
@@ -219,7 +225,8 @@ def initialize_results_widget() -> FunctionGui:
             regi_chan,
             seg_type,
             probe_insert,
-            channels):
+            channels,
+            include_all):
         pass
     return results_widget
 
@@ -297,11 +304,12 @@ class ResultsWidget(QWidget):
         seg_type = self.results.seg_type.value
         channels = self.results.channels.value
         params_dict = load_params(input_path)
+        include_all = self.results.include_all.value
         probe_insert = split_to_list(self.results.probe_insert.value, out_format='int')
         if not probe_insert:
             probe_insert = []
         worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict,
-                                                  probe_insert)
+                                                  include_all, probe_insert)
         worker_results_file.start()
 
 

@@ -233,4 +233,6 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
     # set which slice in there
     s.setSlice(curr_im + regi_suffix)
     section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
+    if seg_type == "genes":
+        section_data['cluster_id'] = segment_data['cluster_id']
     return section_data

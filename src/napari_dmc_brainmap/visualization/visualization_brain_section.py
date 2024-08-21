@@ -41,6 +41,7 @@ def get_brain_section_params(brainsec_widget):
         "color_injection_site": split_to_list(brainsec_widget.color_inj.value),
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),
         "color_neuropixels_probe": split_to_list(brainsec_widget.color_npx.value),
+        "color_genes": split_to_list(brainsec_widget.color_genes.value),
         "save_name": brainsec_widget.save_name.value,
         "save_fig": brainsec_widget.save_fig.value,
     }
@@ -64,13 +65,16 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
     for item in plotting_params['plot_item']:
         color_dict[item] = {}
         clr_id = 'color_' + item
-        if item in ['cells', 'projections', 'injection_site']:
+        if item in ['cells', 'projections', 'injection_site', 'genes']:
             if plotting_params["groups"] in ['genotype', 'group']:
                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
                 cmap = create_cmap(animal_dict, plotting_params, clr_id)
                 single_color = False
             elif plotting_params["groups"] in ['channel', 'animal_id']:
                 cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item], hue_id=plotting_params["groups"])
+                single_color = False
+            elif item == 'genes':
+                cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item], hue_id='cluster_id')
                 single_color = False
             else:
                 single_color = True
@@ -392,6 +396,14 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],
                                         line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
+                elif item == 'genes':
+                        if color_dict[item]["single_color"]:
+                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        else:
+                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+
                 static_ax.title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
                 static_ax.axis('off')
 
