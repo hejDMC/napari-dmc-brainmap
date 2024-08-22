@@ -4,11 +4,12 @@ import json
 from pathlib import Path
 import random
 from skimage import measure
+from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from natsort import natsorted
-from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma
+from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma, get_xyz
 
 
 def get_ipsi_contra(df):
@@ -235,10 +236,19 @@ def brain_region_color(plotting_params, atlas):
 
     return brain_areas, brain_areas_color, brain_areas_transparency
 
-def brain_region_color_genes(df, cmap, atlas):
-    count_clusters = df.groupby(['acronym', 'structure_id', 'cluster_id']).size().reset_index(name='count')
-    brain_region_colors = count_clusters.loc[count_clusters.groupby('acronym')['count'].idxmax()]
-    brain_region_colors['brain_areas_color'] = brain_region_colors['cluster_id'].map(cmap)
+def brain_region_color_genes(df, cmap, atlas, plot_type):
+    if plot_type == 'clusters':
+        count_clusters = df.groupby(['acronym', 'structure_id', 'cluster_id']).size().reset_index(name='count')
+        brain_region_colors = count_clusters.loc[count_clusters.groupby('acronym')['count'].idxmax()]
+        brain_region_colors['brain_areas_color'] = brain_region_colors['cluster_id'].map(cmap)
+    else:
+        # calculate average expression levels of genes by brain region
+        brain_region_colors = df.groupby('acronym')['gene_expression_norm'].mean().reset_index()
+        # add structure_id
+        brain_region_colors['structure_id'] = [atlas.structures.acronym_to_id_map[a] for a in brain_region_colors['acronym']]
+        # add color
+        curr_cmap = plt.get_cmap(cmap)
+        brain_region_colors['brain_areas_color'] = [curr_cmap(g) for g in brain_region_colors['gene_expression_norm']]  # todo check rgb code
     # drop colors if brain region has descendants otherwise these parent structures will overwrite descendants
     # vs_list = get_descendants(['VS'], atlas)
     # mask = brain_region_colors['acronym'].apply(lambda tgt: check_descendants(tgt, atlas, vs_list))
@@ -258,7 +268,7 @@ def brain_region_color_genes(df, cmap, atlas):
 
 
 
-def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_color=False, transparent=True):
+def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_color=False, transparent=True, voronoi=False):
     """
     # todo orientation for plot
     Function to plot brain schematics as colored plots
@@ -310,7 +320,7 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
     brain_outline_idx = []
     for contour in contours:
         brain_outline_idx.append(contour.astype(int))
-    if gene_color:
+    if gene_color or voronoi:
         cmap_brain = ['white', 'white', 'lightgray',
                       'white']  # colormap for the brain outline (white: empty space,
         # linen=brain, lightgray=root, lightcyan=ventricles)
@@ -350,6 +360,14 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
         else:
             tgt_mask = atlas.get_structure_mask(tgt)[:, :, slice_idx]
         annot_section[tgt_mask > 0] = n + 2  # for setting color, 0 = background, 1 = non target brain, 2 = fibers, 3 = ventricles, >3 tgt structures
+    if voronoi:
+        voronoi[0][annot_section == 0] = 0
+        voronoi[0][annot_section == 2] = 2
+        voronoi[0][annot_section == 3] = 3
+        annot_section = voronoi[0]
+        n = annot_section.max() - 2
+        cmap_brain = np.append(cmap_brain, np.array([[int(x * 255) for x in list(v)] for v in voronoi[1]]), axis=0)
+
     annot_section[brain_outline_idx[0][:, 0], brain_outline_idx[0][:, 1]] = n + 3
     cmap_brain = np.append(cmap_brain, np.array([[int(x * 255) for x in mcolors.to_rgba('black')]]), axis=0)
     #
@@ -463,15 +481,15 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
         else:
             if num_groups > 148:
                 print("Number of groups exceeds matplotlib standard colors (148) using xkcd colors instead, overriding "
-                      "input of colors. If you want to provide input use xkcd colors instead (add 'xkcd:' before color "
-                      "name, e.g. xkcd:red,xkcd:blue")
+                      "input of colors. If you want to provide input use hex keys of xkcd colors instead: https://xkcd.com/color/rgb/" )
                 # load xkcd.json file
 
                 with open(Path(__file__).resolve().parent.joinpath('xkcd.json')) as fn:
                     xcol_data = json.load(fn)
                 xcol_list = []
                 for i in xcol_data['colors']:
-                    xcol_list.append(f"xkcd:{i['color']}")
+                    # xcol_list.append(f"xkcd:{i['color']}")
+                    xcol_list.append(f"{i['hex']}")
                 cmap_groups = random.sample(xcol_list, num_groups)
             else:
                 diff_cmap = random.sample(list(mcolors.CSS4_COLORS.keys()), diff)
@@ -483,6 +501,7 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
               " cmap groups --> dropping colors")
         diff = num_colors - num_groups
         cmap_groups = cmap_groups[:-diff]
+    cmap_groups = [mcolors.to_rgba(c) for c in cmap_groups]
     for g, c in zip(group_ids, cmap_groups):
         cmap[g] = c
     return cmap
@@ -495,6 +514,34 @@ def get_descendants(tgt_list, atlas):
             descendents = [tgt]
         tgt_layer_list += descendents
     return tgt_layer_list
+
+def get_voronoi_mask(df, cmap, atlas, plotting_params, orient_mapping):
+    xyz_dict = get_xyz(atlas, plotting_params['section_orient'])
+    matrix = np.zeros((xyz_dict['y'][1], xyz_dict['x'][1]))
+
+    points = np.array([[x, y] for x, y in zip(df[orient_mapping['x_plot']], df[orient_mapping['y_plot']])])
+
+    if plotting_params['plot_gene'] == 'clusters':
+        df['voronoi_colors'] = df['cluster_id'].map(cmap)
+        voronoi_colors = df['voronoi_colors'].to_list()
+        values = np.array(df['cluster_id'].to_list())
+    else:
+        curr_cmap = plt.get_cmap(cmap)
+        voronoi_colors = [curr_cmap(g) for g in df['gene_expression_norm'].to_list()]
+        df.loc[:, 'clr_id'] = np.arange(4, len(df) + 4)
+        values = np.array(df['clr_id'].to_list())
+    xx, yy = np.meshgrid(np.arange(xyz_dict['x'][1]), np.arange(xyz_dict['y'][1]))
+    grid_points = np.c_[xx.ravel(), yy.ravel()]
+    distances = cdist(grid_points, points)
+    nearest_point_index = np.argmin(distances, axis=1)
+    matrix.ravel()[np.arange(matrix.size)] = values[nearest_point_index]
+    matrix = matrix.reshape((xyz_dict['y'][1], xyz_dict['x'][1])).astype('int')
+
+
+    return [matrix, voronoi_colors]
+
+
+
 
 # def check_descendants(tgt, atlas, vs_list):
 #     tgt_layer_list = get_descendants([tgt], atlas)

@@ -1,3 +1,4 @@
+import pandas as pd
 from napari import Viewer
 
 
@@ -21,7 +22,7 @@ def initialize_header_widget() -> FunctionGui:
                               label='input path: ',
                               value='',
                               mode='d',
-                              tooltip='directory of folder containing folders with animals'),  # todo here groups
+                              tooltip='directory of folder containing folders with animals'),
               save_path=dict(widget_type='FileEdit', 
                              label='save path: ', 
                              mode='d',
@@ -502,15 +503,38 @@ def initialize_brainsection_widget() -> FunctionGui:
                              label='colors (neuropixels)',
                              value='Red,Brown', 
                              tooltip='enter a COMMA SEPERATED list for colors to use for the neuropixels probes(s)'),
+              plot_gene=dict(widget_type='ComboBox',
+                             label='gene clusters or expression levels?',
+                             choices=['clusters', 'expression'],
+                             value='clusters',
+                             tooltip="Choose to either visualize location of gene clusters by spots/brain area or to"
+                                     "visualize the expression levels of one target gene. The second option requires "
+                                     "the presence of a .csv file holding gene expression data, rows are gene "
+                                     "expression, columns genes plus one column named 'spot_id' containing the spot ID"),
               color_genes=dict(widget_type='LineEdit',
-                             label='colors (gene clusters)',
-                             value='Purple,Blue',
-                             tooltip='enter a COMMA SEPERATED list for colors to use for the gene clusters'),
-              color_brain_genes=dict(widget_type='CheckBox',
-                            label='color brain areas according to gene cluster?',
-                            value=False,
-                            tooltip='Tick to color brain areas on section according to gene cluster (majority of '
-                                    'cluster in brain area defines color). No dots plotted if this option is ticked.'),
+                               label='colors (genes)',
+                               value='Purple,Blue',
+                               tooltip="enter a COMMA SEPERATED list for colors to use for the gene clusters. "
+                                       "NOTE: if you have >148 colors to set, use hex keys for setting colors."
+                                       "Use colormap for gene expression data, i.e. add 'c:' prior to colormap "
+                                       "(e.g. c:Reds)"),
+              gene_expression_file=dict(widget_type='FileEdit',
+                              label='gene expression data file: ',
+                              value='',
+                              mode='r',
+                              tooltip='file containing gene expression data by spot'),
+              gene=dict(widget_type='LineEdit',
+                               label='gene:',
+                               value='Slc17a7',
+                               tooltip='enter the name of the gene to visualize'),
+              color_brain_genes=dict(widget_type='ComboBox',
+                            label='color brain areas according to gene cluster/expression?',
+                            choices=['no_color', 'brain_areas', 'voronoi'],
+                            value='no_color',
+                            tooltip='Choose to color brain areas on section according to gene cluster (majority of '
+                                    'cluster in brain area defines color) or gene expression (filepath needs to given '
+                                    'above) or to perform Voronoi tessellation (area around spot receives color '
+                                    'according to gene cluster or expression level of gene).'),
               call_button=False,
               scrollable=True)
 
@@ -542,7 +566,10 @@ def initialize_brainsection_widget() -> FunctionGui:
         color_inj,
         color_optic,
         color_npx,
+        plot_gene,
         color_genes,
+        gene_expression_file,
+        gene,
         color_brain_genes):
         pass
     return brain_section_widget
@@ -644,6 +671,17 @@ class VisualizationWidget(QWidget):
             data_dict[item] = load_data(input_path, atlas, animal_list, channels, data_type=item,
                                         hemisphere=self.brain_section.hemisphere.value)
 
+        if self.brain_section.plot_gene.value == 'expression':
+            gene_expression_fn = self.brain_section.gene_expression_file.value
+            gene = self.brain_section.gene.value
+            columns_to_load = ['spot_id', gene]
+            print("loading gene expression data...")
+            gene_expression_df = pd.read_csv(gene_expression_fn, usecols=columns_to_load)
+            gene_expression_df.rename(columns={gene: 'gene_expression'}, inplace=True)
+            data_dict['genes'] = pd.merge(data_dict['genes'], gene_expression_df, on='spot_id', how='left')
+            data_dict['genes']['gene_expression'] = data_dict['genes']['gene_expression'].fillna(0)
+            data_dict['genes']['gene_expression_norm'] = data_dict['genes']['gene_expression'] / data_dict['genes']['gene_expression'].max()
+            data_dict['genes'][data_dict['genes']['gene_expression_norm'] < 0] = 0
         mpl_widget = do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, self.brain_section,
                                                      save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)

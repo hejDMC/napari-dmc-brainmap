@@ -235,4 +235,5 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
     section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
     if seg_type == "genes":
         section_data['cluster_id'] = segment_data['cluster_id']
+        section_data['spot_id'] = segment_data['spot_id']
     return section_data

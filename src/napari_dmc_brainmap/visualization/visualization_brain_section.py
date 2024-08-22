@@ -7,6 +7,7 @@ import numpy as np
 from skimage import measure
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['font.family'] = 'sans-serif'
 mpl.rcParams['font.sans-serif'] = 'Arial'
@@ -14,7 +15,7 @@ mpl.rcParams['svg.fonttype'] = 'none'
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
 from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap, \
-    brain_region_color_genes
+    brain_region_color_genes, get_voronoi_mask
 
 
 def get_brain_section_params(brainsec_widget):
@@ -42,7 +43,9 @@ def get_brain_section_params(brainsec_widget):
         "color_injection_site": split_to_list(brainsec_widget.color_inj.value),
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),
         "color_neuropixels_probe": split_to_list(brainsec_widget.color_npx.value),
+        "plot_gene": brainsec_widget.plot_gene.value,
         "color_genes": split_to_list(brainsec_widget.color_genes.value),
+        "gene": brainsec_widget.gene.value,
         "color_brain_genes": brainsec_widget.color_brain_genes.value,
         "save_name": brainsec_widget.save_name.value,
         "save_fig": brainsec_widget.save_fig.value,
@@ -76,8 +79,21 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
                 cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item], hue_id=plotting_params["groups"])
                 single_color = False
             elif item == 'genes':
-                cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item], hue_id='cluster_id')
-                single_color = False
+                if plotting_params["plot_gene"] == 'clusters':
+                    cmap = create_cmap([], plotting_params, clr_id, df=data_dict[item], hue_id='cluster_id')
+                    single_color = False
+                else:
+                    if plotting_params['color_genes']:
+                        cmap = plotting_params['color_genes']
+                        if not cmap in plt.colormaps():
+                            print(f'{cmap} not found in list of colormaps...')
+                            cmap = random.choice(plt.colormaps())
+                            print(f'... randomly selected {cmap} as colormap.')
+                    else:
+                        print('No colormap for gene expression data specified...')
+                        cmap = random.choice(plt.colormaps())
+                        print(f'... randomly selected {cmap} as colormap.')
+                    single_color = True
             else:
                 single_color = True
                 if not plotting_params[clr_id]:
@@ -140,13 +156,29 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
                     for target in target_z]
         slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
-        if plotting_params['color_brain_genes']:
+        if plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
             pass  # don't get brain section to plot if brain areas are colored according to clusters
         else:
             annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
         for item in data_dict:
             plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
                                               & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
+            if item == 'genes' and plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
+                # calculate colors according to number of cluster_ids in brain regions
+                if plotting_params['color_brain_genes'] == 'brain_areas':
+                    gene_color = brain_region_color_genes(plot_dict[item], color_dict[item]['cmap'], atlas,
+                                                          plotting_params['plot_gene'])
+                    annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+                                                                                     orient_mapping['z_plot'][1],
+                                                                                     plotting_params, gene_color=gene_color)
+                else:
+                    voronoi = get_voronoi_mask(plot_dict[item], color_dict[item]['cmap'], atlas, plotting_params,
+                                                    orient_mapping)
+                    annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+                                                                                     orient_mapping['z_plot'][1],
+                                                                                     plotting_params,
+                                                                                     voronoi=voronoi)
+
             if plotting_params['unilateral'] in ['left', 'right'] and orient_mapping['z_plot'][1] < 2:
                 if plotting_params['unilateral'] == 'left':
                     # delete values on other hemisphere if still in dataset
@@ -158,12 +190,8 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     plot_dict[item] = plot_dict[item][
                         plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
                 plot_dict[item] = plot_dict[item].reset_index(drop=True)
-            if item == 'genes' and plotting_params['color_brain_genes']:
-                # calculate colors according to number of cluster_ids in brain regions
-                gene_color = brain_region_color_genes(plot_dict[item], color_dict['genes']['cmap'], atlas)
-                annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
-                                                                                 orient_mapping['z_plot'][1],
-                                                                                 plotting_params, gene_color=gene_color)
+
+
         cnt = 0
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours
@@ -418,13 +446,24 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                         hue='structure_id', palette=palette,
                                         s=plotting_params["dot_size"], legend=False)
                     else:
-                        if color_dict[item]["single_color"]:
-                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                        if plotting_params["plot_gene"] == 'clusters':
+                            if color_dict[item]["single_color"]:
+                                    sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                    color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                            else:
+                                    sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"],
+                                                    edgecolors='lightgray')
                         else:
-                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-
+                            # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                            #                 data=plot_dict[item],
+                            #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+                            #                 s=plotting_params["dot_size"])
+                            static_ax.scatter(plot_dict[item][orient_mapping['x_plot']],
+                                        plot_dict[item][orient_mapping['y_plot']],
+                                        c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+                                              vmin=0, vmax=1, s=plotting_params["dot_size"])
+                            static_ax.collections[0].set_clim(0, 1)
                 static_ax.title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
                 static_ax.axis('off')
 
