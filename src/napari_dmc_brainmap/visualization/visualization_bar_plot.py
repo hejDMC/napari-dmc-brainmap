@@ -17,6 +17,8 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
     if plotting_params["groups"] in ["channel", "ipsi_contra"]:
         df = df.pivot_table(index='tgt_name', columns=['animal_id', plotting_params["groups"]],
                                                             aggfunc='count').fillna(0)
+    elif plotting_params["expression"]:
+        df = pd.DataFrame(df.groupby('tgt_name')['gene_expression'].mean().fillna(0))
     else:
         df = df.pivot_table(index='tgt_name', columns=['animal_id'],
                             aggfunc='count').fillna(0)
@@ -30,7 +32,11 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         dd = pd.DataFrame(0, index=miss_areas, columns=df.columns.values)
         # concat dataframes
         df = pd.concat([df, dd])
-    print(df)
+    if plotting_params["expression"]:
+        df.reset_index(inplace=True)
+        df.rename(columns={'index': 'tgt_name', 'gene_expression': 'percent_cells'}, inplace=True)
+        df['animal_id'] = animal_list[0]
+        return df
     # calculate percentages
     df_to_plot = pd.DataFrame()
     for animal_id in animal_list:
@@ -66,6 +72,8 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
 
 def get_bar_plot_params(barplot_widget):
     plotting_params = {
+        "expression": barplot_widget.expression.value,
+        "gene": barplot_widget.gene.value,
         "groups": barplot_widget.groups.value,
         "horizontal": barplot_widget.orient.value,
         "xlabel": [barplot_widget.xlabel.value, int(barplot_widget.xlabel_size.value)],  # 0: label, 1: fontsize
@@ -122,6 +130,9 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
             sns.swarmplot(ax=static_ax, x=x_var, y=y_var, hue='animal_id', data=tgt_data_to_plot,
                           palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
                           orient=plot_orient, legend=False)
+    elif plotting_params['expression']:
+        sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
+                    capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
     else:
         if plotting_params["groups"] == 'animal_id':
             hue = 'animal_id'

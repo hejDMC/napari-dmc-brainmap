@@ -70,9 +70,24 @@ def initialize_barplot_widget() -> FunctionGui:
                              tooltip='enter name of data (extension will be added if file exists)'),
               plot_item=dict(widget_type='ComboBox',
                               label='item to plot',
-                              choices=['cells', 'injection_site', 'projections'],
+                              choices=['cells', 'injection_site', 'projections', 'genes'],
                               value='cells',
                               tooltip="select item to plot"),
+              expression=dict(widget_type='CheckBox',
+                              label='quantify gene expression levels?',
+                              value=False,
+                              tooltip="Choose to visualize the expression levels of one target gene. This option requires "
+                                      "the presence of a .csv file holding gene expression data, rows are gene "
+                                      "expression, columns genes plus one column named 'spot_id' containing the spot ID"),
+              gene_expression_file=dict(widget_type='FileEdit',
+                                        label='gene expression data file: ',
+                                        value='',
+                                        mode='r',
+                                        tooltip='file containing gene expression data by spot'),
+              gene=dict(widget_type='LineEdit',
+                        label='gene:',
+                        value='Slc17a7',
+                        tooltip='enter the name of the gene to visualize'),
               hemisphere=dict(widget_type='ComboBox', 
                               label='hemisphere',
                               choices=['ipsi', 'contra', 'both'], 
@@ -189,6 +204,9 @@ def initialize_barplot_widget() -> FunctionGui:
         save_data,
         save_data_name,
         plot_item,
+        expression,
+        gene_expression_file,
+        gene,
         hemisphere,
         groups,
         tgt_list,
@@ -628,6 +646,16 @@ class VisualizationWidget(QWidget):
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
         df = load_data(input_path, atlas, animal_list, channels, data_type=plot_item,
                        hemisphere=self.barplot.hemisphere.value)
+        if self.barplot.expression.value:
+            gene_expression_fn = self.barplot.gene_expression_file.value
+            gene = self.barplot.gene.value
+            columns_to_load = ['spot_id', gene]
+            print("loading gene expression data...")
+            gene_expression_df = pd.read_csv(gene_expression_fn, usecols=columns_to_load)
+            gene_expression_df.rename(columns={gene: 'gene_expression'}, inplace=True)
+            df = pd.merge(df, gene_expression_df, on='spot_id', how='left')
+            df['gene_expression'] = df['gene_expression'].fillna(0)
+
         tgt_list = split_to_list(self.barplot.tgt_list.value)
         mpl_widget = do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, self.barplot, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
