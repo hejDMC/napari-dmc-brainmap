@@ -1,3 +1,5 @@
+import sys
+
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
 from napari.qt.threading import thread_worker
@@ -131,7 +133,7 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
 
 
 @thread_worker
-def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
+def quantify_results(input_path, atlas, chan, seg_type='injection_site', expression=False):
 
     # if seg_type not in ['injection_site', 'cells']:
     #     print("not implemented! please, select 'injection_site' as segmentation type")
@@ -146,6 +148,7 @@ def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
                 results_data)  # add the animal_id as a column for later identification
         # add the injection hemisphere stored in params.json file
     else:
+        print(f'no results file under: {results_fn}')
         return
     if atlas.metadata['name'] == 'allen_mouse':
         results_data = clean_results_df(results_data, atlas)
@@ -158,25 +161,41 @@ def quantify_injection_site(input_path, atlas, chan, seg_type='injection_site'):
     # print(acronym_parent)
     # count pixels (injection site) for each cell, add 0 for empty regions
     quant_df = pd.DataFrame()
-    temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
+    if expression:
+        gene_expression_fn, gene = expression
+        columns_to_load = ['spot_id', gene]
+        print("loading gene expression data...")
+        gene_expression_df = pd.read_csv(gene_expression_fn, usecols=columns_to_load)
+        gene_expression_df.rename(columns={gene: 'gene_expression'}, inplace=True)
+        results_data = pd.merge(results_data, gene_expression_df, on='spot_id', how='left')
+        results_data['gene_expression'] = results_data['gene_expression'].fillna(0)
+        temp_data = results_data.groupby('acronym_parent')['gene_expression'].mean().reset_index()
+        temp_data.rename(columns={"acronym_parent": "acronym", 'gene_expression': 'quant_distribution'}, inplace=True)
+    else:
+        temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
                                          ["acronym_parent"].value_counts())
-    temp_data = temp_data.reset_index()
-    temp_data = temp_data.rename(columns={"acronym_parent": "acronym", "count": "injection_volume"})
+        temp_data = temp_data.reset_index()
+        temp_data.rename(columns={"acronym_parent": "acronym", "count": "quant_volume"}, inplace=True)
 
-    temp_data['injection_distribution'] = temp_data['injection_volume'] / temp_data[
-            'injection_volume'].sum()
+        temp_data['quant_distribution'] = temp_data['quant_volume'] / temp_data[
+                'quant_volume'].sum()
 
     temp_data['animal_id'] = animal_id
     quant_df = pd.concat((quant_df, temp_data), axis=0)
 
-    quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
+    quant_df_pivot = quant_df.pivot(columns='acronym', values='quant_distribution',
                                     index='animal_id')
 
-    save_fn = results_dir.joinpath('quantification_injection_site.csv')
-    quant_df_pivot.to_csv(save_fn)
-    print("Relative injection side for " + chan + " channel:")
-    print(quant_df_pivot)
-    return [quant_df_pivot, chan, seg_type, results_data]
+    if expression:
+        save_fn = results_dir.joinpath(f'quantification_{seg_type}_{gene}.csv')
+        quant_df_pivot.to_csv(save_fn)
+        # print(f"Quantification of {seg_type} for {gene} gene:")
+    else:
+        save_fn = results_dir.joinpath(f'quantification_{seg_type}_{chan}.csv')
+        quant_df_pivot.to_csv(save_fn)
+    #     print(f"Quantification of {seg_type} for {chan} channel:")
+    # print(quant_df_pivot)
+    return [quant_df_pivot, chan, seg_type, results_data, expression]
 
 
 
@@ -199,9 +218,10 @@ def initialize_results_widget() -> FunctionGui:
                              tooltip='select the channel you registered to the brain atlas'),
               seg_type=dict(widget_type='ComboBox', 
                             label='segmentation type',
-                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe', 'genes'],
+                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe',
+                                     'genes'],
                             value='cells',
-                            tooltip='select the segmentation type you want to create results from'),
+                            tooltip="select the segmentation type you want to create results from."),
               probe_insert=dict(widget_type='LineEdit',
                                 label='insertion depth of probe (um)',
                                 value='4000',
@@ -231,12 +251,27 @@ def initialize_results_widget() -> FunctionGui:
     return results_widget
 
 
-def initialize_quantinj_widget() -> FunctionGui:
+def initialize_quant_widget() -> FunctionGui:
     @magicgui(layout='vertical',
               save_fig=dict(widget_type='CheckBox', 
                             label='save figure?', 
                             value=False,
                             tooltip='tick to save figure'),
+              expression=dict(widget_type='CheckBox',
+                             label='quantify gene expression levels?',
+                             value=False,
+                             tooltip="Choose to visualize the expression levels of one target gene. This option requires "
+                                     "the presence of a .csv file holding gene expression data, rows are gene "
+                                     "expression, columns genes plus one column named 'spot_id' containing the spot ID"),
+              gene_expression_file=dict(widget_type='FileEdit',
+                                        label='gene expression data file: ',
+                                        value='',
+                                        mode='r',
+                                        tooltip='file containing gene expression data by spot'),
+              gene=dict(widget_type='LineEdit',
+                        label='gene:',
+                        value='Slc17a7',
+                        tooltip='enter the name of the gene to visualize'),
               plot_size=dict(widget_type='LineEdit', 
                              label='enter plot size',
                              value='16,12',
@@ -252,13 +287,16 @@ def initialize_quantinj_widget() -> FunctionGui:
                             tooltip='AP=antero-posterior, ML=medio-lateral, DV=dorso-ventral'),
               call_button=False)
     
-    def quant_inj_widget(
+    def quant_widget(
             save_fig,
+            expression,
+            gene_expression_file,
+            gene,
             plot_size,
             cmap,
             kde_axis):
         pass
-    return quant_inj_widget
+    return quant_widget
 
 
 def initialize_probevis_widget() -> FunctionGui:
@@ -278,12 +316,12 @@ class ResultsWidget(QWidget):
         btn_results = QPushButton("create results file")
         btn_results.clicked.connect(self._create_results_file)
 
-        self._collapse_quant = QCollapsible('Quantify injection site: expand for more', self)
-        self.quant_inj = initialize_quantinj_widget()
-        self._collapse_quant.addWidget(self.quant_inj.native)
-        btn_quant_inj = QPushButton("quantify injection site")
-        btn_quant_inj.clicked.connect(self._quantify_injection_site)
-        self._collapse_quant.addWidget(btn_quant_inj)
+        self._collapse_quant = QCollapsible('Quantify results file: expand for more', self)
+        self.quant = initialize_quant_widget()
+        self._collapse_quant.addWidget(self.quant.native)
+        btn_quant = QPushButton("quantify results file")
+        btn_quant.clicked.connect(self._quantify_results)
+        self._collapse_quant.addWidget(btn_quant)
 
         self._collapse_probe_vis = QCollapsible('Launch probe visualizer: expand for more', self)
         self.probe_vis = initialize_probevis_widget()
@@ -313,28 +351,37 @@ class ResultsWidget(QWidget):
         worker_results_file.start()
 
 
-    def _quantify_injection_site(self):
+    def _quantify_results(self):
         input_path = self.results.input_path.value
         params_dict = load_params(input_path)
         channels = self.results.channels.value
         seg_type = self.results.seg_type.value
+        if self.quant.expression.value:
+            try:
+                gene_expression_fn = self.quant.gene_expression_file.value
+            except IsADirectoryError:
+                print(f'no gene expression .csv file found under: {str(gene_expression_fn)}')
+            gene = self.quant.gene.value
+            expression = [gene_expression_fn, gene]
+        else:
+            expression = False
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
         for chan in channels:
-            worker_quantification = quantify_injection_site(input_path, atlas, chan, seg_type=seg_type)
-            worker_quantification.returned.connect(self._plot_quant_injection_site)
+            worker_quantification = quantify_results(input_path, atlas, chan, seg_type=seg_type, expression=expression)
+            worker_quantification.returned.connect(self._plot_quant_data)
             worker_quantification.start()
 
 
-    def _plot_quant_injection_site(self, in_data):
-        df, chan, seg_type, results_data = in_data
+    def _plot_quant_data(self, in_data):
+        df, chan, seg_type, results_data, expression = in_data
         input_path = self.results.input_path.value
         results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
-        clrs = sns.color_palette(self.quant_inj.cmap.value)
-        figsize = [int(i) for i in self.quant_inj.plot_size.value.split(',')]
+        clrs = sns.color_palette(self.quant.cmap.value)
+        figsize = [int(i) for i in self.quant.plot_size.value.split(',')]
         mpl_widget = FigureCanvas(Figure(figsize=figsize))
 
-        plt_axis = self.quant_inj.kde_axis.value.split('/')
+        plt_axis = self.quant.kde_axis.value.split('/')
         axis_dict = {
             'AP': ['ap_mm', 'antero-posterior coordinates [mm]'],
             'ML': ['ml_mm', 'medio-lateral coordinates [mm]'],
@@ -343,22 +390,47 @@ class ResultsWidget(QWidget):
 
         static_ax = mpl_widget.figure.subplots(1, 2)
         static_ax[0].pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
-        static_ax[0].title.set_text('quantification of ' + seg_type + ' in ' + chan + " channel")
+        if expression:
+            static_ax[0].title.set_text(f"quantification of {expression[1]} expression")
+        else:
+            static_ax[0].title.set_text(f"quantification of {seg_type} in {chan} channel")
         static_ax[0].axis('off')
         if len(plt_axis) == 1:
-            sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-1],
-                        common_norm=False, fill=True, legend=False)
+            if expression:
+                sns.lineplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y='gene_expression',
+                             color=clrs[-2])
+            else:
+                sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-2],
+                            common_norm=False, fill=True, legend=False)
             static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
         else:
-            sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y=axis_dict[plt_axis[1]][0] ,
-                        color=clrs[-1], common_norm=False, fill=True, legend=False)
+            if expression:
+                x_bins = 50
+                y_bins = 30
+                # results_data_binned = pd.DataFrame()
+                results_data['x'] = pd.cut(results_data[axis_dict[plt_axis[0]][0]], bins=x_bins, labels=False)
+                results_data['y']= pd.cut(results_data[axis_dict[plt_axis[1]][0]], bins=y_bins, labels=False)
+                x_bin_labels = results_data.groupby('x')[axis_dict[plt_axis[0]][0]].mean()
+                y_bin_labels = results_data.groupby('y')[axis_dict[plt_axis[1]][0]].mean()
+                pivot_df = results_data.pivot_table(values='gene_expression', index='y', columns='x', aggfunc='mean', dropna=False)
+                pivot_df.index = pivot_df.index.map(round(y_bin_labels, 2))
+                pivot_df.columns = pivot_df.columns.map(round(x_bin_labels, 2))
+                # pivot_df=pivot_df.fillna(0)
+                sns.heatmap(ax=static_ax[1], data=pivot_df, cmap=self.quant.cmap.value, vmin=0, vmax=pivot_df.max().max()*1.5)
+            else:
+                sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y=axis_dict[plt_axis[1]][0] ,
+                            color=clrs[-2], common_norm=False, fill=True, legend=False)
             static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
             static_ax[1].set_ylabel(axis_dict[plt_axis[1]][1])
         static_ax[1].spines['top'].set_visible(False)
         static_ax[1].spines['right'].set_visible(False)
-        static_ax[1].title.set_text('kde plot of ' + seg_type + ' in ' + chan + " channel")
-        if self.quant_inj.save_fig.value:
-            save_fn = results_dir.joinpath('quantification_injection_site.svg')
+        if expression:
+            static_ax[1].title.set_text(f"kde plot of {expression[1]} expression")
+            save_fn = results_dir.joinpath(f'quantification_{seg_type}_{expression[1]}.svg')
+        else:
+            static_ax[1].title.set_text(f"kde plot of {seg_type} in {chan} channel")
+            save_fn = results_dir.joinpath(f'quantification_{seg_type}_{chan}.svg')
+        if self.quant.save_fig.value:
             mpl_widget.figure.savefig(save_fn)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 
