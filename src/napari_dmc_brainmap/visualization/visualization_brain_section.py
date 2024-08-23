@@ -38,7 +38,7 @@ def get_brain_section_params(brainsec_widget):
         "smooth_proj": brainsec_widget.smooth_proj.value,
         "smooth_thresh": float(brainsec_widget.smooth_thresh.value),
         "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
-        "color_cells": split_to_list(brainsec_widget.color_cells.value),
+        "color_cells": gene_list(brainsec_widget.color_cells.value),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
         "color_injection_site": split_to_list(brainsec_widget.color_inj.value),
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),

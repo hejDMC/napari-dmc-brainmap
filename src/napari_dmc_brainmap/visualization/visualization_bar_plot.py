@@ -18,7 +18,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         df = df.pivot_table(index='tgt_name', columns=['animal_id', plotting_params["groups"]],
                                                             aggfunc='count').fillna(0)
     elif plotting_params["expression"]:
-        df = pd.DataFrame(df.groupby('tgt_name')['gene_expression'].mean().fillna(0))
+        df = pd.DataFrame(df.groupby('tgt_name')[plotting_params["gene_list"]].mean().fillna(0))
     else:
         df = df.pivot_table(index='tgt_name', columns=['animal_id'],
                             aggfunc='count').fillna(0)
@@ -34,8 +34,14 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         df = pd.concat([df, dd])
     if plotting_params["expression"]:
         df.reset_index(inplace=True)
-        df.rename(columns={'index': 'tgt_name', 'gene_expression': 'percent_cells'}, inplace=True)
         df['animal_id'] = animal_list[0]
+        if len(plotting_params['gene_list']) > 1:
+            df.rename(columns={'index': 'tgt_name'}, inplace=True)
+            df = pd.melt(df, id_vars=['tgt_name', 'animal_id'],
+                            value_vars=plotting_params['gene_list'],
+                            var_name='genes', value_name='percent_cells')
+        else:
+            df.rename(columns={'index': 'tgt_name', plotting_params['gene_list'][0]: 'percent_cells'}, inplace=True)
         return df
     # calculate percentages
     df_to_plot = pd.DataFrame()
@@ -73,7 +79,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
 def get_bar_plot_params(barplot_widget):
     plotting_params = {
         "expression": barplot_widget.expression.value,
-        "gene": barplot_widget.gene.value,
+        "gene_list": split_to_list(barplot_widget.gene_list.value),
         "groups": barplot_widget.groups.value,
         "horizontal": barplot_widget.orient.value,
         "xlabel": [barplot_widget.xlabel.value, int(barplot_widget.xlabel_size.value)],  # 0: label, 1: fontsize
@@ -123,7 +129,7 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
     mpl_widget = FigureCanvas(Figure(figsize=figsize))
     static_ax = mpl_widget.figure.subplots()
     sns.set(style=plotting_params["style"])  # set style todo: dark style not really implemented
-    if plotting_params["groups"] == '':
+    if plotting_params["groups"] == '' and not plotting_params['expression']:
         sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
                     capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
         if plotting_params["scatter_hue"]:  # color code dots by animals
@@ -131,7 +137,12 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
                           palette=plotting_params["scatter_palette"], size=plotting_params["scatter_size"],
                           orient=plot_orient, legend=False)
     elif plotting_params['expression']:
-        sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
+        if len(plotting_params['gene_list']) > 1:
+            cmap = create_cmap([], plotting_params, "bar_palette", df=tgt_data_to_plot, hue_id='genes')
+            sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, hue='genes', palette=cmap,
+                        capsize=.1, errorbar=None, orient=plot_orient)
+        else:
+            sns.barplot(ax=static_ax, x=x_var, y=y_var, data=tgt_data_to_plot, palette=plotting_params["bar_palette"],
                     capsize=.1, errorbar=None, orient=plot_orient)  # do the barplot
     else:
         if plotting_params["groups"] == 'animal_id':

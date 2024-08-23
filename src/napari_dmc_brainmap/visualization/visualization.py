@@ -84,10 +84,10 @@ def initialize_barplot_widget() -> FunctionGui:
                                         value='',
                                         mode='r',
                                         tooltip='file containing gene expression data by spot'),
-              gene=dict(widget_type='LineEdit',
+              gene_list=dict(widget_type='LineEdit',
                         label='gene:',
-                        value='Slc17a7',
-                        tooltip='enter the name of the gene to visualize'),
+                        value='Slc17a7,Slc6a1',
+                        tooltip='enter the COMMA SEPERATED list of genes to visualize'),
               hemisphere=dict(widget_type='ComboBox', 
                               label='hemisphere',
                               choices=['ipsi', 'contra', 'both'], 
@@ -206,7 +206,7 @@ def initialize_barplot_widget() -> FunctionGui:
         plot_item,
         expression,
         gene_expression_file,
-        gene,
+        gene_list,
         hemisphere,
         groups,
         tgt_list,
@@ -648,13 +648,14 @@ class VisualizationWidget(QWidget):
                        hemisphere=self.barplot.hemisphere.value)
         if self.barplot.expression.value:
             gene_expression_fn = self.barplot.gene_expression_file.value
-            gene = self.barplot.gene.value
-            columns_to_load = ['spot_id', gene]
+            gene_list = split_to_list(self.barplot.gene_list.value)
+            columns_to_load = ['spot_id']
+            columns_to_load += gene_list
             print("loading gene expression data...")
             gene_expression_df = pd.read_csv(gene_expression_fn, usecols=columns_to_load)
-            gene_expression_df.rename(columns={gene: 'gene_expression'}, inplace=True)
-            df = pd.merge(df, gene_expression_df, on='spot_id', how='left')
-            df['gene_expression'] = df['gene_expression'].fillna(0)
+            # gene_expression_df.rename(columns={gene: 'gene_expression'}, inplace=True)
+            df = pd.merge(df, gene_expression_df, on='spot_id', how='left').fillna(0)
+            # df['gene_expression'] = df['gene_expression'].fillna(0)
 
         tgt_list = split_to_list(self.barplot.tgt_list.value)
         mpl_widget = do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, self.barplot, save_path)
