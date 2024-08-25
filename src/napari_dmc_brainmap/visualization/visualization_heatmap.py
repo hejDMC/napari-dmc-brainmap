@@ -26,12 +26,20 @@ def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_lis
         absolute_numbers = False
         rel_percentage = False
         print("sub list for normalization provided, overriding input for percentage/absolute numbers")
-    if plotting_params["descendants"]:
-        df = df.pivot_table(index='acronym', columns=['animal_id', 'bin'],
-                                            aggfunc='count').fillna(0)
+    if plotting_params['expression']:
+        if plotting_params["descendants"]:
+            df = df.pivot_table(values=plotting_params['gene'], index='bin', columns='acronym', aggfunc='mean').fillna(0)
+
+        else:
+            df = df.pivot_table(values=plotting_params['gene'], index='bin', columns='tgt_name', aggfunc='mean').fillna(0)
+        df = df.transpose()  # this is just stupid
     else:
-        df = df.pivot_table(index='tgt_name', columns=['animal_id', 'bin'],
-                            aggfunc='count').fillna(0)
+        if plotting_params["descendants"]:
+            df = df.pivot_table(index='acronym', columns=['animal_id', 'bin'],
+                                                aggfunc='count').fillna(0)
+        else:
+            df = df.pivot_table(index='tgt_name', columns=['animal_id', 'bin'],
+                                aggfunc='count').fillna(0)
     # add "missing" brain structures -- brain structures w/o cells
     if len(df.index.values.tolist()) > 0:
         miss_areas = list(set(df.index.values.tolist()) ^ set(tgt_list))
@@ -44,6 +52,8 @@ def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_lis
         df = pd.concat([df, dd])
     # sort indices according to tgt_list
     df = resort_df(df, tgt_list, index_sort=True)
+    if plotting_params["expression"]:
+        return df
 
     # normalize numbers for each animal respectively
     df_plot = pd.DataFrame(np.zeros((len(tgt_list), len(interval_labels))), index=tgt_list, columns=interval_labels)
@@ -130,6 +140,8 @@ def check_brain_area_in_bin(df, atlas):
 
 def get_heatmap_params(heatmap_widget):
     plotting_params = {
+        "expression": heatmap_widget.expression.value,
+        "gene": heatmap_widget.gene.value,
         # "xlabel": [heatmap_widget.xlabel.value, int(heatmap_widget.xlabel_size.value)],  # 0: label, 1: fontsize
         "ylabel": [heatmap_widget.ylabel.value, int(heatmap_widget.ylabel_size.value)],
         "tick_size": [int(heatmap_widget.xticklabel_size.value), int(heatmap_widget.yticklabel_size.value)],
@@ -162,6 +174,7 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
 
     tgt_data_to_plot = calculate_percentage_heatmap_plot(df, atlas, plotting_params, animal_list, new_tgt_list, sub_list)
     # put not existing areas to -1 for plotting
+    print(tgt_data_to_plot)
     tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
     if plotting_params["transpose"]:
         tgt_data_to_plot = tgt_data_to_plot.transpose()

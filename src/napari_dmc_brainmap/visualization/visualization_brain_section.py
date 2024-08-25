@@ -38,7 +38,7 @@ def get_brain_section_params(brainsec_widget):
         "smooth_proj": brainsec_widget.smooth_proj.value,
         "smooth_thresh": float(brainsec_widget.smooth_thresh.value),
         "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
-        "color_cells": gene_list(brainsec_widget.color_cells.value),
+        "color_cells": split_to_list(brainsec_widget.color_cells.value),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
         "color_injection_site": split_to_list(brainsec_widget.color_inj.value),
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),
@@ -358,6 +358,8 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                         line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
 
+
+
                 static_ax[n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
                 static_ax[n_col].axis('off')
             else:
@@ -452,8 +454,8 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                                     color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                             else:
                                     sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"],
-                                                    edgecolors='lightgray')
+                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                                                   # edgecolors='lightgray')
                         else:
                             # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
                             #                 data=plot_dict[item],
