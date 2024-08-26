@@ -174,7 +174,6 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
 
     tgt_data_to_plot = calculate_percentage_heatmap_plot(df, atlas, plotting_params, animal_list, new_tgt_list, sub_list)
     # put not existing areas to -1 for plotting
-    print(tgt_data_to_plot)
     tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
     if plotting_params["transpose"]:
         tgt_data_to_plot = tgt_data_to_plot.transpose()

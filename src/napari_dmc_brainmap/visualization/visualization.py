@@ -302,7 +302,7 @@ def initialize_heatmap_widget() -> FunctionGui:
                                 tooltip="enter COMMA SEPERATED [0] minimum value for colormap and "
                                                 "[1] factor to multiply max range with"),
               cbar_label=dict(widget_type='LineEdit', 
-                              label='colormap',
+                              label='colormap label',
                               value='Proportion of cells [%]', 
                               tooltip='enter a label for the colorbar'),
               plot_size=dict(widget_type='LineEdit', 
@@ -563,6 +563,12 @@ def initialize_brainsection_widget() -> FunctionGui:
                                label='gene:',
                                value='Slc17a7',
                                tooltip='enter the name of the gene to visualize'),
+              round_gene_expression=dict(widget_type='SpinBox',
+                             label='round gene expression data?',
+                             value=0,
+                             min=0,
+                             max=42,
+                             tooltip='round expression data for visualization to x digits after point, 0=no rounding'),
               color_brain_genes=dict(widget_type='ComboBox',
                             label='color brain areas according to gene cluster/expression?',
                             choices=['no_color', 'brain_areas', 'voronoi'],
@@ -606,6 +612,7 @@ def initialize_brainsection_widget() -> FunctionGui:
         color_genes,
         gene_expression_file,
         gene,
+        round_gene_expression,
         color_brain_genes):
         pass
     return brain_section_widget
@@ -718,11 +725,11 @@ class VisualizationWidget(QWidget):
         channels = self.header.channels.value
         plotting_params = get_brain_section_params(self.brain_section)
         plot_item = self.brain_section.plot_item.value
-        data_dict = {}
         params_dict = load_params(input_path.joinpath(animal_list[0]))
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
 
+        data_dict = {}
         for item in plot_item:
             data_dict[item] = load_data(input_path, atlas, animal_list, channels, data_type=item,
                                         hemisphere=self.brain_section.hemisphere.value)
@@ -738,6 +745,8 @@ class VisualizationWidget(QWidget):
             data_dict['genes']['gene_expression'] = data_dict['genes']['gene_expression'].fillna(0)
             data_dict['genes']['gene_expression_norm'] = data_dict['genes']['gene_expression'] / data_dict['genes']['gene_expression'].max()
             data_dict['genes'][data_dict['genes']['gene_expression_norm'] < 0] = 0
+            if self.brain_section.round_gene_expression.value > 0:
+                data_dict['genes']['gene_expression_norm'] = data_dict['genes']['gene_expression_norm'].round(self.brain_section.round_gene_expression.value)
         mpl_widget = do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, self.brain_section,
                                                      save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)

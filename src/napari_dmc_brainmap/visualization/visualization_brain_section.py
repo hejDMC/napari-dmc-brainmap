@@ -277,6 +277,36 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],
                                         line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
+                elif item == 'genes':
+                    if plotting_params['color_cells_atlas']:
+                        palette = {}
+                        for s in plot_dict[item].structure_id.unique():
+                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+
+                        sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'], data=plot_dict[item],
+                                        hue='structure_id', palette=palette,
+                                        s=plotting_params["dot_size"], legend=False)
+                    else:
+                        if plotting_params["plot_gene"] == 'clusters':
+                            if color_dict[item]["single_color"]:
+                                    sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                    color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                            else:
+                                    sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                                                   # edgecolors='lightgray')
+                        else:
+                            # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                            #                 data=plot_dict[item],
+                            #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+                            #                 s=plotting_params["dot_size"])
+                            static_ax[n_row, n_col].scatter(plot_dict[item][orient_mapping['x_plot']],
+                                        plot_dict[item][orient_mapping['y_plot']],
+                                        c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+                                              vmin=0, vmax=1, s=plotting_params["dot_size"])
+                            static_ax[n_row, n_col].collections[0].set_clim(0, 1)
+
 
                 static_ax[n_row, n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
                 static_ax[n_row, n_col].axis('off')
@@ -357,7 +387,35 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                         data=plot_dict[item][plot_dict[item]['channel'] == c],
                                         line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                         scatter=None, ci=None)
+                elif item == 'genes':
+                    if plotting_params['color_cells_atlas']:
+                        palette = {}
+                        for s in plot_dict[item].structure_id.unique():
+                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
 
+                        sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'],
+                                        y=orient_mapping['y_plot'], data=plot_dict[item],
+                                        hue='structure_id', palette=palette,
+                                        s=plotting_params["dot_size"], legend=False)
+                    else:
+                        if plotting_params["plot_gene"] == 'clusters':
+                            if color_dict[item]["single_color"]:
+                                    sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                    color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                            else:
+                                    sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                                                   # edgecolors='lightgray')
+                        else:
+                            # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                            #                 data=plot_dict[item],
+                            #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+                            #                 s=plotting_params["dot_size"])
+                            static_ax[n_col].scatter(plot_dict[item][orient_mapping['x_plot']],
+                                        plot_dict[item][orient_mapping['y_plot']],
+                                        c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+                                              vmin=0, vmax=1, s=plotting_params["dot_size"])
+                            static_ax[n_col].collections[0].set_clim(0, 1)
 
 
                 static_ax[n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
@@ -475,6 +533,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         else:
             n_col = 0
             n_row += 1
+        print(f"collected data for section at: {section} mm")
     if plotting_params["save_fig"]:
         mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
     return mpl_widget

@@ -241,6 +241,7 @@ def brain_region_color_genes(df, cmap, atlas, plot_type):
         count_clusters = df.groupby(['acronym', 'structure_id', 'cluster_id']).size().reset_index(name='count')
         brain_region_colors = count_clusters.loc[count_clusters.groupby('acronym')['count'].idxmax()]
         brain_region_colors['brain_areas_color'] = brain_region_colors['cluster_id'].map(cmap)
+        # brain_region_colors = create_color_ids(brain_region_colors)
     else:
         # calculate average expression levels of genes by brain region
         brain_region_colors = df.groupby('acronym')['gene_expression_norm'].mean().reset_index()
@@ -256,14 +257,14 @@ def brain_region_color_genes(df, cmap, atlas, plot_type):
     brain_region_colors['len'] = brain_region_colors['structure_id'].apply(
         lambda a: len(atlas.structures.data[a]['structure_id_path']))
     # exclude root, fiber tracts and ventricles
-    drop_list = ['root']
-    drop_list += get_descendants(['VS'], atlas)
-    drop_list += get_descendants(['fiber tracts'], atlas)
-    brain_region_colors = brain_region_colors[~brain_region_colors['acronym'].isin(drop_list)]
+    # drop_list = ['root']
+    # drop_list += get_descendants(['VS'], atlas)
+    # drop_list += get_descendants(['fiber tracts'], atlas)
+    # brain_region_colors = brain_region_colors[~brain_region_colors['acronym'].isin(drop_list)]
     brain_region_colors.sort_values(by='len', inplace=True)
     brain_areas = brain_region_colors.acronym.to_list()
     brain_areas_colors = brain_region_colors.brain_areas_color.to_list()
-    brain_areas_transparency = [100] * len(brain_areas)
+    brain_areas_transparency = [255] * len(brain_areas)
     return [brain_areas, brain_areas_colors, brain_areas_transparency]
 
 
@@ -516,31 +517,43 @@ def get_descendants(tgt_list, atlas):
     return tgt_layer_list
 
 def get_voronoi_mask(df, cmap, atlas, plotting_params, orient_mapping):
+    df = df.reset_index(drop=True)
     xyz_dict = get_xyz(atlas, plotting_params['section_orient'])
     matrix = np.zeros((xyz_dict['y'][1], xyz_dict['x'][1]))
-
     points = np.array([[x, y] for x, y in zip(df[orient_mapping['x_plot']], df[orient_mapping['y_plot']])])
 
     if plotting_params['plot_gene'] == 'clusters':
-        df['voronoi_colors'] = df['cluster_id'].map(cmap)
-        voronoi_colors = df['voronoi_colors'].to_list()
-        values = np.array(df['cluster_id'].to_list())
+        df.loc[:,'voronoi_colors'] = df['cluster_id'].map(cmap)
+        # voronoi_colors = df['voronoi_colors'].to_list()
+        # create mapping for colors
+        df = create_color_ids(df)
+        # values = np.array(df['clr_id'].to_list()).astype('int')
     else:
         curr_cmap = plt.get_cmap(cmap)
-        voronoi_colors = [curr_cmap(g) for g in df['gene_expression_norm'].to_list()]
+        df.loc[:, 'voronoi_colors'] = [curr_cmap(g) for g in df['gene_expression_norm'].to_list()]
         df.loc[:, 'clr_id'] = np.arange(4, len(df) + 4)
-        values = np.array(df['clr_id'].to_list())
+        # values = np.array(df['clr_id'].to_list())
     xx, yy = np.meshgrid(np.arange(xyz_dict['x'][1]), np.arange(xyz_dict['y'][1]))
     grid_points = np.c_[xx.ravel(), yy.ravel()]
     distances = cdist(grid_points, points)
     nearest_point_index = np.argmin(distances, axis=1)
-    matrix.ravel()[np.arange(matrix.size)] = values[nearest_point_index]
+    # npi = np.vectorize(lambda x: int(df.loc[x, 'clr_id']))(nearest_point_index)
+    # matrix.ravel()[np.arange(matrix.size)] = values[nearest_point_index]
+    matrix.ravel()[np.arange(matrix.size)] = nearest_point_index
     matrix = matrix.reshape((xyz_dict['y'][1], xyz_dict['x'][1])).astype('int')
-
+    matrix = np.vectorize(lambda x: int(df.loc[x, 'clr_id']))(matrix)
+    voronoi_colors = [tuple(df[df['clr_id'] == clr_id]['voronoi_colors'].unique())[0] for clr_id in natsorted(df['clr_id'].unique())]
 
     return [matrix, voronoi_colors]
 
-
+def create_color_ids(df):
+    unique_clusters = natsorted(df['cluster_id'].unique())
+    new_ids = np.arange(4, len(unique_clusters) + 4)
+    map_dict = {}
+    for u, n in zip(unique_clusters, new_ids):
+        map_dict[u] = int(n)
+    df.loc[:, 'clr_id'] = df['cluster_id'].map(map_dict)
+    return df
 
 
 # def check_descendants(tgt, atlas, vs_list):
