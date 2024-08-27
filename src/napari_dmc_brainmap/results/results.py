@@ -389,6 +389,7 @@ class ResultsWidget(QWidget):
         }
 
         static_ax = mpl_widget.figure.subplots(1, 2)
+        df.iloc[0][df.iloc[0]<0] = 0
         static_ax[0].pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
         if expression:
             static_ax[0].title.set_text(f"quantification of {expression[1]} expression")
@@ -405,8 +406,8 @@ class ResultsWidget(QWidget):
             static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
         else:
             if expression:
-                x_bins = 50
-                y_bins = 30
+                x_bins = 25
+                y_bins = 15
                 # results_data_binned = pd.DataFrame()
                 results_data['x'] = pd.cut(results_data[axis_dict[plt_axis[0]][0]], bins=x_bins, labels=False)
                 results_data['y']= pd.cut(results_data[axis_dict[plt_axis[1]][0]], bins=y_bins, labels=False)

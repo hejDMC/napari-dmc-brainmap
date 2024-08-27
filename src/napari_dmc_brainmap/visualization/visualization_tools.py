@@ -447,8 +447,13 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
         bregma = get_bregma(atlas.atlas_name)
         if unilateral == 'left':
             annot_section_plt = annot_section_plt[:, bregma[atlas.space.axes_description.index('rl')]:]
+            if plotting_params['plot_outline']:
+                annot_section_contours = annot_section_contours[:, bregma[atlas.space.axes_description.index('rl')]:]
         else:
             annot_section_plt = annot_section_plt[:, :bregma[atlas.space.axes_description.index('rl')]]
+            if plotting_params['plot_outline']:
+                annot_section_contours = annot_section_contours[:, :bregma[atlas.space.axes_description.index('rl')]]
+
     return annot_section_plt, annot_section_contours
 
 
