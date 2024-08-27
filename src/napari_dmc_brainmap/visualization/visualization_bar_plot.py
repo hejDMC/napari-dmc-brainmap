@@ -39,9 +39,9 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
             df.rename(columns={'index': 'tgt_name'}, inplace=True)
             df = pd.melt(df, id_vars=['tgt_name', 'animal_id'],
                             value_vars=plotting_params['gene_list'],
-                            var_name='genes', value_name='percent_cells')
+                            var_name='genes', value_name='percent')
         else:
-            df.rename(columns={'index': 'tgt_name', plotting_params['gene_list'][0]: 'percent_cells'}, inplace=True)
+            df.rename(columns={'index': 'tgt_name', plotting_params['gene_list'][0]: 'percent'}, inplace=True)
         return df
     # calculate percentages
     df_to_plot = pd.DataFrame()
@@ -61,9 +61,9 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
                                      len(df_all[df_all['animal_id'] == animal_id]))*100)
         if plotting_params["groups"] in ["channel", "ipsi_contra"]:
             dummy_df = dummy_df.stack().reset_index()
-            dummy_df = dummy_df.rename(columns={plotting_params["groups"]: "groups", 0: 'percent_cells'})
+            dummy_df = dummy_df.rename(columns={plotting_params["groups"]: "groups", 0: 'percent'})
         else:
-            dummy_df = dummy_df.rename(columns={animal_id: "percent_cells"})
+            dummy_df = dummy_df.rename(columns={animal_id: "percent"})
         dummy_df['animal_id'] = [animal_id] * len(dummy_df)
         print(dummy_df)
         if plotting_params["groups"] in ['group', 'genotype']:
@@ -109,11 +109,11 @@ def do_bar_plot(df, atlas, plotting_params, animal_list, tgt_list, barplot_widge
 
     if plotting_params["horizontal"] == "horizontal":
         plot_orient = 'h'
-        x_var = "percent_cells"
+        x_var = "percent"
         y_var = "tgt_name"
     else:
         plot_orient = 'v'
-        y_var = "percent_cells"
+        y_var = "percent"
         x_var = "tgt_name"
     # get re-structured dataframe for plotting
     tgt_data_to_plot = calculate_percentage_bar_plot(df, atlas, animal_list, tgt_list, plotting_params)
