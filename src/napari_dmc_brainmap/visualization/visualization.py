@@ -191,8 +191,8 @@ def initialize_barplot_widget() -> FunctionGui:
               #                          tooltip='option to hide legend for individual data points'),
               absolute_numbers=dict(widget_type='ComboBox',
                           label='plotting absolute numbers or percentage',
-                          value='cell_numbers',
-                          choices=['cell_numbers', 'percentage_dataset', 'percentage_selection'],
+                          value='absolute',
+                          choices=['absolute', 'percentage_dataset', 'percentage_selection'],
                           tooltip='select to plot absolute cell numbers, percentage relative to all cells in dataset or relative to cells in selected regions'),
               call_button=False,
               scrollable=True)
@@ -371,8 +371,8 @@ def initialize_heatmap_widget() -> FunctionGui:
                              tooltip='option to transpose data'),  # todo explain what this does
               absolute_numbers=dict(widget_type='ComboBox',
                           label='plotting absolute numbers or percentage',
-                          value='cell_numbers',
-                          choices=['cell_numbers', 'percentage_dataset', 'percentage_selection'],
+                          value='absolute',
+                          choices=['absolute', 'percentage_dataset', 'percentage_selection'],
                           tooltip='select to plot absolute cell numbers, percentage relative to all cells in dataset or relative to cells in selected regions'),
               call_button=False,
               scrollable=True)

@@ -59,7 +59,7 @@ def calculate_percentage_heatmap_plot(df_all, atlas, plotting_params, animal_lis
     df_plot = pd.DataFrame(np.zeros((len(tgt_list), len(interval_labels))), index=tgt_list, columns=interval_labels)
     for animal_id in animal_list:
         # todo here can be the bug by dividing by zero!
-        if absolute_numbers == 'cell_numbers':
+        if absolute_numbers == 'absolute':
             data = df['ap_coords'][animal_id]
         elif absolute_numbers == 'percentage_selection':
             data = (df['ap_coords'][animal_id] / df['ap_coords'][animal_id].sum().sum()) * 100

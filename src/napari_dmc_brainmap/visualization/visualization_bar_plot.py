@@ -47,7 +47,7 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
     df_to_plot = pd.DataFrame()
     for animal_id in animal_list:
        # genotype = df_geno[df_geno['animal_id'] == animal_id]['genotype'].unique()[0]
-        if absolute_numbers == 'cell_numbers': # if absolute numbers
+        if absolute_numbers == 'absolute': # if absolute numbers
             dummy_df = pd.DataFrame(df['ap_mm'][animal_id])
         elif absolute_numbers == 'percentage_selection': # if relative percentage for cells in tgt_regions
             if plotting_params["groups"] in ["channel", "ipsi_contra"]:
