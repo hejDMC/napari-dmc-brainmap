@@ -131,6 +131,8 @@ def get_orient_map(atlas, plotting_params):
     }
     return orient_mapping
 
+def plot_section(atlas)
+
 def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
 
     orient_mapping = get_orient_map(atlas, plotting_params)

@@ -1,4 +1,6 @@
+import concurrent.futures
 import json
+import time
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from superqt import QCollapsible
@@ -71,44 +73,108 @@ def caculate_line(brain_sec_dim, point, angle):
     return [point_l, point_r]  # points as y,x
 
 
+def plot_section(atlas, plotting_params, regi_data, bregma, orient, i):
+    dummy_params = {'section_orient': orient}
+    orient_mapping = get_orient_map(atlas, plotting_params)
+    plot_mapping = get_orient_map(atlas, dummy_params)
+    slice_idx = int(-(plotting_params[orient] / plot_mapping['z_plot'][2] - bregma[plot_mapping['z_plot'][1]]))
+
+    annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, plot_mapping['z_plot'][1],
+                                                                     plotting_params)
+
+    section_lines = []
+    orient_idx_list = plotting_params['orient_idx_list']
+    for section in regi_data["atlasLocation"].keys():
+        angle = regi_data["atlasLocation"][section][orient_idx_list[i]]
+        regi_loc = int(-(regi_data["atlasLocation"][section][2] / orient_mapping['z_plot'][2] - bregma[
+            orient_mapping['z_plot'][1]]))
+
+        if plotting_params['section_orient'] == 'sagittal' or \
+                (plotting_params["section_orient"] == 'horizontal' and orient == 'sagittal'):
+            angle *= (-1)
+            angle += 90
+            section_point = [int(annot_section_plt.shape[0] / 2), regi_loc]
+        else:
+            section_point = [regi_loc, int(annot_section_plt.shape[1] / 2)]
+
+        point_l, point_r = caculate_line(annot_section_plt.shape, section_point, angle)
+        if section in plotting_params['highlight_section']:
+            clr = plotting_params['highlight_color']
+        else:
+            clr = 'black'
+
+        section_lines.append(([point_l[1], point_r[1]], [point_l[0], point_r[0]], clr))
+
+    return (annot_section_plt, annot_section_contours, section_lines)
+
+
 def do_schematic(atlas, plotting_params, regi_data, save_path):
     mpl_widget = FigureCanvas(Figure(figsize=(8, 6)))  # todo option to change figsize
     static_ax = mpl_widget.figure.subplots(1, 2)
     bregma = get_bregma(atlas.atlas_name)
 
-    for i, orient in enumerate(plotting_params['orient_list']):
-        dummy_params = {'section_orient': orient}
-        orient_mapping = get_orient_map(atlas, plotting_params)
-        plot_mapping = get_orient_map(atlas, dummy_params)
-        slice_idx = int(-(plotting_params[orient] / plot_mapping['z_plot'][2] - bregma[plot_mapping['z_plot'][1]]))
-        annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, plot_mapping['z_plot'][1],
-                                                                     plotting_params)
+    # Use ProcessPoolExecutor to parallelize the subplot creation
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = []
+        for i, orient in enumerate(plotting_params['orient_list']):
+            futures.append(executor.submit(plot_section, atlas, plotting_params, regi_data, bregma, orient, i))
+
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+
+    # Draw the results in the corresponding subplots
+    for i, (annot_section_plt, annot_section_contours, section_lines) in enumerate(results):
         static_ax[i].imshow(annot_section_plt)
         if annot_section_contours:
             static_ax[i].imshow(annot_section_contours)
-        orient_idx_list = plotting_params['orient_idx_list']
-        for section in regi_data["atlasLocation"].keys():
-            angle = regi_data["atlasLocation"][section][orient_idx_list[i]]
-            regi_loc = int(-(regi_data["atlasLocation"][section][2]
-                             / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
-            if plotting_params['section_orient'] == 'sagittal' or \
-                    (plotting_params["section_orient"] == 'horizontal' and orient == 'sagittal'):
-                angle *= (-1)
-                angle += 90
-                section_point = [int(annot_section_plt.shape[0]/2), regi_loc]
-            else:
-                section_point = [regi_loc, int(annot_section_plt.shape[1]/2)]
 
-            point_l, point_r = caculate_line(annot_section_plt.shape, section_point, angle)
-            if section in plotting_params['highlight_section']:
-                clr = plotting_params['highlight_color']
-            else:
-                clr = 'black'
-            static_ax[i].plot([point_l[1], point_r[1]], [point_l[0], point_r[0]], color=clr, lw=1)
+        for line in section_lines:
+            static_ax[i].plot(line[0], line[1], color=line[2], lw=1)
+
         static_ax[i].axis('off')
+
     if plotting_params["save_fig"]:
         mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
+
     return mpl_widget
+
+# def do_schematic(atlas, plotting_params, regi_data, save_path):
+#     mpl_widget = FigureCanvas(Figure(figsize=(8, 6)))  # todo option to change figsize
+#     static_ax = mpl_widget.figure.subplots(1, 2)
+#     bregma = get_bregma(atlas.atlas_name)
+#
+#     for i, orient in enumerate(plotting_params['orient_list']):
+#         dummy_params = {'section_orient': orient}
+#         orient_mapping = get_orient_map(atlas, plotting_params)
+#         plot_mapping = get_orient_map(atlas, dummy_params)
+#         slice_idx = int(-(plotting_params[orient] / plot_mapping['z_plot'][2] - bregma[plot_mapping['z_plot'][1]]))
+#         annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, plot_mapping['z_plot'][1],
+#                                                                      plotting_params)
+#         static_ax[i].imshow(annot_section_plt)
+#         if annot_section_contours:
+#             static_ax[i].imshow(annot_section_contours)
+#         orient_idx_list = plotting_params['orient_idx_list']
+#         for section in regi_data["atlasLocation"].keys():
+#             angle = regi_data["atlasLocation"][section][orient_idx_list[i]]
+#             regi_loc = int(-(regi_data["atlasLocation"][section][2]
+#                              / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
+#             if plotting_params['section_orient'] == 'sagittal' or \
+#                     (plotting_params["section_orient"] == 'horizontal' and orient == 'sagittal'):
+#                 angle *= (-1)
+#                 angle += 90
+#                 section_point = [int(annot_section_plt.shape[0]/2), regi_loc]
+#             else:
+#                 section_point = [regi_loc, int(annot_section_plt.shape[1]/2)]
+#
+#             point_l, point_r = caculate_line(annot_section_plt.shape, section_point, angle)
+#             if section in plotting_params['highlight_section']:
+#                 clr = plotting_params['highlight_color']
+#             else:
+#                 clr = 'black'
+#             static_ax[i].plot([point_l[1], point_r[1]], [point_l[0], point_r[0]], color=clr, lw=1)
+#         static_ax[i].axis('off')
+#     if plotting_params["save_fig"]:
+#         mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
+#     return mpl_widget
 
 
 def initialize_widget() -> FunctionGui:
@@ -260,5 +326,7 @@ class RegistrationWidget(QWidget):
         plotting_params = get_schematic_plotting_params(self.schematic, regi_dict)
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(regi_dict['atlas'])
+        time_start = time.time()
         mpl_widget = do_schematic(atlas, plotting_params, regi_data, save_path)
+        print(time.time() - time_start)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
