@@ -19,6 +19,7 @@ mpl.rcParams['svg.fonttype'] = 'none'
 import seaborn as sns
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df, load_params, \
     create_regi_dict, split_to_list
+from napari_dmc_brainmap.visualization.visualization_tools import load_data
 from napari_dmc_brainmap.results.results_tools import sliceHandle, transform_points_to_regi
 from napari_dmc_brainmap.results.tract_calculation import load_probe_data, get_linefit3d, get_probe_tract
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
@@ -133,7 +134,7 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
 
 
 @thread_worker
-def quantify_results(input_path, atlas, chan, seg_type='injection_site', expression=False):
+def quantify_results(input_path, atlas, chan, seg_type='injection_site', expression=False, is_merge=False):
 
     # if seg_type not in ['injection_site', 'cells']:
     #     print("not implemented! please, select 'injection_site' as segmentation type")
@@ -172,19 +173,26 @@ def quantify_results(input_path, atlas, chan, seg_type='injection_site', express
         temp_data = results_data.groupby('acronym_parent')['gene_expression'].mean().reset_index()
         temp_data.rename(columns={"acronym_parent": "acronym", 'gene_expression': 'quant_distribution'}, inplace=True)
     else:
-        temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
-                                         ["acronym_parent"].value_counts())
-        temp_data = temp_data.reset_index()
-        temp_data.rename(columns={"acronym_parent": "acronym", "count": "quant_volume"}, inplace=True)
+        if is_merge:
+            animal_key = 'animal_id_ind'
+            animal_list = results_data[animal_key].unique()
+        else:
+            animal_key = 'animal_id'
+            animal_list = results_data[animal_key].unique()
+        for animal_id in animal_list:
+            temp_data = pd.DataFrame(results_data[results_data[animal_key] == animal_id]
+                                             ["acronym_parent"].value_counts())
+            temp_data = temp_data.reset_index()
+            temp_data.rename(columns={"acronym_parent": "acronym", "count": "quant_volume"}, inplace=True)
 
-        temp_data['quant_distribution'] = temp_data['quant_volume'] / temp_data[
-                'quant_volume'].sum()
+            temp_data['quant_distribution'] = temp_data['quant_volume'] / temp_data[
+                    'quant_volume'].sum()
 
-    temp_data['animal_id'] = animal_id
-    quant_df = pd.concat((quant_df, temp_data), axis=0)
+            temp_data['animal_id'] = animal_id
+            quant_df = pd.concat((quant_df, temp_data), axis=0)
 
     quant_df_pivot = quant_df.pivot(columns='acronym', values='quant_distribution',
-                                    index='animal_id')
+                                    index='animal_id').fillna(0)
 
     if expression:
         save_fn = results_dir.joinpath(f'quantification_{seg_type}_{gene}.csv')
@@ -195,7 +203,7 @@ def quantify_results(input_path, atlas, chan, seg_type='injection_site', express
         quant_df_pivot.to_csv(save_fn)
     #     print(f"Quantification of {seg_type} for {chan} channel:")
     # print(quant_df_pivot)
-    return [quant_df_pivot, chan, seg_type, results_data, expression]
+    return [quant_df_pivot, chan, seg_type, results_data, expression, is_merge]
 
 
 
@@ -253,6 +261,11 @@ def initialize_results_widget() -> FunctionGui:
 
 def initialize_quant_widget() -> FunctionGui:
     @magicgui(layout='vertical',
+              is_merge=dict(widget_type='CheckBox',
+                            label='using merged data?',
+                            value=False,
+                            tooltip='tick when using data from merged animals '
+                                    '(created with Create merged dataset widget below)'),
               save_fig=dict(widget_type='CheckBox', 
                             label='save figure?', 
                             value=False,
@@ -288,6 +301,7 @@ def initialize_quant_widget() -> FunctionGui:
               call_button=False)
     
     def quant_widget(
+            is_merge,
             save_fig,
             expression,
             gene_expression_file,
@@ -297,6 +311,47 @@ def initialize_quant_widget() -> FunctionGui:
             kde_axis):
         pass
     return quant_widget
+
+
+def initialize_merge_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit',
+                              label='input path: ',
+                              value='',
+                              mode='d',
+                              tooltip='directory of folder containing folders with animals'),
+              animal_list=dict(widget_type='LineEdit',
+                               label='list of animals',
+                               value='animal1,animal2',
+                               tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
+              merge_id=dict(widget_type='LineEdit',
+                                        label='merge_id: ',
+                                        value='merge_animal',
+                                        tooltip='dummy animal_id that will store merged results for quantification, '
+                                                'data will be stored as for normal animal_ids, '
+                                                'i.e. results/seg_type/channel/*.csv'),
+              channels=dict(widget_type='Select',
+                            label='select channels to plot',
+                            value=['green', 'cy3'],
+                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            tooltip='select the channels with segmented cells to be plotted, '
+                                    'to select multiple hold ctrl/shift'),
+              seg_type=dict(widget_type='ComboBox',
+                            label='segmentation type',
+                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe',
+                                     'genes'],
+                            value='cells',
+                            tooltip="select the segmentation type you want to create results from."),
+              call_button=False)
+    def merge_widget(
+            input_path,
+            animal_list,
+            merge_id,
+            channels,
+            seg_type):
+        pass
+
+    return merge_widget
 
 
 def initialize_probevis_widget() -> FunctionGui:
@@ -323,6 +378,13 @@ class ResultsWidget(QWidget):
         btn_quant.clicked.connect(self._quantify_results)
         self._collapse_quant.addWidget(btn_quant)
 
+        self._collapse_merge = QCollapsible('Create merged datasets: expand for more', self)
+        self.merge = initialize_merge_widget()
+        self._collapse_merge.addWidget(self.merge.native)
+        btn_merge = QPushButton("create merged datasets")
+        btn_merge.clicked.connect(self._merge_datasets)
+        self._collapse_merge.addWidget(btn_merge)
+
         self._collapse_probe_vis = QCollapsible('Launch probe visualizer: expand for more', self)
         self.probe_vis = initialize_probevis_widget()
         self._collapse_probe_vis.addWidget(self.probe_vis.native)
@@ -333,6 +395,7 @@ class ResultsWidget(QWidget):
         self.layout().addWidget(self.results.native)
         self.layout().addWidget(btn_results)
         self.layout().addWidget(self._collapse_quant)
+        self.layout().addWidget(self._collapse_merge)
         self.layout().addWidget(self._collapse_probe_vis)
 
     def _create_results_file(self):
@@ -356,6 +419,7 @@ class ResultsWidget(QWidget):
         params_dict = load_params(input_path)
         channels = self.results.channels.value
         seg_type = self.results.seg_type.value
+        is_merge = self.quant.is_merge.value
         if self.quant.expression.value:
             try:
                 gene_expression_fn = self.quant.gene_expression_file.value
@@ -368,13 +432,33 @@ class ResultsWidget(QWidget):
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
         for chan in channels:
-            worker_quantification = quantify_results(input_path, atlas, chan, seg_type=seg_type, expression=expression)
+            worker_quantification = quantify_results(input_path, atlas, chan, seg_type=seg_type, expression=expression, is_merge=is_merge)
             worker_quantification.returned.connect(self._plot_quant_data)
             worker_quantification.start()
 
+    def _merge_datasets(self):
+        input_path = self.merge.input_path.value
+        animal_list = split_to_list(self.merge.animal_list.value)
+        channels = self.merge.channels.value
+        seg_type = self.merge.seg_type.value
+        params_dict = load_params(input_path.joinpath(animal_list[0]))
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
+        merge_id = self.merge.merge_id.value
+        merge_path = input_path.joinpath(merge_id)
+        for chan in channels:
+            df = load_data(input_path, atlas, animal_list, [chan], data_type=seg_type)
+            df.rename(columns={'animal_id': 'animal_id_ind'}, inplace=True)
+            results_dir = get_info(merge_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
+            results_fn = results_dir.joinpath(merge_id + '_' + seg_type + '.csv')
+            df.to_csv(results_fn)
+        params_dict['animal_id'] = merge_id
+        params_fn = merge_path.joinpath('params.json')
+        with open(params_fn, 'w') as fn:
+            json.dump(params_dict, fn, indent=4)
 
     def _plot_quant_data(self, in_data):
-        df, chan, seg_type, results_data, expression = in_data
+        df, chan, seg_type, results_data, expression, is_merge = in_data
         input_path = self.results.input_path.value
         results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
         clrs = sns.color_palette(self.quant.cmap.value)
@@ -390,6 +474,8 @@ class ResultsWidget(QWidget):
 
         static_ax = mpl_widget.figure.subplots(1, 2)
         df.iloc[0][df.iloc[0]<0] = 0
+        if is_merge:
+            df = pd.DataFrame(df.mean(axis=0)).transpose()
         static_ax[0].pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
         if expression:
             static_ax[0].title.set_text(f"quantification of {expression[1]} expression")
@@ -401,8 +487,14 @@ class ResultsWidget(QWidget):
                 sns.lineplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y='gene_expression',
                              color=clrs[-2])
             else:
-                sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-2],
+                if is_merge:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], hue='animal_id_ind',
+                                palette=sns.light_palette(clrs[-2]), common_norm=False, fill=True, legend=False)
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-2],
                             common_norm=False, fill=True, legend=False)
+                else:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-2],
+                                common_norm=False, fill=True, legend=False)
             static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
         else:
             if expression:
@@ -419,7 +511,15 @@ class ResultsWidget(QWidget):
                 # pivot_df=pivot_df.fillna(0)
                 sns.heatmap(ax=static_ax[1], data=pivot_df, cmap=self.quant.cmap.value, vmin=0, vmax=pivot_df.max().max()*1.5)
             else:
-                sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y=axis_dict[plt_axis[1]][0] ,
+                if is_merge:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0],
+                                y=axis_dict[plt_axis[1]][0], hue='animal_id_ind', palette=sns.light_palette(clrs[-2]),
+                                common_norm=False, fill=True, legend=False)
+                    # sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0],
+                    #             y=axis_dict[plt_axis[1]][0],
+                    #             color=clrs[-2], common_norm=False, fill=True, legend=False)
+                else:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y=axis_dict[plt_axis[1]][0] ,
                             color=clrs[-2], common_norm=False, fill=True, legend=False)
             static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
             static_ax[1].set_ylabel(axis_dict[plt_axis[1]][1])
