@@ -1,6 +1,6 @@
 import pandas as pd
 from napari import Viewer
-
+import time
 
 from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
@@ -747,7 +747,9 @@ class VisualizationWidget(QWidget):
             data_dict['genes'][data_dict['genes']['gene_expression_norm'] < 0] = 0
             if self.brain_section.round_gene_expression.value > 0:
                 data_dict['genes']['gene_expression_norm'] = data_dict['genes']['gene_expression_norm'].round(self.brain_section.round_gene_expression.value)
+        time_start = time.time()
         mpl_widget = do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, self.brain_section,
                                                      save_path)
+        print(time.time() - time_start)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 

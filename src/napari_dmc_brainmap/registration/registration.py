@@ -1,6 +1,5 @@
 import concurrent.futures
 import json
-import time
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from superqt import QCollapsible
@@ -113,7 +112,6 @@ def do_schematic(atlas, plotting_params, regi_data, save_path):
     static_ax = mpl_widget.figure.subplots(1, 2)
     bregma = get_bregma(atlas.atlas_name)
 
-    # Use ProcessPoolExecutor to parallelize the subplot creation
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = []
         for i, orient in enumerate(plotting_params['orient_list']):
@@ -326,7 +324,5 @@ class RegistrationWidget(QWidget):
         plotting_params = get_schematic_plotting_params(self.schematic, regi_dict)
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(regi_dict['atlas'])
-        time_start = time.time()
         mpl_widget = do_schematic(atlas, plotting_params, regi_data, save_path)
-        print(time.time() - time_start)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)

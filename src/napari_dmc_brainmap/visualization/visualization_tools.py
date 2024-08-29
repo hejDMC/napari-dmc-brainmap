@@ -206,10 +206,13 @@ def match_lists(list1, list2, item):
         return list1, list2
     elif len(list1) > len(list2):
         diff = len(list1) - len(list2)
-        if item == 'color':
-            list2.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
-        elif item == 'transparency':
-            list2.append(list2[-1])
+        for d in range(diff):
+            if item == 'color':
+                list2.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
+                print("warning: no/too few brain region colors stated, random colors will be chosen. "
+                      "Colors differ between sections.")
+            elif item == 'transparency':
+                list2.append(list2[-1])
         return list1, list2
     elif len(list1) < len(list2):
         list2 = list2[:len(list1)]
@@ -217,7 +220,6 @@ def match_lists(list1, list2, item):
 
 
 def brain_region_color(plotting_params, atlas):
-    color_dict_regions = {}
     brain_areas = plotting_params['brain_areas']
     brain_areas_color = plotting_params['brain_areas_color']
     if brain_areas_color:
@@ -226,6 +228,8 @@ def brain_region_color(plotting_params, atlas):
             for b in brain_areas:
                 b_acronym = atlas.structures.acronym_to_id_map[b]
                 brain_areas_color.append(tuple([c / 255 for c in atlas.structures[b_acronym]['rgb_triplet']]))
+    else:
+        brain_areas_color = [random.choice(list(mcolors.CSS4_COLORS.keys()))]
     brain_areas_transparency = plotting_params['brain_areas_transparency']
     if brain_areas_transparency:
         brain_areas_transparency = [int(b) for b in brain_areas_transparency]
@@ -233,7 +237,9 @@ def brain_region_color(plotting_params, atlas):
         brain_areas_transparency = [255]
     brain_areas, brain_areas_color = match_lists(brain_areas, brain_areas_color, 'color')
     brain_areas, brain_areas_transparency = match_lists(brain_areas, brain_areas_transparency, 'transparency')
-
+    print(brain_areas)
+    print(brain_areas_color)
+    print(brain_areas_transparency)
     return brain_areas, brain_areas_color, brain_areas_transparency
 
 def brain_region_color_genes(df, cmap, atlas, plot_type):

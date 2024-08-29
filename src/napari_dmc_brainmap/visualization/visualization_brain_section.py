@@ -1,3 +1,4 @@
+import concurrent.futures
 import math
 import random
 import matplotlib.colors as mcolors
@@ -131,414 +132,597 @@ def get_orient_map(atlas, plotting_params):
     }
     return orient_mapping
 
-def plot_section(atlas)
+def plot_section(data_dict, color_dict, atlas, plotting_params, orient_mapping, bregma, section, section_range):
+    plot_dict = {}
+    target_z = [section + section_range, section - section_range]
+    target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
+                for target in target_z]
+    slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
+    if plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
+        pass  # don't get brain section to plot if brain areas are colored according to clusters
+    else:
+        annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1],
+                                                                         plotting_params)
+    for item in data_dict:
+        plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
+                                          & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
+        if item == 'genes' and plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
+            # calculate colors according to number of cluster_ids in brain regions
+            if plotting_params['color_brain_genes'] == 'brain_areas':
+                gene_color = brain_region_color_genes(plot_dict[item], color_dict[item]['cmap'], atlas,
+                                                      plotting_params['plot_gene'])
+                annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+                                                                                 orient_mapping['z_plot'][1],
+                                                                                 plotting_params, gene_color=gene_color)
+            else:
+                voronoi = get_voronoi_mask(plot_dict[item], color_dict[item]['cmap'], atlas, plotting_params,
+                                           orient_mapping)
+                annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+                                                                                 orient_mapping['z_plot'][1],
+                                                                                 plotting_params,
+                                                                                 voronoi=voronoi)
+
+        if plotting_params['unilateral'] in ['left', 'right'] and orient_mapping['z_plot'][1] < 2:
+            if plotting_params['unilateral'] == 'left':
+                # delete values on other hemisphere if still in dataset
+                plot_dict[item] = plot_dict[item][
+                    plot_dict[item]['ml_coords'] > bregma[atlas.space.axes_description.index('rl')]]
+                # adjust ml_coords
+                plot_dict[item].loc[:, 'ml_coords'] -= bregma[atlas.space.axes_description.index('rl')]
+            else:
+                # delete values on other hemisphere if still in dataset
+                plot_dict[item] = plot_dict[item][
+                    plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
+            plot_dict[item] = plot_dict[item].reset_index(drop=True)
+
+    return (annot_section_plt, annot_section_contours, plot_dict, slice_idx)
+
 
 def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
 
     orient_mapping = get_orient_map(atlas, plotting_params)
-
     color_dict = create_color_dict(input_path, animal_list, data_dict, plotting_params)
     section_list = plotting_params["section_list"]  # in mm AP coordinates for coronal sections
     n_rows, n_cols = get_rows_cols(section_list)
     figsize = [int(i) for i in brain_section_widget.plot_size.value.split(',')]
     mpl_widget = FigureCanvas(Figure(figsize=figsize))
     static_ax = mpl_widget.figure.subplots(n_rows, n_cols)
-    n_row = 0
-    n_col = 0
+    if len(section_list) == 1:
+        static_ax = np.array([static_ax])
+    static_ax = static_ax.ravel()
     section_range = plotting_params["section_range"]
     bregma = get_bregma(atlas.atlas_name)
-    # annot = atlas.annotation
-    #for item in data_dict:
-    #    data_dict[item] = coord_mm_transform(data_dict[item], bregma)
 
-    for section in section_list:
-
-        plot_dict = {}
-        target_z = [section + section_range, section - section_range]
-        target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
-                    for target in target_z]
-        slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
-        if plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
-            pass  # don't get brain section to plot if brain areas are colored according to clusters
-        else:
-            annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
-        for item in data_dict:
-            plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
-                                              & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
-            if item == 'genes' and plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
-                # calculate colors according to number of cluster_ids in brain regions
-                if plotting_params['color_brain_genes'] == 'brain_areas':
-                    gene_color = brain_region_color_genes(plot_dict[item], color_dict[item]['cmap'], atlas,
-                                                          plotting_params['plot_gene'])
-                    annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
-                                                                                     orient_mapping['z_plot'][1],
-                                                                                     plotting_params, gene_color=gene_color)
-                else:
-                    voronoi = get_voronoi_mask(plot_dict[item], color_dict[item]['cmap'], atlas, plotting_params,
-                                                    orient_mapping)
-                    annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
-                                                                                     orient_mapping['z_plot'][1],
-                                                                                     plotting_params,
-                                                                                     voronoi=voronoi)
-
-            if plotting_params['unilateral'] in ['left', 'right'] and orient_mapping['z_plot'][1] < 2:
-                if plotting_params['unilateral'] == 'left':
-                    # delete values on other hemisphere if still in dataset
-                    plot_dict[item] = plot_dict[item][plot_dict[item]['ml_coords'] > bregma[atlas.space.axes_description.index('rl')]]
-                    # adjust ml_coords
-                    plot_dict[item].loc[:,'ml_coords'] -= bregma[atlas.space.axes_description.index('rl')]
-                else:
-                    # delete values on other hemisphere if still in dataset
-                    plot_dict[item] = plot_dict[item][
-                        plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
-                plot_dict[item] = plot_dict[item].reset_index(drop=True)
-
-
-        cnt = 0
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = []
+        for section in section_list:
+            futures.append(executor.submit(plot_section, data_dict, color_dict, atlas, plotting_params, orient_mapping,
+                                           bregma, section, section_range))
+            print(f"collecting data for section at: {section} mm")
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+    print('...done')
+    cnt = 0
+    for s, (annot_section_plt, annot_section_contours, plot_dict, slice_idx) in enumerate(results):
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours
             print("no plotting item selected, plotting only contours of brain section")
 
         for item in plot_dict:
-            if len(section_list) > 2:
-                if cnt < 1:
-                    static_ax[n_row, n_col].imshow(annot_section_plt)
-                    if annot_section_contours.any():
-                        static_ax[n_row, n_col].imshow(annot_section_contours)
-                    # if orient_mapping['z_plot'][1] == 0:
-                    #     static_ax[n_row, n_col].contour(annot[slice_idx, :, :],
-                    #                                     levels=np.unique(annot[slice_idx, :, :]),
-                    #                                     colors=['gainsboro'],
-                    #                                     linewidths=0.2)
-                    # elif orient_mapping['z_plot'][1] == 1:
-                    #     static_ax[n_row, n_col].contour(annot[:, slice_idx, :],
-                    #                                     levels=np.unique(annot[:, slice_idx, :]),
-                    #                                     colors=['gainsboro'],
-                    #                                     linewidths=0.2)
-                    # else:
-                    #     static_ax[n_row, n_col].contour(annot[:, :, slice_idx],
-                    #                                     levels=np.unique(annot[:, :, slice_idx]),
-                    #                                     colors=['gainsboro'],
-                    #                                     linewidths=0.2)
+            if cnt < 1:
+                static_ax[s].imshow(annot_section_plt)
+                if annot_section_contours.any():
+                    static_ax[s].imshow(annot_section_contours)
+                # if orient_mapping['z_plot'][1] == 0:
+                #     static_ax[s].contour(annot[slice_idx, :, :],
+                #                                     levels=np.unique(annot[slice_idx, :, :]),
+                #                                     colors=['gainsboro'],
+                #                                     linewidths=0.2)
+                # elif orient_mapping['z_plot'][1] == 1:
+                #     static_ax[s].contour(annot[:, slice_idx, :],
+                #                                     levels=np.unique(annot[:, slice_idx, :]),
+                #                                     colors=['gainsboro'],
+                #                                     linewidths=0.2)
+                # else:
+                #     static_ax[s].contour(annot[:, :, slice_idx],
+                #                                     levels=np.unique(annot[:, :, slice_idx]),
+                #                                     colors=['gainsboro'],
+                #                                     linewidths=0.2)
 
+            if item == 'cells':
+                if plotting_params['color_cells_atlas']:
+                    palette = {}
+                    for s in plot_dict[item].structure_id.unique():
+                        palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
 
-
-                if item == 'cells':
-                    if plotting_params['color_cells_atlas']:
-                        palette = {}
-                        for s in plot_dict[item].structure_id.unique():
-                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
-
-                        sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='structure_id', palette=palette,
-                                        s=plotting_params["dot_size"], legend=False)
-                    else:
-                        if color_dict[item]['single_color']:
-                                sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                        else:
-                                sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-
-                elif item == 'projections':
-                    if plot_dict[item].empty:
-                        pass
-                    else:
-                        if plotting_params['smooth_proj']:
-                            sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'],
-                                        cmap=color_dict[item]["cmap"],
-                                        thresh=plotting_params['smooth_thresh'], fill=True)
-                        else:
-                            sns.histplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                     cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
-                                     vmax=plotting_params['vmax'])
-
-                elif item == 'injection_site':
+                    sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'],
+                                    y=orient_mapping['y_plot'], data=plot_dict[item],
+                                    hue='structure_id', palette=palette,
+                                    s=plotting_params["dot_size"], legend=False)
+                else:
                     if color_dict[item]['single_color']:
-                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
-                                    color=color_dict[item]["cmap"])
+                            sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                            color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                     else:
-                        sns.kdeplot(ax=static_ax[n_row, n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
-                                    hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
-                elif item in ['optic_fiber', 'neuropixels_probe']:
-                    if color_dict[item]["single_color"]:
-                        # sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                        #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                        sns.regplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                    data=plot_dict[item],
-                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
+                            sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                            hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+
+            elif item == 'projections':
+                if plot_dict[item].empty:
+                    pass
+                else:
+                    if plotting_params['smooth_proj']:
+                        sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'],
+                                    y=orient_mapping['y_plot'],
+                                    cmap=color_dict[item]["cmap"],
+                                    thresh=plotting_params['smooth_thresh'], fill=True)
+                    else:
+                        sns.histplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                                 cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
+                                 vmax=plotting_params['vmax'])
+
+            elif item == 'injection_site':
+                if color_dict[item]['single_color']:
+                    sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+                                color=color_dict[item]["cmap"])
+                else:
+                    sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+            elif item in ['optic_fiber', 'neuropixels_probe']:
+                if color_dict[item]["single_color"]:
+                    # sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                    #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                    sns.regplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                                data=plot_dict[item],
+                                line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
+                                scatter=None, ci=None)
+                else:
+                    # sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                    #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+
+                    for c in plot_dict[item]['channel'].unique():
+                        sns.regplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                                    data=plot_dict[item][plot_dict[item]['channel'] == c],
+                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
                                     scatter=None, ci=None)
-                    else:
-                        # sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                        #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+            elif item == 'genes':
+                if plotting_params['color_cells_atlas']:
+                    palette = {}
+                    for s in plot_dict[item].structure_id.unique():
+                        palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
 
-                        for c in plot_dict[item]['channel'].unique():
-                            sns.regplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                        data=plot_dict[item][plot_dict[item]['channel'] == c],
-                                        line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
-                                        scatter=None, ci=None)
-                elif item == 'genes':
-                    if plotting_params['color_cells_atlas']:
-                        palette = {}
-                        for s in plot_dict[item].structure_id.unique():
-                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
-
-                        sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='structure_id', palette=palette,
-                                        s=plotting_params["dot_size"], legend=False)
-                    else:
-                        if plotting_params["plot_gene"] == 'clusters':
-                            if color_dict[item]["single_color"]:
-                                    sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                            else:
-                                    sns.scatterplot(ax=static_ax[n_row, n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                                                   # edgecolors='lightgray')
-                        else:
-                            # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                            #                 data=plot_dict[item],
-                            #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
-                            #                 s=plotting_params["dot_size"])
-                            static_ax[n_row, n_col].scatter(plot_dict[item][orient_mapping['x_plot']],
-                                        plot_dict[item][orient_mapping['y_plot']],
-                                        c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
-                                              vmin=0, vmax=1, s=plotting_params["dot_size"])
-                            static_ax[n_row, n_col].collections[0].set_clim(0, 1)
-
-
-                static_ax[n_row, n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
-                static_ax[n_row, n_col].axis('off')
-
-            elif len(section_list) == 2:
-                if cnt < 1:
-                    static_ax[n_col].imshow(annot_section_plt)
-                    if annot_section_contours.any():
-                        static_ax[n_col].imshow(annot_section_contours)
-                    # if orient_mapping['z_plot'][1] == 0:
-                    #     static_ax[n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
-                    #                              colors=['gainsboro'],
-                    #                              linewidths=0.2)
-                    # elif orient_mapping['z_plot'][1] == 1:
-                    #     static_ax[n_col].contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
-                    #                              colors=['gainsboro'],
-                    #                              linewidths=0.2)
-                    # else:
-                    #     static_ax[n_col].contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
-                    #                              colors=['gainsboro'],
-                    #                              linewidths=0.2)
-
-
-                if item == 'cells':
-                    if plotting_params['color_cells_atlas']:
-                        palette = {}
-                        for s in plot_dict[item].structure_id.unique():
-                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
-
-                        sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='structure_id', palette=palette,
-                                        s=plotting_params["dot_size"], legend=False)
-                    else:
+                    sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'],
+                                    y=orient_mapping['y_plot'], data=plot_dict[item],
+                                    hue='structure_id', palette=palette,
+                                    s=plotting_params["dot_size"], legend=False)
+                else:
+                    if plotting_params["plot_gene"] == 'clusters':
                         if color_dict[item]["single_color"]:
-                                sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+                                sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
                                                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
                         else:
-                                sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
-                                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-
-                elif item == 'projections':
-                    if plot_dict[item].empty:
-                        pass
+                                sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+                                                hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+                                               # edgecolors='lightgray')
                     else:
-                        if plotting_params['smooth_proj']:
-                            sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'],
-                                        cmap=color_dict[item]["cmap"],
-                                        thresh=plotting_params['smooth_thresh'], fill=True)
-                        else:
-                            sns.histplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
-                                         y=orient_mapping['y_plot'], cmap=color_dict[item]["cmap"],
-                                         binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
-                                         vmax=plotting_params['vmax'])
-
-                elif item == 'injection_site':
-                    if color_dict[item]['single_color']:
-                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
-                                    color=color_dict[item]["cmap"])
-                    else:
-                        sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
-                                    hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
-                elif item in ['optic_fiber', 'neuropixels_probe']:
-                    if color_dict[item]["single_color"]:
-                        # sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                        #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                        sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                    data=plot_dict[item],
-                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
-                                    scatter=None, ci=None)
-                    else:
-                        # sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                        #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-
-                        for c in plot_dict[item]['channel'].unique():
-                            sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                        data=plot_dict[item][plot_dict[item]['channel'] == c],
-                                        line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
-                                        scatter=None, ci=None)
-                elif item == 'genes':
-                    if plotting_params['color_cells_atlas']:
-                        palette = {}
-                        for s in plot_dict[item].structure_id.unique():
-                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
-
-                        sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='structure_id', palette=palette,
-                                        s=plotting_params["dot_size"], legend=False)
-                    else:
-                        if plotting_params["plot_gene"] == 'clusters':
-                            if color_dict[item]["single_color"]:
-                                    sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                            else:
-                                    sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                                                   # edgecolors='lightgray')
-                        else:
-                            # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                            #                 data=plot_dict[item],
-                            #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
-                            #                 s=plotting_params["dot_size"])
-                            static_ax[n_col].scatter(plot_dict[item][orient_mapping['x_plot']],
-                                        plot_dict[item][orient_mapping['y_plot']],
-                                        c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
-                                              vmin=0, vmax=1, s=plotting_params["dot_size"])
-                            static_ax[n_col].collections[0].set_clim(0, 1)
+                        # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                        #                 data=plot_dict[item],
+                        #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+                        #                 s=plotting_params["dot_size"])
+                        static_ax[s].scatter(plot_dict[item][orient_mapping['x_plot']],
+                                    plot_dict[item][orient_mapping['y_plot']],
+                                    c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+                                          vmin=0, vmax=1, s=plotting_params["dot_size"])
+                        static_ax[s].collections[0].set_clim(0, 1)
 
 
-                static_ax[n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
-                static_ax[n_col].axis('off')
-            else:
-                if cnt < 1:
-                    static_ax.imshow(annot_section_plt)
-                    if annot_section_contours.any():
-                        static_ax.imshow(annot_section_contours)
-                    # if orient_mapping['z_plot'][1] == 0:
-                    #     static_ax.contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
-                    #                       colors=['gainsboro'],
-                    #                       linewidths=0.2)
-                    # elif orient_mapping['z_plot'][1] == 1:
-                    #     static_ax.contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
-                    #                       colors=['gainsboro'],
-                    #                       linewidths=0.2)
-                    # else:
-                    #     static_ax.contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
-                    #                       colors=['gainsboro'],
-                    #                       linewidths=0.2)
-
-                if item == 'cells':
-                    if plotting_params['color_cells_atlas']:
-                        palette = {}
-                        for s in plot_dict[item].structure_id.unique():
-                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
-
-                        sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='structure_id', palette=palette,
-                                        s=plotting_params["dot_size"], legend=False)
-                    else:
-                        if color_dict[item]["single_color"]:
-                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                        else:
-                                sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-
-                elif item == 'projections':
-                    if plot_dict[item].empty:
-                        pass
-                    else:
-                        if plotting_params['smooth_proj']:
-                            sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'],
-                                        cmap=color_dict[item]["cmap"],
-                                        thresh=plotting_params['smooth_thresh'], fill=True)
-                        else:
-                            sns.histplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                     cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
-                                     vmax=plotting_params['vmax'], vmin=plotting_params['vmin'])
-
-                elif item == 'injection_site':
-                    if color_dict[item]['single_color']:
-                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
-                                    color=color_dict[item]["cmap"])
-                    else:
-                        sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
-                                    hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
-
-                elif item in ['optic_fiber', 'neuropixels_probe']:
-                    if color_dict[item]["single_color"]:
-                        # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                        #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                        sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                    data=plot_dict[item],
-                                    line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
-                                    scatter=None, ci=None)
-                    else:
-                        # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                        #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-
-                        for c in plot_dict[item]['channel'].unique():
-                            sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                        data=plot_dict[item][plot_dict[item]['channel'] == c],
-                                        line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
-                                        scatter=None, ci=None)
-                elif item == 'genes':
-                    if plotting_params['color_cells_atlas']:
-                        palette = {}
-                        for s in plot_dict[item].structure_id.unique():
-                            palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
-
-                        sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'],
-                                        y=orient_mapping['y_plot'], data=plot_dict[item],
-                                        hue='structure_id', palette=palette,
-                                        s=plotting_params["dot_size"], legend=False)
-                    else:
-                        if plotting_params["plot_gene"] == 'clusters':
-                            if color_dict[item]["single_color"]:
-                                    sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                            else:
-                                    sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
-                                                    hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
-                                                   # edgecolors='lightgray')
-                        else:
-                            # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                            #                 data=plot_dict[item],
-                            #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
-                            #                 s=plotting_params["dot_size"])
-                            static_ax.scatter(plot_dict[item][orient_mapping['x_plot']],
-                                        plot_dict[item][orient_mapping['y_plot']],
-                                        c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
-                                              vmin=0, vmax=1, s=plotting_params["dot_size"])
-                            static_ax.collections[0].set_clim(0, 1)
-                static_ax.title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
-                static_ax.axis('off')
-
-            cnt += 1
-        if n_col < n_cols-1:
-            n_col += 1
-        else:
-            n_col = 0
-            n_row += 1
-        print(f"collected data for section at: {section} mm")
+        static_ax[s].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
+        static_ax[s].axis('off')
     if plotting_params["save_fig"]:
         mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
     return mpl_widget
+
+
+# def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, brain_section_widget, save_path):
+#
+#     orient_mapping = get_orient_map(atlas, plotting_params)
+#     color_dict = create_color_dict(input_path, animal_list, data_dict, plotting_params)
+#     section_list = plotting_params["section_list"]  # in mm AP coordinates for coronal sections
+#     n_rows, n_cols = get_rows_cols(section_list)
+#     figsize = [int(i) for i in brain_section_widget.plot_size.value.split(',')]
+#     mpl_widget = FigureCanvas(Figure(figsize=figsize))
+#     static_ax = mpl_widget.figure.subplots(n_rows, n_cols)
+#     if len(section_list) == 1:
+#         static_ax = np.array([static_ax])
+#     static_ax = static_ax.ravel()
+#     section_range = plotting_params["section_range"]
+#     bregma = get_bregma(atlas.atlas_name)
+#
+#
+#     for s, section in enumerate(section_list):
+#
+#         plot_dict = {}
+#         target_z = [section + section_range, section - section_range]
+#         target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
+#                     for target in target_z]
+#         slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
+#         if plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
+#             pass  # don't get brain section to plot if brain areas are colored according to clusters
+#         else:
+#             annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1], plotting_params)
+#         for item in data_dict:
+#             plot_dict[item] = data_dict[item][(data_dict[item][orient_mapping['z_plot'][0]] >= target_z[0])
+#                                               & (data_dict[item][orient_mapping['z_plot'][0]] <= target_z[1])]
+#             if item == 'genes' and plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
+#                 # calculate colors according to number of cluster_ids in brain regions
+#                 if plotting_params['color_brain_genes'] == 'brain_areas':
+#                     gene_color = brain_region_color_genes(plot_dict[item], color_dict[item]['cmap'], atlas,
+#                                                           plotting_params['plot_gene'])
+#                     annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+#                                                                                      orient_mapping['z_plot'][1],
+#                                                                                      plotting_params, gene_color=gene_color)
+#                 else:
+#                     voronoi = get_voronoi_mask(plot_dict[item], color_dict[item]['cmap'], atlas, plotting_params,
+#                                                     orient_mapping)
+#                     annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx,
+#                                                                                      orient_mapping['z_plot'][1],
+#                                                                                      plotting_params,
+#                                                                                      voronoi=voronoi)
+#
+#             if plotting_params['unilateral'] in ['left', 'right'] and orient_mapping['z_plot'][1] < 2:
+#                 if plotting_params['unilateral'] == 'left':
+#                     # delete values on other hemisphere if still in dataset
+#                     plot_dict[item] = plot_dict[item][plot_dict[item]['ml_coords'] > bregma[atlas.space.axes_description.index('rl')]]
+#                     # adjust ml_coords
+#                     plot_dict[item].loc[:,'ml_coords'] -= bregma[atlas.space.axes_description.index('rl')]
+#                 else:
+#                     # delete values on other hemisphere if still in dataset
+#                     plot_dict[item] = plot_dict[item][
+#                         plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
+#                 plot_dict[item] = plot_dict[item].reset_index(drop=True)
+#
+#
+#         cnt = 0
+#         if not plot_dict:
+#             plot_dict = {'dummy'}  # plot only contours
+#             print("no plotting item selected, plotting only contours of brain section")
+#
+#         for item in plot_dict:
+#             if cnt < 1:
+#                 static_ax[s].imshow(annot_section_plt)
+#                 if annot_section_contours.any():
+#                     static_ax[s].imshow(annot_section_contours)
+#                 # if orient_mapping['z_plot'][1] == 0:
+#                 #     static_ax[s].contour(annot[slice_idx, :, :],
+#                 #                                     levels=np.unique(annot[slice_idx, :, :]),
+#                 #                                     colors=['gainsboro'],
+#                 #                                     linewidths=0.2)
+#                 # elif orient_mapping['z_plot'][1] == 1:
+#                 #     static_ax[s].contour(annot[:, slice_idx, :],
+#                 #                                     levels=np.unique(annot[:, slice_idx, :]),
+#                 #                                     colors=['gainsboro'],
+#                 #                                     linewidths=0.2)
+#                 # else:
+#                 #     static_ax[s].contour(annot[:, :, slice_idx],
+#                 #                                     levels=np.unique(annot[:, :, slice_idx]),
+#                 #                                     colors=['gainsboro'],
+#                 #                                     linewidths=0.2)
+#
+#             if item == 'cells':
+#                 if plotting_params['color_cells_atlas']:
+#                     palette = {}
+#                     for s in plot_dict[item].structure_id.unique():
+#                         palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+#
+#                     sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'],
+#                                     y=orient_mapping['y_plot'], data=plot_dict[item],
+#                                     hue='structure_id', palette=palette,
+#                                     s=plotting_params["dot_size"], legend=False)
+#                 else:
+#                     if color_dict[item]['single_color']:
+#                             sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#                                             color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#                     else:
+#                             sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#                                             hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#
+#             elif item == 'projections':
+#                 if plot_dict[item].empty:
+#                     pass
+#                 else:
+#                     if plotting_params['smooth_proj']:
+#                         sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'],
+#                                     y=orient_mapping['y_plot'],
+#                                     cmap=color_dict[item]["cmap"],
+#                                     thresh=plotting_params['smooth_thresh'], fill=True)
+#                     else:
+#                         sns.histplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#                                  cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
+#                                  vmax=plotting_params['vmax'])
+#
+#             elif item == 'injection_site':
+#                 if color_dict[item]['single_color']:
+#                     sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+#                                 color=color_dict[item]["cmap"])
+#                 else:
+#                     sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+#                                 hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+#             elif item in ['optic_fiber', 'neuropixels_probe']:
+#                 if color_dict[item]["single_color"]:
+#                     # sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#                     #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#                     sns.regplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#                                 data=plot_dict[item],
+#                                 line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
+#                                 scatter=None, ci=None)
+#                 else:
+#                     # sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#                     #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#
+#                     for c in plot_dict[item]['channel'].unique():
+#                         sns.regplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#                                     data=plot_dict[item][plot_dict[item]['channel'] == c],
+#                                     line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
+#                                     scatter=None, ci=None)
+#             elif item == 'genes':
+#                 if plotting_params['color_cells_atlas']:
+#                     palette = {}
+#                     for s in plot_dict[item].structure_id.unique():
+#                         palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+#
+#                     sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'],
+#                                     y=orient_mapping['y_plot'], data=plot_dict[item],
+#                                     hue='structure_id', palette=palette,
+#                                     s=plotting_params["dot_size"], legend=False)
+#                 else:
+#                     if plotting_params["plot_gene"] == 'clusters':
+#                         if color_dict[item]["single_color"]:
+#                                 sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#                                                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#                         else:
+#                                 sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#                                                 hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#                                                # edgecolors='lightgray')
+#                     else:
+#                         # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#                         #                 data=plot_dict[item],
+#                         #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+#                         #                 s=plotting_params["dot_size"])
+#                         static_ax[s].scatter(plot_dict[item][orient_mapping['x_plot']],
+#                                     plot_dict[item][orient_mapping['y_plot']],
+#                                     c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+#                                           vmin=0, vmax=1, s=plotting_params["dot_size"])
+#                         static_ax[s].collections[0].set_clim(0, 1)
+#
+#
+#             static_ax[s].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
+#             static_ax[s].axis('off')
+#
+#         #     elif len(section_list) == 2:
+#         #         if cnt < 1:
+#         #             static_ax[n_col].imshow(annot_section_plt)
+#         #             if annot_section_contours.any():
+#         #                 static_ax[n_col].imshow(annot_section_contours)
+#         #             # if orient_mapping['z_plot'][1] == 0:
+#         #             #     static_ax[n_col].contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
+#         #             #                              colors=['gainsboro'],
+#         #             #                              linewidths=0.2)
+#         #             # elif orient_mapping['z_plot'][1] == 1:
+#         #             #     static_ax[n_col].contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
+#         #             #                              colors=['gainsboro'],
+#         #             #                              linewidths=0.2)
+#         #             # else:
+#         #             #     static_ax[n_col].contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
+#         #             #                              colors=['gainsboro'],
+#         #             #                              linewidths=0.2)
+#         #
+#         #
+#         #         if item == 'cells':
+#         #             if plotting_params['color_cells_atlas']:
+#         #                 palette = {}
+#         #                 for s in plot_dict[item].structure_id.unique():
+#         #                     palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+#         #
+#         #                 sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'],
+#         #                                 y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                 hue='structure_id', palette=palette,
+#         #                                 s=plotting_params["dot_size"], legend=False)
+#         #             else:
+#         #                 if color_dict[item]["single_color"]:
+#         #                         sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+#         #                                         color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                 else:
+#         #                         sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict['cells'],
+#         #                                         hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #
+#         #         elif item == 'projections':
+#         #             if plot_dict[item].empty:
+#         #                 pass
+#         #             else:
+#         #                 if plotting_params['smooth_proj']:
+#         #                     sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
+#         #                                 y=orient_mapping['y_plot'],
+#         #                                 cmap=color_dict[item]["cmap"],
+#         #                                 thresh=plotting_params['smooth_thresh'], fill=True)
+#         #                 else:
+#         #                     sns.histplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'],
+#         #                                  y=orient_mapping['y_plot'], cmap=color_dict[item]["cmap"],
+#         #                                  binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
+#         #                                  vmax=plotting_params['vmax'])
+#         #
+#         #         elif item == 'injection_site':
+#         #             if color_dict[item]['single_color']:
+#         #                 sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+#         #                             color=color_dict[item]["cmap"])
+#         #             else:
+#         #                 sns.kdeplot(ax=static_ax[n_col], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+#         #                             hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+#         #         elif item in ['optic_fiber', 'neuropixels_probe']:
+#         #             if color_dict[item]["single_color"]:
+#         #                 # sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                 #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                 sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                             data=plot_dict[item],
+#         #                             line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
+#         #                             scatter=None, ci=None)
+#         #             else:
+#         #                 # sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                 #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #
+#         #                 for c in plot_dict[item]['channel'].unique():
+#         #                     sns.regplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                                 data=plot_dict[item][plot_dict[item]['channel'] == c],
+#         #                                 line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
+#         #                                 scatter=None, ci=None)
+#         #         elif item == 'genes':
+#         #             if plotting_params['color_cells_atlas']:
+#         #                 palette = {}
+#         #                 for s in plot_dict[item].structure_id.unique():
+#         #                     palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+#         #
+#         #                 sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'],
+#         #                                 y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                 hue='structure_id', palette=palette,
+#         #                                 s=plotting_params["dot_size"], legend=False)
+#         #             else:
+#         #                 if plotting_params["plot_gene"] == 'clusters':
+#         #                     if color_dict[item]["single_color"]:
+#         #                             sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                             color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                     else:
+#         #                             sns.scatterplot(ax=static_ax[n_col], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                             hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                                            # edgecolors='lightgray')
+#         #                 else:
+#         #                     # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                     #                 data=plot_dict[item],
+#         #                     #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+#         #                     #                 s=plotting_params["dot_size"])
+#         #                     static_ax[n_col].scatter(plot_dict[item][orient_mapping['x_plot']],
+#         #                                 plot_dict[item][orient_mapping['y_plot']],
+#         #                                 c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+#         #                                       vmin=0, vmax=1, s=plotting_params["dot_size"])
+#         #                     static_ax[n_col].collections[0].set_clim(0, 1)
+#         #
+#         #
+#         #         static_ax[n_col].title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
+#         #         static_ax[n_col].axis('off')
+#         #     else:
+#         #         if cnt < 1:
+#         #             static_ax.imshow(annot_section_plt)
+#         #             if annot_section_contours.any():
+#         #                 static_ax.imshow(annot_section_contours)
+#         #             # if orient_mapping['z_plot'][1] == 0:
+#         #             #     static_ax.contour(annot[slice_idx, :, :], levels=np.unique(annot[slice_idx, :, :]),
+#         #             #                       colors=['gainsboro'],
+#         #             #                       linewidths=0.2)
+#         #             # elif orient_mapping['z_plot'][1] == 1:
+#         #             #     static_ax.contour(annot[:, slice_idx, :], levels=np.unique(annot[:, slice_idx, :]),
+#         #             #                       colors=['gainsboro'],
+#         #             #                       linewidths=0.2)
+#         #             # else:
+#         #             #     static_ax.contour(annot[:, :, slice_idx], levels=np.unique(annot[:, :, slice_idx]),
+#         #             #                       colors=['gainsboro'],
+#         #             #                       linewidths=0.2)
+#         #
+#         #         if item == 'cells':
+#         #             if plotting_params['color_cells_atlas']:
+#         #                 palette = {}
+#         #                 for s in plot_dict[item].structure_id.unique():
+#         #                     palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+#         #
+#         #                 sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'],
+#         #                                 y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                 hue='structure_id', palette=palette,
+#         #                                 s=plotting_params["dot_size"], legend=False)
+#         #             else:
+#         #                 if color_dict[item]["single_color"]:
+#         #                         sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                         color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                 else:
+#         #                         sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                         hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #
+#         #         elif item == 'projections':
+#         #             if plot_dict[item].empty:
+#         #                 pass
+#         #             else:
+#         #                 if plotting_params['smooth_proj']:
+#         #                     sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'],
+#         #                                 y=orient_mapping['y_plot'],
+#         #                                 cmap=color_dict[item]["cmap"],
+#         #                                 thresh=plotting_params['smooth_thresh'], fill=True)
+#         #                 else:
+#         #                     sns.histplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                              cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'],
+#         #                              vmax=plotting_params['vmax'], vmin=plotting_params['vmin'])
+#         #
+#         #         elif item == 'injection_site':
+#         #             if color_dict[item]['single_color']:
+#         #                 sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+#         #                             color=color_dict[item]["cmap"])
+#         #             else:
+#         #                 sns.kdeplot(ax=static_ax, data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], fill=True,
+#         #                             hue=plotting_params["groups"], palette=color_dict[item]["cmap"])
+#         #
+#         #         elif item in ['optic_fiber', 'neuropixels_probe']:
+#         #             if color_dict[item]["single_color"]:
+#         #                 # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                 #                 color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                 sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                             data=plot_dict[item],
+#         #                             line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"]),
+#         #                             scatter=None, ci=None)
+#         #             else:
+#         #                 # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                 #                 hue='channel', palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #
+#         #                 for c in plot_dict[item]['channel'].unique():
+#         #                     sns.regplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                                 data=plot_dict[item][plot_dict[item]['channel'] == c],
+#         #                                 line_kws=dict(alpha=0.7, color=color_dict[item]["cmap"][c]),
+#         #                                 scatter=None, ci=None)
+#         #         elif item == 'genes':
+#         #             if plotting_params['color_cells_atlas']:
+#         #                 palette = {}
+#         #                 for s in plot_dict[item].structure_id.unique():
+#         #                     palette[s] = tuple([c / 255 for c in atlas.structures[s]['rgb_triplet']])
+#         #
+#         #                 sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'],
+#         #                                 y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                 hue='structure_id', palette=palette,
+#         #                                 s=plotting_params["dot_size"], legend=False)
+#         #             else:
+#         #                 if plotting_params["plot_gene"] == 'clusters':
+#         #                     if color_dict[item]["single_color"]:
+#         #                             sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                             color=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                     else:
+#         #                             sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
+#         #                                             hue="cluster_id", palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+#         #                                            # edgecolors='lightgray')
+#         #                 else:
+#         #                     # sns.scatterplot(ax=static_ax, x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+#         #                     #                 data=plot_dict[item],
+#         #                     #                 hue="gene_expression_norm", palette=color_dict[item]["cmap"],
+#         #                     #                 s=plotting_params["dot_size"])
+#         #                     static_ax.scatter(plot_dict[item][orient_mapping['x_plot']],
+#         #                                 plot_dict[item][orient_mapping['y_plot']],
+#         #                                 c=plot_dict[item]['gene_expression_norm'], cmap=color_dict[item]["cmap"],
+#         #                                       vmin=0, vmax=1, s=plotting_params["dot_size"])
+#         #                     static_ax.collections[0].set_clim(0, 1)
+#         #         static_ax.title.set_text('bregma - ' + str(round((-(slice_idx - bregma[orient_mapping['z_plot'][1]]) * orient_mapping['z_plot'][2]), 1)) + ' mm')
+#         #         static_ax.axis('off')
+#         #
+#         #     cnt += 1
+#         # if n_col < n_cols-1:
+#         #     n_col += 1
+#         # else:
+#         #     n_col = 0
+#         #     n_row += 1
+#         print(f"collected data for section at: {section} mm")
+#     if plotting_params["save_fig"]:
+#         mpl_widget.figure.savefig(save_path.joinpath(plotting_params["save_name"]))
+#     return mpl_widget
 
 
 # todo started with some stuff to merge line of brain section plot, but removing elements doesn't work..plus the child function is making things quite big, so prob just appending the g_element
