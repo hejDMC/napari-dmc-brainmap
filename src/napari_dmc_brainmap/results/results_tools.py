@@ -237,3 +237,16 @@ def transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_i
         section_data['cluster_id'] = segment_data['cluster_id']
         section_data['spot_id'] = segment_data['spot_id']
     return section_data
+
+def export_results_to_brainrender(df, atlas):
+    orient_dict = {
+        'ap': 'ap_coords',
+        'rl': 'ml_coords',
+        'si': 'dv_coords'
+    }
+    atlas_ax = atlas.space.axes_description
+    X, Y, Z = df[orient_dict[atlas_ax[0]]].to_numpy(), df[orient_dict[atlas_ax[1]]].to_numpy(), df[orient_dict[atlas_ax[2]]].to_numpy()
+    pts=[[x*atlas.resolution[0], y*atlas.resolution[1], z*atlas.resolution[2]] for x, y, z in zip(X, Y, Z)]
+    return np.vstack(pts)
+
+

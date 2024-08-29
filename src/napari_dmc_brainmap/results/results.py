@@ -5,6 +5,7 @@ from superqt import QCollapsible
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
+import numpy as np
 import pandas as pd
 
 from natsort import natsorted
@@ -20,7 +21,7 @@ import seaborn as sns
 from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df, load_params, \
     create_regi_dict, split_to_list
 from napari_dmc_brainmap.visualization.visualization_tools import load_data
-from napari_dmc_brainmap.results.results_tools import sliceHandle, transform_points_to_regi
+from napari_dmc_brainmap.results.results_tools import sliceHandle, transform_points_to_regi, export_results_to_brainrender
 from napari_dmc_brainmap.results.tract_calculation import load_probe_data, get_linefit3d, get_probe_tract
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from bg_atlasapi import BrainGlobeAtlas
@@ -84,7 +85,7 @@ def calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert):
     print("DONE!")
 
 @thread_worker
-def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict, include_all, probe_insert):
+def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict, include_all, export, probe_insert):
 
 
     animal_id = get_animal_id(input_path)
@@ -120,8 +121,13 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
                         data = pd.concat((data, section_data))
                 except KeyError: # something wrong with registration data
                     print("Registration data for {} is not complete, skip.".format(im))
-            fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
+            fn = results_dir.joinpath(f'{animal_id}_{seg_type}.csv')
             data.to_csv(fn)
+            if export and seg_type == 'cells':
+                bg_data = export_results_to_brainrender(data, s.atlas)
+                bg_fn = results_dir.joinpath(f'{animal_id}_{seg_type}.npy')
+                np.save(bg_fn, bg_data)
+                print(f"exported data to brainrender format in {str(bg_fn)}")
             print("done! data saved to: " + str(fn))
         else:
             print("No segmentation images found in " + str(segment_dir))
@@ -245,6 +251,10 @@ def initialize_results_widget() -> FunctionGui:
                             label='include segmented objects outside of brain?',
                             value=False,
                             tooltip='tick to include segmented objects that are outside of the brain'),
+              export=dict(widget_type='CheckBox', label='export to brainrender', value=False,
+                          tooltip='export data to .npy formatted to be loaded into brainrender software '
+                                  '(https://brainglobe.info/documentation/brainrender/). Currently, only implemented '
+                                  'for cells.'),
               call_button=False)
 
     def results_widget(
@@ -254,7 +264,8 @@ def initialize_results_widget() -> FunctionGui:
             seg_type,
             probe_insert,
             channels,
-            include_all):
+            include_all,
+            export):
         pass
     return results_widget
 
@@ -406,11 +417,12 @@ class ResultsWidget(QWidget):
         channels = self.results.channels.value
         params_dict = load_params(input_path)
         include_all = self.results.include_all.value
+        export = self.results.export.value
         probe_insert = split_to_list(self.results.probe_insert.value, out_format='int')
         if not probe_insert:
             probe_insert = []
         worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict,
-                                                  include_all, probe_insert)
+                                                  include_all, export, probe_insert)
         worker_results_file.start()
 
 
