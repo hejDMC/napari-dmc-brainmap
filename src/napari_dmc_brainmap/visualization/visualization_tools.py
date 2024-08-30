@@ -5,11 +5,12 @@ from pathlib import Path
 import random
 from skimage import measure
 from scipy.spatial.distance import cdist
+from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from natsort import natsorted
-from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma, get_xyz
+from napari_dmc_brainmap.utils import get_info, clean_results_df, get_bregma, get_xyz, find_key_by_value
 
 
 def get_ipsi_contra(df):
@@ -19,7 +20,6 @@ def get_ipsi_contra(df):
     :param df: dataframe with results for animal, not the merged across animals
     :return:
     '''
-
     df['ipsi_contra'] = ['ipsi'] * len(df)  # add a column defaulting to 'ipsi'
     # change values to contra with respect to the location of the injection site
     if df['injection_site'][0] == 'left':
@@ -248,6 +248,13 @@ def brain_region_color_genes(df, cmap, atlas, plot_type):
         brain_region_colors = count_clusters.loc[count_clusters.groupby('acronym')['count'].idxmax()]
         brain_region_colors['brain_areas_color'] = brain_region_colors['cluster_id'].map(cmap)
         # brain_region_colors = create_color_ids(brain_region_colors)
+    elif plot_type == 'density':
+        brain_region_colors = df.copy()
+
+        brain_region_colors['structure_id'] = [atlas.structures.acronym_to_id_map[a] for a in brain_region_colors['acronym']]
+        curr_cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', ['white', cmap])
+        brain_region_colors['brain_areas_color'] = [curr_cmap(g) for g in brain_region_colors['density']]
+
     else:
         # calculate average expression levels of genes by brain region
         brain_region_colors = df.groupby('acronym')['gene_expression_norm'].mean().reset_index()
@@ -271,11 +278,16 @@ def brain_region_color_genes(df, cmap, atlas, plot_type):
     brain_areas = brain_region_colors.acronym.to_list()
     brain_areas_colors = brain_region_colors.brain_areas_color.to_list()
     brain_areas_transparency = [255] * len(brain_areas)
-    return [brain_areas, brain_areas_colors, brain_areas_transparency]
+    if plot_type == 'density':
+        brain_areas_hemisphere = brain_region_colors.left_right.to_list()
+        return [brain_areas, brain_areas_colors, brain_areas_transparency, brain_areas_hemisphere]
+    else:
+        return [brain_areas, brain_areas_colors, brain_areas_transparency]
 
 
 
-def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_color=False, transparent=True, voronoi=False):
+def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_color=False, transparent=True,
+                         voronoi=False, density=False):
     """
     # todo orientation for plot
     Function to plot brain schematics as colored plots
@@ -321,27 +333,29 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
     else:
         annot_section_contours = np.array(False)
 
-    annot_section[annot_section > 0] = 1  # set all brain areas to 1
-    # get indices for brain outline
-    contours = measure.find_contours(annot_section, level=0.5)
-    brain_outline_idx = []
-    for contour in contours:
-        brain_outline_idx.append(contour.astype(int))
     if gene_color or voronoi:
         cmap_brain = ['white', 'white', 'lightgray',
                       'white']  # colormap for the brain outline (white: empty space,
-        # linen=brain, lightgray=root, lightcyan=ventricles)
+        # white=brain, lightgray=root, white=ventricles)
+    elif density:
+        cmap_brain = ['white', 'whitesmoke', 'lightgray',
+                      'lightcyan']  # colormap for the brain outline (white: empty space,
+        # white=brain, lightgray=root, white=ventricles)
     else:
          cmap_brain = ['white', 'linen', 'lightgray',
                   'lightcyan']  # colormap for the brain outline (white: empty space,
                                 # linen=brain, lightgray=root, lightcyan=ventricles)
 
-    if plotting_params['brain_areas']:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
+    if plotting_params['brain_areas'] and not density:  # if target region list exists, check if len of tgt regions and colors and transparencies is same
         brain_areas, brain_areas_color, brain_areas_transparency = brain_region_color(plotting_params, atlas)
         # add colors list of brain regions to cmap for plotting
         cmap_brain += brain_areas_color
     elif gene_color:
         brain_areas, brain_areas_color, brain_areas_transparency = gene_color
+        cmap_brain += brain_areas_color
+    elif density:
+        brain_areas, brain_areas_color, brain_areas_transparency, brain_areas_hemisphere = density
+        brain_areas_hemisphere = [-1, -1] + brain_areas_hemisphere
         cmap_brain += brain_areas_color
     else:
         brain_areas = False
@@ -356,17 +370,55 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
         tgt_list = ['fiber tracts', 'VS'] + brain_areas
     else:
         tgt_list = ['fiber tracts', 'VS']
-
     if transparent:
         cmap_brain[0][-1] = 0  # set alpha on white pixels transparent
-    for n, tgt in enumerate(tgt_list):
-        if orient_idx == 0:
-            tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
-        elif orient_idx == 1:
-            tgt_mask = atlas.get_structure_mask(tgt)[:, slice_idx, :]
-        else:
-            tgt_mask = atlas.get_structure_mask(tgt)[:, :, slice_idx]
-        annot_section[tgt_mask > 0] = n + 2  # for setting color, 0 = background, 1 = non target brain, 2 = fibers, 3 = ventricles, >3 tgt structures
+
+    section_areas = [find_key_by_value(atlas.structures.acronym_to_id_map, i) for i in np.unique(annot_section)]
+
+    annot_section[annot_section > 0] = 1  # set all brain areas to 1
+    # get indices for brain outline
+    contours = measure.find_contours(annot_section, level=0.5)
+    brain_outline_idx = []
+    for contour in contours:
+        brain_outline_idx.append(contour.astype(int))
+
+    # todo add border to region
+    if density:
+        bregma = get_bregma(atlas.atlas_name)
+        l_r_idx = bregma[atlas.space.axes_description.index('rl')]
+
+        for n, (tgt, l_r) in enumerate(zip(tgt_list, brain_areas_hemisphere)):
+            if tgt in section_areas:
+                if orient_idx == 0:
+                    tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
+                elif orient_idx == 1:
+                    tgt_mask = atlas.get_structure_mask(tgt)[:, slice_idx, :]
+                else:
+                    tgt_mask = atlas.get_structure_mask(tgt)[:, :, slice_idx]
+                if l_r >= 0:
+                    if orient_idx < 2:
+                        if l_r > 0:
+                            tgt_mask[:, :l_r_idx] = 0
+                        else:
+                            tgt_mask[:, l_r_idx:] = 0
+                    else:
+                        if (l_r > 0 and slice_idx < l_r_idx) or (l_r == 0 and slice_idx >= l_r_idx):
+                            pass
+                        else:
+                            tgt_mask = None
+                if tgt_mask is not None:
+                    annot_section[tgt_mask > 0] = n + 2
+
+    else:
+        for n, tgt in enumerate(tgt_list):
+            if tgt in section_areas:
+                if orient_idx == 0:
+                    tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
+                elif orient_idx == 1:
+                    tgt_mask = atlas.get_structure_mask(tgt)[:, slice_idx, :]
+                else:
+                    tgt_mask = atlas.get_structure_mask(tgt)[:, :, slice_idx]
+                annot_section[tgt_mask > 0] = n + 2  # for setting color, 0 = background, 1 = non target brain, 2 = fibers, 3 = ventricles, >3 tgt structures
     if voronoi:
         voronoi[0][annot_section == 0] = 0
         voronoi[0][annot_section == 2] = 2
@@ -377,76 +429,7 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
 
     annot_section[brain_outline_idx[0][:, 0], brain_outline_idx[0][:, 1]] = n + 3
     cmap_brain = np.append(cmap_brain, np.array([[int(x * 255) for x in mcolors.to_rgba('black')]]), axis=0)
-    #
-    #
-    #
-    #
-    # # get the idx for fibre structures (gray) and ventricles)
-    # gray_idx = []
-    # fiber_tracts_childs = atlas.get_structure_descendants('fiber tracts')
-    # fiber_tracts_ids = [st[i]['id'] for i in fiber_tracts_childs]
-    #
-    # ventr_idx = []
-    # ventr_tracts_childs = atlas.get_structure_descendants('VS')
-    # ventr_tracts_ids = [st[i]['id'] for i in ventr_tracts_childs]
-    #
-    #
-    # ventr_tracts_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
-    # for item in np.unique(annot_section):
-    #     if (item > 0) & (item != 1):  # todo changed 997 to 1 here
-    #         if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(fiber_tracts_path):
-    #             gray_idx.append(item)
-    #         elif st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(ventr_tracts_path):
-    #             ventr_idx.append(item)
-    #
-    # # get indices for tgt_area as well, iterative stuff is likely quite slow...
-    # if target_region_list:
-    #     tgt_idx_list = {}
-    #     for idx, target_region in enumerate(target_region_list):
-    #         tgt_idx = []
-    #         tgt_path = st[st['name'] == target_region]['structure_id_path'].iloc[0]
-    #         for item in np.unique(annot_section):
-    #             if (item > 0) & (item != 1):
-    #                 if st[st['sphinx_id'] == item]['structure_id_path'].iloc[0].startswith(tgt_path):
-    #                     tgt_idx.append(item)
-    #         tgt_idx_list[idx] = tgt_idx
-    #     dummy_list = []  # dummy list of all target idx for loop below
-    #     for i in tgt_idx_list:
-    #         dummy_list += tgt_idx_list[i]
-    #     # change values in annot slice accordingly
-    #     # 0 (= nothing there) stays 0
-    #     for idx_r, row in enumerate(annot_section):  # todo: there must be a better option than this loop...
-    #         for idx_c, col in enumerate(row):
-    #             # brain stuff set to 1
-    #             if (col != 0) & (col not in gray_idx) & (col not in ventr_idx) & (col not in dummy_list):
-    #                 annot_section[idx_r, idx_c] = 1
-    #             # fibres to 2
-    #             elif col in gray_idx:
-    #                 annot_section[idx_r, idx_c] = 2
-    #             # ventricles to 3
-    #             elif col in ventr_idx:
-    #                 annot_section[idx_r, idx_c] = 3
-    #             # set target values to increasing values accordingly
-    #             elif col in dummy_list:
-    #                 for tgt in tgt_idx_list:
-    #                     if col in tgt_idx_list[tgt]:
-    #                         annot_section[idx_r, idx_c] = tgt + 4
-    # else:
-    #     # change values in annot slice accordingly
-    #     # 0 (= nothing there) stays 0
-    #     for idx_r, row in enumerate(annot_section):  # todo: there must be a better option than this loop...
-    #         for idx_c, col in enumerate(row):
-    #             # brain stuff set to 1
-    #             if (col != 0) & (col not in gray_idx) & (col not in ventr_idx):
-    #                 annot_section[idx_r, idx_c] = 1
-    #             # fibres to 2
-    #             elif col in gray_idx:
-    #                 annot_section[idx_r, idx_c] = 2
-    #             # ventricles to 3
-    #             elif col in ventr_idx:
-    #                 annot_section[idx_r, idx_c] = 3
 
-    # transfer to RGB values and return annot_section
     annot_section_plt = cmap_brain[annot_section]
     unilateral = plotting_params['unilateral']
     if unilateral in ['left', 'right'] and orient_idx < 2:
@@ -573,3 +556,32 @@ def create_color_ids(df):
 #         return False
 #     else:
 #         return len(tgt_layer_list) == 1
+
+def calculate_density(df, color_dict, atlas, plotting_params):
+
+    # get left/right mapping
+    df['left_right'] = 'left'
+    df.loc[df['ml_mm'] < 0, 'left_right'] = 'right'
+    num_cells = len(df)
+    df = df.pivot_table(index='acronym', columns=['left_right'],
+                                        aggfunc='count').fillna(0)['ap_coords']
+    df /= num_cells  # fraction of cells in each area
+    scaler = MinMaxScaler(feature_range=(0.2, 0.7))
+    df_scaled = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
+    df_scaled['acronym'] = df.index.to_list()
+    df_scaled = pd.melt(df_scaled, id_vars=['acronym'], var_name='left_right', value_name='density')
+    df_scaled['left_right'] = df_scaled['left_right'].map({'left': 1, 'right': 0})
+    drop_list = ['root']
+    drop_list += get_descendants(['VS'], atlas)
+    drop_list += get_descendants(['fiber tracts'], atlas)
+    df_scaled = df_scaled[~df_scaled['acronym'].isin(drop_list)]
+    if plotting_params['brain_areas']:
+        keep_list = get_descendants(plotting_params['brain_areas'], atlas)
+        df_scaled = df_scaled[df_scaled['acronym'].isin(keep_list)]
+    # get cmap for density
+    if color_dict['single_color']:
+        clr = color_dict['cmap']
+    else:
+        clr = color_dict['cmap'][0]
+    density = brain_region_color_genes(df_scaled, clr, atlas, plot_type='density')
+    return density

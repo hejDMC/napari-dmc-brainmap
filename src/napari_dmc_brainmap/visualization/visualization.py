@@ -438,10 +438,11 @@ def initialize_brainsection_widget() -> FunctionGui:
                                   value='coronal',
                                   tooltip="select the orientation for plotting"),
               hemisphere=dict(widget_type='ComboBox',
-                              label='hemisphere',
+                              label='data from hemisphere',
                               choices=['ipsi', 'contra', 'both'],
                               value='both',
-                              tooltip="select hemisphere to visualize (relative to injection site)"),
+                              tooltip='visualize data from both hemispheres, or only one hemisphere '
+                                      '(relative to injection site specified in params.json file)'),
               unilateral=dict(widget_type='ComboBox',
                               label='plotting hemisphere',
                               choices=['both', 'left', 'right'],
@@ -456,13 +457,21 @@ def initialize_brainsection_widget() -> FunctionGui:
                                      label='brain area colors',
                                      tooltip='enter the COMMA SEPERATED list of colors for brain areas '
                                     '(no white spaces: red,blue,yellow)\n'
-                                             'if you want to color the brain sections in colored according to the '
-                                             'reference atlas type *ATLAS* (without the *). You can still adjust '
+                                             'If you want to color the brain sections according to the '
+                                             'reference atlas type *ATLAS* (without the *). \n You can still adjust '
                                              'transparency values.'),
               brain_areas_transparency=dict(widget_type='LineEdit', 
                                             label='brain area transparency',
                                             tooltip='enter the COMMA SEPERATED transparency values for colors for brain areas '
                                     ' in 8-bit range (max 255, min 0; no white spaces: 100,42,255)'),
+              color_brain_density=dict(widget_type='CheckBox',
+                            label='color brain areas according to cell/projection density?',
+                            value=False,
+                            tooltip='Tick option to color brain areas according to density of cells/projections'
+                                    '(relative to complete dataset). If both projections and cells are plotted, the '
+                                    'first item ticked is choosen. It is currently not possible to use this option when'
+                                    ' using the option for seperate plotting by channel/group/genotype/animal. '
+                                    '\nThe colormap is chosen based on color used for plotting cells/projections.'),
               plot_size=dict(widget_type='LineEdit', 
                              label='enter plot size',
                              value='8,6', 
@@ -592,6 +601,7 @@ def initialize_brainsection_widget() -> FunctionGui:
         brain_areas,
         brain_areas_color,
         brain_areas_transparency,
+        color_brain_density,
         plot_size,
         dot_size,
         section_list,

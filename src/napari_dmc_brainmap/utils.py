@@ -433,3 +433,6 @@ def get_threshold_dropdown():
         func_dict.setdefault(f,f)
     func_keys = Enum("func_key", func_dict)
     return func_keys
+
+def find_key_by_value(d, target_value):
+    return next((key for key, value in d.items() if value == target_value), None)

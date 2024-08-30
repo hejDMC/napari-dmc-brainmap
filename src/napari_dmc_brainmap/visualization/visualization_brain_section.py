@@ -16,7 +16,7 @@ mpl.rcParams['svg.fonttype'] = 'none'
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
 from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap, \
-    brain_region_color_genes, get_voronoi_mask
+    brain_region_color_genes, get_voronoi_mask, calculate_density
 
 
 def get_brain_section_params(brainsec_widget):
@@ -29,6 +29,7 @@ def get_brain_section_params(brainsec_widget):
         "brain_areas": split_to_list(brainsec_widget.brain_areas.value),
         "brain_areas_color": split_to_list(brainsec_widget.brain_areas_color.value),
         "brain_areas_transparency": split_to_list(brainsec_widget.brain_areas_transparency.value, out_format='int'),
+        "color_brain_density": brainsec_widget.color_brain_density.value,
         "section_list": split_to_list(brainsec_widget.section_list.value, out_format='float'),
         "section_range": float(brainsec_widget.section_range.value),
         "groups": brainsec_widget.groups.value,
@@ -132,7 +133,8 @@ def get_orient_map(atlas, plotting_params):
     }
     return orient_mapping
 
-def plot_section(data_dict, color_dict, atlas, plotting_params, orient_mapping, bregma, section, section_range):
+def plot_section(data_dict, color_dict, atlas, plotting_params, orient_mapping, bregma, section, section_range,
+                 density):
     plot_dict = {}
     target_z = [section + section_range, section - section_range]
     target_z = [int(-(target / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
@@ -140,6 +142,9 @@ def plot_section(data_dict, color_dict, atlas, plotting_params, orient_mapping, 
     slice_idx = int(-(section / orient_mapping['z_plot'][2] - bregma[orient_mapping['z_plot'][1]]))
     if plotting_params['color_brain_genes'] in ['brain_areas', 'voronoi']:
         pass  # don't get brain section to plot if brain areas are colored according to clusters
+    elif plotting_params['area_density']:
+        annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1],
+                                                                         plotting_params, density=density)
     else:
         annot_section_plt, annot_section_contours = plot_brain_schematic(atlas, slice_idx, orient_mapping['z_plot'][1],
                                                                          plotting_params)
@@ -174,7 +179,7 @@ def plot_section(data_dict, color_dict, atlas, plotting_params, orient_mapping, 
                 plot_dict[item] = plot_dict[item][
                     plot_dict[item]['ml_coords'] < bregma[atlas.space.axes_description.index('rl')]]
             plot_dict[item] = plot_dict[item].reset_index(drop=True)
-
+        print(f"collected data for section at: {section} mm", flush=True)
     return (annot_section_plt, annot_section_contours, plot_dict, slice_idx)
 
 
@@ -192,13 +197,25 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
     static_ax = static_ax.ravel()
     section_range = plotting_params["section_range"]
     bregma = get_bregma(atlas.atlas_name)
+    if plotting_params['color_brain_density']:
+        if any([c in data_dict.keys() for c in ['cells', 'projections']]):
+            plotting_params['area_density'] = [i for i in data_dict.keys() if i in ['cells', 'projections']][0]
+            print(f"color brain areas according to {plotting_params['area_density']}")
+            density = calculate_density(data_dict[plotting_params['area_density']],
+                                        color_dict[plotting_params['area_density']], atlas, plotting_params)
+
+        else:
+            plotting_params['area_density'] = False
+            density = False
+    else:
+        plotting_params['area_density'] = False
+        density=False
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = []
         for section in section_list:
             futures.append(executor.submit(plot_section, data_dict, color_dict, atlas, plotting_params, orient_mapping,
-                                           bregma, section, section_range))
-            print(f"collecting data for section at: {section} mm")
+                                           bregma, section, section_range, density))
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     print('...done')
     cnt = 0
