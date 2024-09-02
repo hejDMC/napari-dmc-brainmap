@@ -760,6 +760,5 @@ class VisualizationWidget(QWidget):
         time_start = time.time()
         mpl_widget = do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_params, self.brain_section,
                                                      save_path)
-        print(time.time() - time_start)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
 

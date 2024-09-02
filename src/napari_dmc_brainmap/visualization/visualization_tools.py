@@ -175,7 +175,7 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells', hemis
                 # add if the location of a cell is ipsi or contralateral to the injection site
                 results_data = get_ipsi_contra(results_data)
                 results_data_merged = pd.concat([results_data_merged, results_data])
-        print("loaded data from " + animal_id)
+        print(f"loaded data from {animal_id}")
         results_data_merged = clean_results_df(results_data_merged, atlas)
         if hemisphere == 'ipsi':
             results_data_merged = results_data_merged[results_data_merged['ipsi_contra'] == 'ipsi']
@@ -237,9 +237,6 @@ def brain_region_color(plotting_params, atlas):
         brain_areas_transparency = [255]
     brain_areas, brain_areas_color = match_lists(brain_areas, brain_areas_color, 'color')
     brain_areas, brain_areas_transparency = match_lists(brain_areas, brain_areas_transparency, 'transparency')
-    print(brain_areas)
-    print(brain_areas_color)
-    print(brain_areas_transparency)
     return brain_areas, brain_areas_color, brain_areas_transparency
 
 def brain_region_color_genes(df, cmap, atlas, plot_type):
@@ -466,8 +463,8 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
         num_colors = 0
         cmap_groups = []
     if num_groups > num_colors:  # more groups than colors
-        print("warning: " + str(num_groups) + " channels/groups/genotypes provided, but only " + str(num_colors) +
-              " cmap groups --> adding random colors")
+        print(f"warning: {str(num_groups)} channels/groups/genotypes provided, but only {str(num_colors)}"
+              f" cmap groups --> adding random colors")
         diff = num_groups - num_colors
         if clr_id == 'colors_projections':
             colormaps = [cc for cc in cm.datad]
@@ -492,8 +489,8 @@ def create_cmap(animal_dict, plotting_params, clr_id, df=pd.DataFrame(), hue_id=
             # for d in range(diff):
                 # cmap_groups.append(random.choice(list(mcolors.CSS4_COLORS.keys())))
     elif num_groups < num_colors:  # less groups than colors
-        print("warning: " + str(num_groups) + " channels/groups/genotypes, but  " + str(len(cmap_groups)) +
-              " cmap groups --> dropping colors")
+        print(f"warning: {str(num_groups)} channels/groups/genotypes, but  {str(len(cmap_groups))}"
+              f" cmap groups --> dropping colors")
         diff = num_colors - num_groups
         cmap_groups = cmap_groups[:-diff]
     cmap_groups = [mcolors.to_rgba(c) for c in cmap_groups]

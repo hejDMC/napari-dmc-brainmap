@@ -65,7 +65,6 @@ def calculate_percentage_bar_plot(df_all, atlas, animal_list, tgt_list, plotting
         else:
             dummy_df = dummy_df.rename(columns={animal_id: "percent"})
         dummy_df['animal_id'] = [animal_id] * len(dummy_df)
-        print(dummy_df)
         if plotting_params["groups"] in ['group', 'genotype']:
             dummy_df['groups'] = [df_all[df_all['animal_id'] == animal_id][plotting_params["groups"]].unique()[0]] * len(dummy_df)
         df_to_plot = pd.concat([df_to_plot, dummy_df])
