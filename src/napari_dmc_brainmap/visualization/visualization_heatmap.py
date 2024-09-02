@@ -105,7 +105,6 @@ def check_brain_area_in_bin(df, atlas):
     print('checking for existence of brain area in bin ...')
     bregma = get_bregma(atlas.atlas_name)
     ap_idx = atlas.space.axes_description.index('ap')
-    st = atlas.structures
     annot = atlas.annotation
     for bin in df.columns:
         print(bin)
@@ -131,11 +130,6 @@ def check_brain_area_in_bin(df, atlas):
             area_ids = [atlas.structures[a]['id'] for a in area_descendants]
             if not any(area_id in ids_in_bin for area_id in area_ids):
                 df[bin][area] = -1
-        # for area in df.index:
-        #     area_id = st[area].data['id']
-        #     # area_id = int(st[st['acronym'] == area]['sphinx_id'])
-        #     if area_id not in ids_in_bin:
-        #         df[bin][area] = -1
     return df
 
 def get_heatmap_params(heatmap_widget):
