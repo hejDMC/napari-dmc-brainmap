@@ -11,6 +11,8 @@ params.json file is used to keep track of experimental parameters of animal
 """
 # import modules
 import json
+import sys
+
 from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict, get_atlas_dropdown, get_xyz
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
@@ -78,9 +80,11 @@ class ParamsWidget(QWidget):
     def _create_params_file(self):
         input_path = self.params.input_path.value
         # check if user provided a valid input_path
-        if not input_path.is_dir():
-            raise IOError("Input path is not a valid directory \n"
-                          "Please make sure this exists: {}".format(input_path))
+        if not input_path.is_dir() or str(input_path) == '.':  # todo check on other OS
+            # raise IOError("Input path is not a valid directory \n"
+            #               "Please make sure this exists: {}".format(input_path))
+            print(f"Input path is not a valid directory \n Please make sure this exists: >> '{str(input_path)}' <<")
+            return
         animal_id = get_animal_id(input_path)
         injection_site = self.params.inj_side.value
         genotype = self.params.geno.value
