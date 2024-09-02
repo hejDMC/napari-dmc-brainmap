@@ -385,7 +385,8 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
         l_r_idx = bregma[atlas.space.axes_description.index('rl')]
 
         for n, (tgt, l_r) in enumerate(zip(tgt_list, brain_areas_hemisphere)):
-            if tgt in section_areas:
+            t_l = get_descendants([tgt], atlas)
+            if any([t in section_areas for t in t_l]):
                 if orient_idx == 0:
                     tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
                 elif orient_idx == 1:
@@ -408,7 +409,8 @@ def plot_brain_schematic(atlas, slice_idx, orient_idx, plotting_params, gene_col
 
     else:
         for n, tgt in enumerate(tgt_list):
-            if tgt in section_areas:
+            t_l = get_descendants([tgt], atlas)
+            if any([t in section_areas for t in t_l]):
                 if orient_idx == 0:
                     tgt_mask = atlas.get_structure_mask(tgt)[slice_idx, :, :]
                 elif orient_idx == 1:
