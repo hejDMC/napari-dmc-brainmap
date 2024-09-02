@@ -48,7 +48,7 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
             if stitch_tiles:
                 in_chan = in_obj.joinpath(f)
                 section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
-                section_list_new = [animal_id + "_" + obj + "_" + str(k + 1) for k, ss in
+                section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in
                                     enumerate(section_list)]
                 [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in
                  zip(section_list, section_list_new)]
@@ -235,9 +235,11 @@ class StitchingWidget(QWidget):
     def _do_stitching(self):
         input_path = self.stitching.input_path.value
         # check if user provided a valid input_path
-        if not input_path.is_dir():
-            raise IOError("Input path is not a valid directory \n"
-                          "Please make sure this exists: {}".format(input_path))
+        if not input_path.is_dir() or str(input_path) == '.':  # todo check on other OS
+            # raise IOError("Input path is not a valid directory \n"
+            #               "Please make sure this exists: {}".format(input_path))
+            print(f"Input path is not a valid directory \n Please make sure this exists: >> '{str(input_path)}' <<")
+            return
         stitch_tiles = self.stitching.stitch_tiles.value
         params_dict = self._get_stitching_params()
         direct_sharpy_track = params_dict['operations']['sharpy_track']

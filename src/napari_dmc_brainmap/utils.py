@@ -36,7 +36,7 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
     if create_dir:
         if not data_dir.exists():
             data_dir.mkdir(parents=True)
-            print('creating folder under: ' + str(data_dir))
+            print(f'creating folder under: {str(data_dir)}')
     if only_dir:
         return data_dir
     else:
@@ -72,7 +72,7 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
             common_suffix = image_list[0][-i + 1:]
             # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
         elif len(image_list) == 1:
-            print('only one file in ' + folder + ' folder: ' + image_list[0])
+            print(f'only one file in {folder} folder: {image_list[0]}')
             print(
                 'in DMC-BrainMap an image name has a base_string and a suffix. For an image named *animal1_obj1_1_stitched.tif* '
                 '\n the base_string is animal1_obj1_1 and the suffix is _stitched.tif')
@@ -251,13 +251,13 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
                 else:
                     dict[g_id] = [animal_id]
             except KeyError:
-                print("no group_id value (*" + group_id + "*) specified for " + animal_id)
-                print("    --> skipping " + animal_id)
+                print(f"no group_id value (* {group_id}*) specified for {animal_id}")
+                print(f"    --> skipping {animal_id}")
                 pass
 
         else:
-            print("No params.json file under " + str(params_fn))
-            print("    --> skipping " + animal_id)
+            print(f"No params.json file under {str(params_fn)}")
+            print(f"    --> skipping {animal_id}")
 
     return dict
 
@@ -274,8 +274,7 @@ def get_bregma(atlas_id):
     if atlas_id in bregma_dict.keys():
         bregma = bregma_dict[atlas_id]
     else:
-        print('no bregma coordinates specified for ' + atlas_id + '\n'
-                                                                  ' estimating bregma from atlas dimensions')
+        print(f'no bregma coordinates specified for {atlas_id} \n estimating bregma from atlas dimensions')
         print("loading reference atlas...")
         atlas = BrainGlobeAtlas(atlas_id)
         bregma = list(atlas.shape)
