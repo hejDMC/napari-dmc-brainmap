@@ -88,8 +88,8 @@ class ParamsWidget(QWidget):
         chans_imaged = self.params.chans_imaged.value
         atlas_name = self.params.atlas.value.value
         orientation = self.params.section_orient.value
-        print('check existence of local version of ' + atlas_name + ' atlas ...')
-        print('loading reference atlas ' + atlas_name + ' ...')
+        print(f'check existence of local version of {atlas_name} atlas ...')
+        print(f'loading reference atlas {atlas_name} ...')
         atlas = BrainGlobeAtlas(atlas_name)
         xyz_dict = get_xyz(atlas, orientation)
         resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
@@ -116,5 +116,5 @@ class ParamsWidget(QWidget):
         params_dict = update_params_dict(input_path, params_dict, create=True)
         with open(params_fn, 'w') as fn:
             json.dump(params_dict, fn, indent=4)
-        print('params.json file for ' + animal_id + ' created !')
+        print(f'params.json file for {animal_id} created !')
 
