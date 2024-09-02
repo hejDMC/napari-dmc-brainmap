@@ -24,11 +24,11 @@ def do_padding(input_path, channels, pad_folder, resolution):
         print(f'... channel {chan}')
         # check if to pad images has _stitched.tif suffix
         # get first image name
-        if not [tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")][0].endswith("_stitched.tif"):
+        if not [tif.name for tif in input_path.joinpath(pad_folder, chan).glob("*.tif")][0].endswith("_stitched.tif"):
             # rename image files
-            for im in [tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")]:
-                im_old = input_path.joinpath(pad_folder,chan,im)
-                im_new = input_path.joinpath(pad_folder,chan,im.split(".tif")[0]+"_stitched.tif")
+            for im in [tif.name for tif in input_path.joinpath(pad_folder, chan).glob("*.tif")]:
+                im_old = input_path.joinpath(pad_folder, chan, im)
+                im_new = input_path.joinpath(pad_folder, chan, f"{im.split('.tif')[0]}_stitched.tif")
                 print(f"renaming ===> {str(im_old)} \nto {str(im_new)} <===")
                 im_old.rename(im_new)
             # save image_names.csv
@@ -37,7 +37,7 @@ def do_padding(input_path, channels, pad_folder, resolution):
             if image_names_csv.exists():
                 pass
             else:
-                image_list = natsorted([tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")])
+                image_list = natsorted([tif.name for tif in input_path.joinpath(pad_folder, chan).glob("*.tif")])
                 image_list = [tif.split("_stitched.tif")[0] for tif in image_list]
                 # store data as .csv file
                 image_list_store = pd.DataFrame(image_list)
