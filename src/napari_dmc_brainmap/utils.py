@@ -51,7 +51,7 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
     # if image list is present, load and get suffix
     if im_list_present:
         im0 = image_list[0]
-        im_list = get_im_list(input_path,folder_id=folder)
+        im_list = get_im_list(input_path, folder_id=folder)
         im1 = [i for i in im_list if im0.startswith(i)]
         if len(im1) == 1:
             im1 = im1[0]
@@ -127,7 +127,7 @@ def clean_params_dict(params_dict, key):
     for d in del_list:
         del params_dict[key][d]
         try:
-            del params_dict[d + "_params"]
+            del params_dict[f"{d}_params"]
         except KeyError:
             pass
     return params_dict
