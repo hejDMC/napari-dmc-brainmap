@@ -219,7 +219,7 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
                             create_dir=True, only_dir=True)
         output_dir = get_info(input_path, output_folder, channel=chan, seg_type=seg_type,
                             create_dir=True, only_dir=True)
-        print('... channel ' + chan)
+        print(f'... channel {chan}')
         if single_channel:
             seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=chan)
             seg_im_list = natsorted(seg_im_list)
@@ -227,7 +227,7 @@ def do_presegmentation(input_path, params_dict, channels, single_channel, regi_b
                 if len(start_end_im) == 2:
                     seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]+1]
         for im in seg_im_list:
-            print('... ' + im)
+            print(f'... {im}')
             im_fn = seg_im_dir.joinpath(im)
             reader = AICSImage(str(im_fn))
             img = reader.data.astype(np.float32)  # input image is a single RGB image
@@ -329,7 +329,7 @@ def create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_
                               only_dir=True)
         # binary_images = natsorted([im.parts[-1] for im in binary_dir.glob('*.tif')])
         for im_name in binary_images:
-            print('... ' + im_name)
+            print(f'... {im_name}')
             path_to_im = binary_dir.joinpath(im_name)
             image = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
             idx = np.where(image == 255)
@@ -367,7 +367,7 @@ def create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_
                 csv_to_save = pd.DataFrame({'Position Y': idx[0], 'Position X': idx[1]})
             csv_save_name = output_dir.joinpath(im_name.split('.')[0] + '_projections.csv')
             csv_to_save.to_csv(csv_save_name)
-        print("Done with " + chan)
+        print(f"Done with {chan}")
     print('Done with creating projections presegmentation files!')
 
 @thread_worker
@@ -401,7 +401,7 @@ def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type
             save_name = im_name.split('.')[0] + '_centroids.tif'  # get the name
             cv2.imwrite(str(mask_dir.joinpath(save_name)), location_binary)
             # progress_bar.update(100 / len(binary_images))
-        print("Done with " + chan)
+        print(f"Done with {chan}")
 
 
 
