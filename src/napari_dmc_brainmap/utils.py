@@ -168,7 +168,7 @@ def update_params_dict(input_path, params_dict, create=False):
 #         tail = s[len(head):]
 #     return head, tail
 
-def split_strings_layers(s, atlas_name):
+def split_strings_layers(s, atlas_name, return_str=False):
     # likely not working for other atlases than ABA
     if atlas_name == 'allen_mouse':
         if s.startswith('CA'):
@@ -185,6 +185,9 @@ def split_strings_layers(s, atlas_name):
     else:
         head = s
         tail = []
+    if return_str:
+        if tail == []:
+            tail = head
     return head, tail
 
 def get_parent(a, st):
