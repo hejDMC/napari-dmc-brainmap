@@ -65,7 +65,7 @@ def calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert):
         probe_insert.append(False)
 
     for probe, p_insert in zip(probes_list, probe_insert):
-        print("... " + probe)
+        print(f"... {probe}")
         probe_df = load_probe_data(results_dir, probe, s.atlas)
 
         linefit, linevox, ax_primary = get_linefit3d(probe_df, s.atlas)
@@ -128,9 +128,9 @@ def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, p
                 bg_fn = results_dir.joinpath(f'{animal_id}_{seg_type}.npy')
                 np.save(bg_fn, bg_data)
                 print(f"exported data to brainrender format in {str(bg_fn)}")
-            print("done! data saved to: " + str(fn))
+            print(f"done! data saved to: {str(fn)}")
         else:
-            print("No segmentation images found in " + str(segment_dir))
+            print(f"No segmentation images found in {str(segment_dir)}")
     print("DONE!")
     if seg_type in ["optic_fiber", "neuropixels_probe"]:
         print(f'..calculating {seg_type} trajectory for {chan} ...')
@@ -161,11 +161,8 @@ def quantify_results(input_path, atlas, chan, seg_type='injection_site', express
         results_data = clean_results_df(results_data, atlas)
     # step 1: get the absolute pixel count on area level (not layers)
     # add parent acronym to the injection data
-    # print(results_data['acronym'].unique())
-    # print(atlas.metadata['name'])
     acronym_parent = [split_strings_layers(s, atlas_name=atlas.metadata['name'])[0] for s in results_data['acronym']]
     results_data['acronym_parent'] = acronym_parent
-    # print(acronym_parent)
     # count pixels (injection site) for each cell, add 0 for empty regions
     quant_df = pd.DataFrame()
     if expression:
@@ -208,7 +205,6 @@ def quantify_results(input_path, atlas, chan, seg_type='injection_site', express
         save_fn = results_dir.joinpath(f'quantification_{seg_type}_{chan}.csv')
         quant_df_pivot.to_csv(save_fn)
     #     print(f"Quantification of {seg_type} for {chan} channel:")
-    # print(quant_df_pivot)
     return [quant_df_pivot, chan, seg_type, results_data, expression, is_merge]
 
 
