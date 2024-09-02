@@ -1,7 +1,7 @@
 """
 Config file to set default dirs
 """
-# todo check bgatlasapi
+
 
 # import configparser
 # from pathlib import Path
