@@ -55,19 +55,19 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
                 section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir()])
                 for section in section_dirs:
 
-                    stitched_path = stitch_dir.joinpath(section.parts[-1] + '_stitched.tif')
+                    stitched_path = stitch_dir.joinpath(f'{section.parts[-1]}_stitched.tif')
                     if direct_sharpy_track:
                         sharpy_chans = params_dict['sharpy_track_params']['channels']
                         if f in sharpy_chans:
                             sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                            sharpy_im_dir = sharpy_dir.joinpath(section.parts[-1] + '_downsampled.tif')
+                            sharpy_im_dir = sharpy_dir.joinpath(f'{section.parts[-1]}_downsampled.tif')
                             stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
                         else:
                             stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
                     else:
                         stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
             else:
-                in_chan = in_obj.joinpath(obj + '_' + f + '_1')
+                in_chan = in_obj.joinpath(f'{obj}_{f}_1')
                 # load tile stack name
                 stack = []
                 im_list = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
@@ -94,7 +94,7 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
                             page_count += 1
 
                 # load tile location meta data from meta folder
-                meta_json_where = in_obj.joinpath(obj + '_meta_1', 'regions_pos.json')
+                meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
 
                 with open(meta_json_where, 'r') as data:
                     img_meta = json.load(data)
@@ -103,13 +103,12 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
                 # iterate regions
                 for rn in range(region_n):
                     pos_list = img_meta['region_' + str(rn)]
-                    stitched_path = stitch_dir.joinpath(animal_id + '_' + obj + '_' + str(rn + 1) + '_stitched.tif')
+                    stitched_path = stitch_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_stitched.tif')
                     if direct_sharpy_track:
                         sharpy_chans = params_dict['sharpy_track_params']['channels']
                         if f in sharpy_chans:
                             sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                            sharpy_im_dir = sharpy_dir.joinpath(animal_id + '_' + obj + '_' +
-                                                                str(rn + 1) + '_downsampled.tif')
+                            sharpy_im_dir = sharpy_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif')
                             pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
                                                    sharpy_im_dir, resolution=resolution)
                         else:
