@@ -203,12 +203,12 @@ def select_chans(chan_list, filter_list, operation):
     else:
         non_match = list(set(chan_list).difference(filter_list))
         for n in non_match:
-            print("WARNING -- selected " + n + " channel for " + operation + " not found in imaged channels!")
+            print(f"WARNING -- selected {n} channel for {operation} not found in imaged channels!")
         chans = list(set(chan_list) & set(filter_list))
     return chans
 
 def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution_tuple):
-    print("started with " + str(im))
+    print(f"started with {str(im)}")
     stack_dict = {}  # save all loaded filters as dict['filter'][array]
     for f in filter_list:
         stack_dict[f] = load_stitched_images(input_path, f, im)  # todo change to not load all channels
