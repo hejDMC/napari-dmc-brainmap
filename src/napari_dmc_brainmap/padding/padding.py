@@ -21,7 +21,7 @@ def do_padding(input_path, channels, pad_folder, resolution):
 
     print('doing padding of ...')
     for chan in channels:
-        print('... channel ' + chan)
+        print(f'... channel {chan}')
         # check if to pad images has _stitched.tif suffix
         # get first image name
         if not [tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")][0].endswith("_stitched.tif"):
@@ -29,7 +29,7 @@ def do_padding(input_path, channels, pad_folder, resolution):
             for im in [tif.name for tif in input_path.joinpath(pad_folder,chan).glob("*.tif")]:
                 im_old = input_path.joinpath(pad_folder,chan,im)
                 im_new = input_path.joinpath(pad_folder,chan,im.split(".tif")[0]+"_stitched.tif")
-                print("renaming ===>" + str(im_old) + " \nto " + str(im_new)+"<===")
+                print(f"renaming ===> {str(im_old)} \nto {str(im_new)} <===")
                 im_old.rename(im_new)
             # save image_names.csv
             # check if image_names.csv already exists
@@ -45,7 +45,7 @@ def do_padding(input_path, channels, pad_folder, resolution):
 
         pad_dir, pad_im_list, pad_suffix = get_info(input_path, pad_folder, channel=chan)
         for im in pad_im_list:
-            print('... ' + im)
+            print(f'... {im}')
             im_fn = pad_dir.joinpath(im)
             # use tiffile to read instead of cv2
             im_array = tifffile.imread(str(im_fn))
