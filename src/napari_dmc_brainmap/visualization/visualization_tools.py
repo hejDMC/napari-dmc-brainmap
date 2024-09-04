@@ -559,7 +559,7 @@ def create_color_ids(df):
 def calculate_density(df, color_dict, atlas, plotting_params):
 
     # get left/right mapping
-    df['left_right'] = 'left'
+    df.loc[:, 'left_right'] = 'left'
     df.loc[df['ml_mm'] < 0, 'left_right'] = 'right'
     num_cells = len(df)
     df = df.pivot_table(index='acronym', columns=['left_right'],
