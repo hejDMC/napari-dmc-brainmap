@@ -558,29 +558,37 @@ def create_color_ids(df):
 
 def calculate_density(df, color_dict, atlas, plotting_params):
 
-    # get left/right mapping
     df.loc[:, 'left_right'] = 'left'
     df.loc[df['ml_mm'] < 0, 'left_right'] = 'right'
-    num_cells = len(df)
-    df = df.pivot_table(index='acronym', columns=['left_right'],
-                                        aggfunc='count').fillna(0)['ap_coords']
-    df /= num_cells  # fraction of cells in each area
-    scaler = MinMaxScaler(feature_range=(0.2, 0.7))
-    df_scaled = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
-    df_scaled['acronym'] = df.index.to_list()
-    df_scaled = pd.melt(df_scaled, id_vars=['acronym'], var_name='left_right', value_name='density')
-    df_scaled['left_right'] = df_scaled['left_right'].map({'left': 1, 'right': 0})
+    animal_list = df.animal_id.unique()
+    df_pivot = df.pivot_table(index='acronym', columns=['animal_id', 'left_right'],
+                              aggfunc='count').fillna(0)['ap_coords']
+    new_columns = pd.MultiIndex.from_product([animal_list, ['left', 'right']], names=['animal_id', 'left_right'])
+    df_pivot = df_pivot.reindex(columns=new_columns, fill_value=0)
+
+    df_density = pd.DataFrame(np.zeros((len(df_pivot.index), len(df.left_right.unique()))),
+                              index=df_pivot.index, columns=df.left_right.unique())
+    for animal_id in animal_list:
+        data = (df_pivot[animal_id] / len(df[df['animal_id'] == animal_id]))
+        data = data.fillna(0)
+        df_density += data
+    df_density /= len(animal_list)
+    df_density['acronym'] = df_density.index.to_list()
+    df_density = pd.melt(df_density, id_vars=['acronym'], var_name='left_right', value_name='density')
+    df_density['left_right'] = df_density['left_right'].map({'left': 1, 'right': 0})
+    scaler = MinMaxScaler(feature_range=(0.2, 0.9))
+    df_density['density'] = scaler.fit_transform(np.array(df_density['density']).reshape(-1,1))
     drop_list = ['root']
     drop_list += get_descendants(['VS'], atlas)
     drop_list += get_descendants(['fiber tracts'], atlas)
-    df_scaled = df_scaled[~df_scaled['acronym'].isin(drop_list)]
+    df_density = df_density[~df_density['acronym'].isin(drop_list)]
     if plotting_params['brain_areas']:
         keep_list = get_descendants(plotting_params['brain_areas'], atlas)
-        df_scaled = df_scaled[df_scaled['acronym'].isin(keep_list)]
+        df_density = df_density[df_density['acronym'].isin(keep_list)]
     # get cmap for density
     if color_dict['single_color']:
         clr = color_dict['cmap']
     else:
         clr = color_dict['cmap'][0]
-    density = brain_region_color_genes(df_scaled, clr, atlas, plot_type='density')
+    density = brain_region_color_genes(df_density, clr, atlas, plot_type='density')
     return density
