@@ -576,8 +576,13 @@ def calculate_density(df, color_dict, atlas, plotting_params):
     df_density['acronym'] = df_density.index.to_list()
     df_density = pd.melt(df_density, id_vars=['acronym'], var_name='left_right', value_name='density')
     df_density['left_right'] = df_density['left_right'].map({'left': 1, 'right': 0})
-    scaler = MinMaxScaler(feature_range=(0.2, 0.9))
-    df_density['density'] = scaler.fit_transform(np.array(df_density['density']).reshape(-1,1))
+    scaler = MinMaxScaler(feature_range=(0.1, 1.0))
+    # add zero to density for scaling
+    dens = df_density['density'].to_numpy()
+    dens = np.append(dens, 0)
+    dens_norm = scaler.fit_transform(np.array(dens).reshape(-1,1))
+    df_density['density'] = dens_norm[:-1]
+    # df_density['density'] = scaler.fit_transform(np.array(df_density['density']).reshape(-1,1))
     drop_list = ['root']
     drop_list += get_descendants(['VS'], atlas)
     drop_list += get_descendants(['fiber tracts'], atlas)
