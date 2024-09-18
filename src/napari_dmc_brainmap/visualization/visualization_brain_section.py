@@ -102,6 +102,17 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
                     cmap = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 else:
                     cmap = plotting_params[clr_id][0]
+                if item == 'projections':
+                    try:
+                        cmap = plt.get_cmap(cmap)
+                    except ValueError:
+                        if not '-' in cmap:
+                            cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap',
+                                                                             ['white', cmap])
+                        else:
+                            cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap',
+                                                                             [cmap.split('-')[0], cmap.split('-')[1]])
+
         else:
             num_probe = len(data_dict[item]['channel'].unique())
             if num_probe == 1:
