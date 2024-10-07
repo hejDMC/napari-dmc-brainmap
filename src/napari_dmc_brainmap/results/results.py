@@ -392,10 +392,10 @@ class ResultsWidget(QWidget):
         btn_merge.clicked.connect(self._merge_datasets)
         self._collapse_merge.addWidget(btn_merge)
 
-        self._collapse_probe_vis = QCollapsible('Launch probe visualizer: expand for more', self)
+        self._collapse_probe_vis = QCollapsible('Launch ProbeViewer: expand for more', self)
         self.probe_vis = initialize_probevis_widget()
         self._collapse_probe_vis.addWidget(self.probe_vis.native)
-        btn_probe_vis = QPushButton("start probe visualizer")
+        btn_probe_vis = QPushButton("start ProbeViewer")
         btn_probe_vis.clicked.connect(self._start_probe_visualizer)
         self._collapse_probe_vis.addWidget(btn_probe_vis)
 
