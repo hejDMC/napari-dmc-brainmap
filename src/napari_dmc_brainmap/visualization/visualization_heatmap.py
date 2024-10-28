@@ -129,11 +129,13 @@ def check_brain_area_in_bin(df, atlas):
             area_descendants = get_descendants([area], atlas)
             area_ids = [atlas.structures[a]['id'] for a in area_descendants]
             if not any(area_id in ids_in_bin for area_id in area_ids):
-                df[bin][area] = -1
+                df[bin][area] = np.nan
     return df
 
 def get_heatmap_params(heatmap_widget):
     plotting_params = {
+        "group_diff": heatmap_widget.group_diff.value,
+        "group_diff_items": heatmap_widget.group_diff_items.value.split('-'),
         "expression": heatmap_widget.expression.value,
         "gene": heatmap_widget.gene.value,
         # "xlabel": [heatmap_widget.xlabel.value, int(heatmap_widget.xlabel_size.value)],  # 0: label, 1: fontsize
@@ -146,7 +148,7 @@ def get_heatmap_params(heatmap_widget):
         "color": heatmap_widget.color.value,
         "cmap": split_to_list(heatmap_widget.cmap.value),
         "cbar_label": heatmap_widget.cbar_label.value,
-        "cmap_min_max":  split_to_list(heatmap_widget.cmap_min_max.value, out_format='float'), #[float(i) for i in heatmap_widget.cmap_min_max.value.split(',')],  # [0] is absolute value for vmin, [1] is value to multiply max_range value with
+        "cmap_min_max":  split_to_list(heatmap_widget.cmap_min_max.value, out_format='float'),
         "intervals": sorted(split_to_list(heatmap_widget.intervals.value, out_format='float')),  # assure ascending order
         "interval_labels": get_interval_labels(split_to_list(heatmap_widget.intervals.value, out_format='float')),
         "descendants": heatmap_widget.descendants.value,
@@ -165,10 +167,36 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
         new_tgt_list = get_descendants(tgt_list, atlas)
     else:
         new_tgt_list = tgt_list
+    if plotting_params['group_diff'] == '':
+        tgt_data_to_plot = calculate_percentage_heatmap_plot(df, atlas, plotting_params, animal_list, new_tgt_list, sub_list)
+        # put not existing areas to -1 for plotting
+        tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
+    else:
+        group_list = df[plotting_params['group_diff']].unique()
+        # check that items to calculate difference from exist
+        if all([i in group_list for i in plotting_params['group_diff_items']]):
+            animal_list_item1 = df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][0]]['animal_id'].unique()
+            item1_data_to_plot = calculate_percentage_heatmap_plot(
+                df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][0]], atlas, plotting_params,
+                animal_list_item1, new_tgt_list, sub_list)
+            item1_data_to_plot = check_brain_area_in_bin(item1_data_to_plot, atlas)
+            animal_list_item2 = df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][1]]['animal_id'].unique()
+            item2_data_to_plot = calculate_percentage_heatmap_plot(
+                df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][1]], atlas, plotting_params,
+                animal_list_item2, new_tgt_list, sub_list)
+            item2_data_to_plot = check_brain_area_in_bin(item2_data_to_plot, atlas)
+            tgt_data_to_plot = item1_data_to_plot - item2_data_to_plot
 
-    tgt_data_to_plot = calculate_percentage_heatmap_plot(df, atlas, plotting_params, animal_list, new_tgt_list, sub_list)
-    # put not existing areas to -1 for plotting
-    tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
+        else:
+            print(f"selected items to calculate difference not found: {plotting_params['group_diff_items']}  \n"
+                  f"check if items exists, also check params file if items are stated \n"
+                  f"--> plotting regular heatmap")
+            tgt_data_to_plot = calculate_percentage_heatmap_plot(df, atlas, plotting_params, animal_list, new_tgt_list,
+                                                                 sub_list)
+            # put not existing areas to -1 for plotting
+            tgt_data_to_plot = check_brain_area_in_bin(tgt_data_to_plot, atlas)
+
+
     if plotting_params["transpose"]:
         tgt_data_to_plot = tgt_data_to_plot.transpose()
     if plotting_params["save_data"]:
@@ -176,14 +204,22 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
         if data_fn.exists():
             data_fn = get_unique_filename(data_fn)
         tgt_data_to_plot.to_csv(data_fn)
-    max_range = tgt_data_to_plot.max().max()
     sns.set(style=plotting_params["style"])
     if plotting_params["style"] == 'white':
         mask_cbar = 'binary'
     else:
         mask_cbar = 'binary_r'
-    cmap_min = plotting_params["cmap_min_max"][0]
-    cmap_max = plotting_params["cmap_min_max"][1]
+    if plotting_params["cmap_min_max"] == 'auto':
+        max_range = tgt_data_to_plot.max().max()
+        if plotting_params['group_diff'] != '':
+            min_range = tgt_data_to_plot.min().min()
+            vmin = min_range * 0.75
+        else:
+            vmin = -1
+        vmax = max_range * 0.75
+    else:
+        vmin = plotting_params["cmap_min_max"][0]
+        vmax = plotting_params["cmap_min_max"][1]
     cmap = plotting_params["cmap"]
     figsize = [int(i) for i in heatmap_widget.plot_size.value.split(',')]
     mpl_widget = FigureCanvas(Figure(figsize=figsize))
@@ -196,15 +232,15 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
             tgt_col = get_descendants([tgt], atlas)
             i_start = tgt_data_to_plot.columns.get_loc(tgt_col[0])
             i_end = tgt_data_to_plot.columns.get_loc(tgt_col[-1])
-            sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end+1], cmap=cmap, cbar=False, vmin=cmap_min,
-                        vmax=max_range * cmap_max, linewidths=1)
-            sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end + 1], cmap=mask_cbar, vmin=cmap_min,
-                        vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_start:i_end + 1] > -1, cbar=False)
+            sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end+1], cmap=cmap, cbar=False, vmin=vmin,
+                        vmax=vmax, linewidths=1)
+            # sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end + 1], cmap=mask_cbar, vmin=vmin,
+            #             vmax=vmax, mask=tgt_data_to_plot.iloc[:, i_start:i_end + 1] > -1, cbar=False)
             if t + 1 == len(tgt_list):
-                sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end+1], cmap=cmap, vmin=cmap_min,
-                            vmax=max_range * cmap_max, linewidths=1, cbar_ax=static_ax[t + 1], cbar_kws={'label': plotting_params["cbar_label"]})
-                sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end + 1], cmap=mask_cbar, vmin=cmap_min,
-                            vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_start:i_end + 1] > -1, cbar=False)
+                sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end+1], cmap=cmap, vmin=vmin,
+                            vmax=vmax, linewidths=1, cbar_ax=static_ax[t + 1], cbar_kws={'label': plotting_params["cbar_label"]})
+                # sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_start:i_end + 1], cmap=mask_cbar, vmin=vmin,
+                #             vmax=vmax, mask=tgt_data_to_plot.iloc[:, i_start:i_end + 1] > -1, cbar=False)
         else:
             # i_col = tgt_data_to_plot.columns.get_loc(tgt)
             # sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col], cmap=cmap, cbar=False, vmin=cmap_min,
@@ -217,16 +253,16 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
             #     sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col], cmap=mask_cbar, vmin=cmap_min,
             #                 vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_col + 1] > -1, cbar=False)
             i_col = tgt_data_to_plot.columns.get_loc(tgt)
-            sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=cmap, cbar=False, vmin=cmap_min,
-                        vmax=max_range * cmap_max, linewidths=1)
-            sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=mask_cbar, vmin=cmap_min,
-                        vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_col:i_col + 1] > -1, cbar=False)
+            sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=cmap, cbar=False, vmin=vmin,
+                        vmax=vmax, linewidths=1)
+            # sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=mask_cbar, vmin=vmin,
+            #             vmax=vmax, mask=tgt_data_to_plot.iloc[:, i_col:i_col + 1] > -1, cbar=False)
             if t + 1 == len(tgt_list):
-                sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=cmap, vmin=cmap_min,
-                            vmax=max_range * cmap_max,
+                sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=cmap, vmin=vmin,
+                            vmax=vmax,
                             linewidths=1, cbar_ax=static_ax[t + 1], cbar_kws={'label': plotting_params["cbar_label"]})
-                sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=mask_cbar, vmin=cmap_min,
-                            vmax=max_range * cmap_max, mask=tgt_data_to_plot.iloc[:, i_col:i_col + 1] > -1, cbar=False)
+                # sns.heatmap(ax=static_ax[t], data=tgt_data_to_plot.iloc[:, i_col:i_col + 1], cmap=mask_cbar, vmin=vmin,
+                #             vmax=vmax, mask=tgt_data_to_plot.iloc[:, i_col:i_col + 1] > -1, cbar=False)
 
         static_ax[t].set_title(tgt, fontsize=plotting_params['subtitle_size'])
         static_ax[t].set_ylabel('')

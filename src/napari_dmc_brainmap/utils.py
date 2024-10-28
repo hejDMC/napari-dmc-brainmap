@@ -223,6 +223,8 @@ def clean_results_df(df, atlas):
 def split_to_list(input_str, out_format='str'):
     if not input_str:
         output_list = False
+    elif input_str == 'auto':
+        output_list = 'auto'
     else:
         if input_str.startswith('c:'):
             return input_str[2:]
