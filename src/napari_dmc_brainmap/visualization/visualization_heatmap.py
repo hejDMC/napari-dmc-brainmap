@@ -175,17 +175,15 @@ def do_heatmap(df, atlas, animal_list, tgt_list, plotting_params, heatmap_widget
         group_list = df[plotting_params['group_diff']].unique()
         # check that items to calculate difference from exist
         if all([i in group_list for i in plotting_params['group_diff_items']]):
-            animal_list_item1 = df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][0]]['animal_id'].unique()
-            item1_data_to_plot = calculate_percentage_heatmap_plot(
-                df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][0]], atlas, plotting_params,
-                animal_list_item1, new_tgt_list, sub_list)
-            item1_data_to_plot = check_brain_area_in_bin(item1_data_to_plot, atlas)
-            animal_list_item2 = df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][1]]['animal_id'].unique()
-            item2_data_to_plot = calculate_percentage_heatmap_plot(
-                df[df[plotting_params['group_diff']] == plotting_params['group_diff_items'][1]], atlas, plotting_params,
-                animal_list_item2, new_tgt_list, sub_list)
-            item2_data_to_plot = check_brain_area_in_bin(item2_data_to_plot, atlas)
-            tgt_data_to_plot = item1_data_to_plot - item2_data_to_plot
+            diff_data = []
+            for i_d in plotting_params['group_diff_items']:
+                animal_sub_list = df[df[plotting_params['group_diff']] == i_d]['animal_id'].unique()
+                sub_data_to_plot = calculate_percentage_heatmap_plot(df[df[plotting_params['group_diff']] == i_d],
+                                                                     atlas, plotting_params, animal_sub_list,
+                                                                     new_tgt_list, sub_list)
+                sub_data_to_plot = check_brain_area_in_bin(sub_data_to_plot, atlas)
+                diff_data.append(sub_data_to_plot)
+            tgt_data_to_plot = diff_data[0] - diff_data[1]
 
         else:
             print(f"selected items to calculate difference not found: {plotting_params['group_diff_items']}  \n"
