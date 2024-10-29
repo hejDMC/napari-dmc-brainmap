@@ -31,7 +31,8 @@ def initialize_header_widget() -> FunctionGui:
               animal_list=dict(widget_type='LineEdit', 
                                label='list of animals',
                                value='animal1,animal2', 
-                               tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
+                               tooltip="enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2) "
+                                       "\n to select all animal in input path enter ':' (without ' ')"),
               channels=dict(widget_type='Select', 
                             label='select channels to plot', 
                             value=['green', 'cy3'],
@@ -740,7 +741,10 @@ class VisualizationWidget(QWidget):
             save_path = input_path
         else:
             save_path = self.header.save_path.value
-        animal_list = split_to_list(self.header.animal_list.value)
+        if self.header.animal_list.value == ':':
+            animal_list = [f.parts[-1] for f in input_path.iterdir() if f.is_dir()]
+        else:
+            animal_list = split_to_list(self.header.animal_list.value)
         channels = self.header.channels.value
         plot_item = self.barplot.plot_item.value
         plotting_params = get_bar_plot_params(self.barplot)
@@ -771,7 +775,10 @@ class VisualizationWidget(QWidget):
             save_path = input_path
         else:
             save_path = self.header.save_path.value
-        animal_list = split_to_list(self.header.animal_list.value)
+        if self.header.animal_list.value == ':':
+            animal_list = [f.parts[-1] for f in input_path.iterdir() if f.is_dir()]
+        else:
+            animal_list = split_to_list(self.header.animal_list.value)
         channels = self.header.channels.value
         plot_item = self.heatmap.plot_item.value
         plotting_params = get_heatmap_params(self.heatmap)
@@ -799,7 +806,10 @@ class VisualizationWidget(QWidget):
             save_path = input_path
         else:
             save_path = self.header.save_path.value
-        animal_list = split_to_list(self.header.animal_list.value)
+        if self.header.animal_list.value == ':':
+            animal_list = [f.parts[-1] for f in input_path.iterdir() if f.is_dir()]
+        else:
+            animal_list = split_to_list(self.header.animal_list.value)
         channels = self.header.channels.value
         plotting_params = get_brain_section_params(self.brain_section)
         plot_item = self.brain_section.plot_item.value
