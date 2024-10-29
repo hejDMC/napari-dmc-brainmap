@@ -239,28 +239,10 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours
             print("no plotting item selected, plotting only contours of brain section")
-
+        static_ax[s].imshow(annot_section_plt)
+        if annot_section_contours.any():
+            static_ax[s].imshow(annot_section_contours)
         for item in plot_dict:
-            if s == 0:
-                static_ax[s].imshow(annot_section_plt)
-                if annot_section_contours.any():
-                    static_ax[s].imshow(annot_section_contours)
-                # if orient_mapping['z_plot'][1] == 0:
-                #     static_ax[s].contour(annot[slice_idx, :, :],
-                #                                     levels=np.unique(annot[slice_idx, :, :]),
-                #                                     colors=['gainsboro'],
-                #                                     linewidths=0.2)
-                # elif orient_mapping['z_plot'][1] == 1:
-                #     static_ax[s].contour(annot[:, slice_idx, :],
-                #                                     levels=np.unique(annot[:, slice_idx, :]),
-                #                                     colors=['gainsboro'],
-                #                                     linewidths=0.2)
-                # else:
-                #     static_ax[s].contour(annot[:, :, slice_idx],
-                #                                     levels=np.unique(annot[:, :, slice_idx]),
-                #                                     colors=['gainsboro'],
-                #                                     linewidths=0.2)
-
             if item == 'cells':
                 if plotting_params['color_cells_atlas']:
                     palette = {}
@@ -302,15 +284,24 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if plot_dict[item].empty:
                     pass
                 else:
-                    # if plotting_params['smooth_proj']:
-                    #     sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'],
-                    #                 y=orient_mapping['y_plot'],
-                    #                 cmap=color_dict[item]["cmap"],
-                    #                 thresh=plotting_params['smooth_thresh_proj'], fill=True)
-                    # else:
-                    sns.histplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                             cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width_proj'], vmin=plotting_params['vmin_proj'],
-                             vmax=plotting_params['vmax_proj'])
+                    bin_size = plotting_params['bin_width_proj']
+                    x_dim = annot_section_plt.shape[1]
+                    y_dim = annot_section_plt.shape[0]
+                    x_bins = np.arange(0, x_dim + bin_size, bin_size)
+                    y_bins = np.arange(0, y_dim + bin_size, bin_size)
+                    if plotting_params['group_diff_proj'] == '':
+                        heatmap_data, mask = calculate_heatmap(annot_section_plt, plot_dict[item], orient_mapping,
+                                                               y_bins, x_bins, bin_size)
+                    else:
+                        heatmap_data, mask = calculate_heatmap_difference(annot_section_plt, plot_dict[item],
+                                                                          plotting_params, orient_mapping,
+                                                                          y_bins, x_bins, bin_size, 'group_diff_proj',
+                                                                          'group_diff_items_proj')
+
+                    sns.heatmap(ax=static_ax[s], data=heatmap_data, mask=mask, cbar=False,
+                                cmap=color_dict[item]["cmap"],
+                                vmin=plotting_params['vmin_proj'], vmax=plotting_params['vmax_proj'],
+                                )
 
             elif item == 'injection_site':
                 if color_dict[item]['single_color']:
