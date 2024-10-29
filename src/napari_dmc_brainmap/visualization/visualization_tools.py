@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import random
 from skimage import measure
+from scipy.ndimage import zoom
+from scipy.ndimage import gaussian_filter
 from scipy.spatial.distance import cdist
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
@@ -597,3 +599,52 @@ def calculate_density(df, color_dict, atlas, plotting_params):
         clr = color_dict['cmap'][0]
     density = brain_region_color_genes(df_density, clr, atlas, plot_type='density')
     return density
+
+def calculate_heatmap(annot_section_plt, df, orient_mapping, y_bins, x_bins, bin_size):
+    animal_data = []
+    for animal_id, group_data in df.groupby('animal_id'):
+        # Calculate 2D histogram for the current animal
+        h_data, _, _ = np.histogram2d(
+            group_data[orient_mapping['y_plot']],
+            group_data[orient_mapping['x_plot']],
+            bins=[y_bins, x_bins]
+        )
+        animal_data.append(h_data)
+    heatmap_data = np.mean(np.stack(animal_data), axis=0)
+    heatmap_data, mask = resize_heatmap(heatmap_data, annot_section_plt, bin_size)
+
+    return heatmap_data, mask
+
+def calculate_heatmap_difference(annot_section_plt, df, plotting_params, orient_mapping, y_bins, x_bins, bin_size, diff_type, diff_items):
+    group_list = df[plotting_params[diff_type]].unique()
+    if all([i in group_list for i in plotting_params[diff_items]]):
+        diff_data = []
+        for d_i in plotting_params[diff_items]:
+            animal_sub_list = df[df[plotting_params[diff_type]] == d_i]['animal_id'].unique()
+            heatmap_sub_data, _ = calculate_heatmap(annot_section_plt, df[df['animal_id'].isin(animal_sub_list)],
+                                                 orient_mapping, y_bins, x_bins, bin_size)
+            diff_data.append(heatmap_sub_data)
+        heatmap_data = diff_data[0] - diff_data[1]
+        mask = get_heatmap_mask(heatmap_data, annot_section_plt)
+    else:
+        print(
+            f"selected items to calculate difference not found: {plotting_params['group_diff_items_cells']}  \n"
+            f"check if items exists, also check params file if items are stated \n"
+            f"--> plotting regular density map")
+        heatmap_data, mask = calculate_heatmap(annot_section_plt, df, orient_mapping, y_bins, x_bins, bin_size)
+    return heatmap_data, mask
+
+def resize_heatmap(heatmap_data, annot_section_plt, bin_size):
+    resized_heatmap_data = zoom(heatmap_data, (bin_size, bin_size), order=1)
+    resized_heatmap_data = gaussian_filter(resized_heatmap_data, sigma=1)
+    mask = get_heatmap_mask(resized_heatmap_data, annot_section_plt)
+
+    return resized_heatmap_data, mask
+
+def get_heatmap_mask(heatmap_data, annot_section_plt):
+    mask1 = heatmap_data == 0
+    mask2 = np.all(annot_section_plt[:, :, 0:3] == 255, axis=2)
+    mask = mask1 | mask2
+
+    return mask
+

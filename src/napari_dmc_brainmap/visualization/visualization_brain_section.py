@@ -3,11 +3,7 @@ import math
 import random
 import matplotlib.colors as mcolors
 import seaborn as sns
-import pandas as pd
 import numpy as np
-from skimage import measure
-from scipy.ndimage import zoom
-from scipy.ndimage import gaussian_filter
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -18,7 +14,7 @@ mpl.rcParams['svg.fonttype'] = 'none'
 
 from napari_dmc_brainmap.utils import split_to_list, load_group_dict, get_xyz
 from napari_dmc_brainmap.visualization.visualization_tools import get_bregma, plot_brain_schematic, create_cmap, \
-    brain_region_color_genes, get_voronoi_mask, calculate_density
+    brain_region_color_genes, get_voronoi_mask, calculate_density, calculate_heatmap, calculate_heatmap_difference
 
 
 def get_brain_section_params(brainsec_widget):
@@ -287,79 +283,19 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if plot_dict[item].empty:
                     pass
                 else:
-                    bin_size = 5
+                    bin_size = plotting_params['bin_width_cells']
                     x_dim = annot_section_plt.shape[1]
                     y_dim = annot_section_plt.shape[0]
                     x_bins = np.arange(0, x_dim + bin_size, bin_size)
                     y_bins = np.arange(0, y_dim + bin_size, bin_size)
                     if plotting_params['group_diff_cells'] == '':
-                        animal_data = []
-                        for animal_id, group_data in plot_dict[item].groupby('animal_id'):
-                            # Calculate 2D histogram for the current animal
-                            h_data, _, _ = np.histogram2d(
-                                group_data[orient_mapping['y_plot']],
-                                group_data[orient_mapping['x_plot']],
-                                bins=[y_bins, x_bins]
-                            )
-                            animal_data.append(h_data)
-                        heatmap_data = np.mean(np.stack(animal_data), axis=0)
+                        heatmap_data, mask = calculate_heatmap(annot_section_plt, plot_dict[item], orient_mapping,
+                                                               y_bins, x_bins, bin_size)
                     else:
-                        group_list = plot_dict[item][plotting_params['group_diff_cells']].unique()
-                        if all([i in group_list for i in plotting_params['group_diff_items_cells']]):
-                            item1_data = []
-                            animal_list_item1 = \
-                            plot_dict[item][plot_dict[item][plotting_params['group_diff_cells']] == plotting_params['group_diff_items_cells'][0]][
-                                'animal_id'].unique()
-                            for animal_id, group_data in plot_dict[item][plot_dict[item]['animal_id'].isin(animal_list_item1)].groupby('animal_id'):
-                                # Calculate 2D histogram for the current animal
-                                h_data, _, _ = np.histogram2d(
-                                    group_data[orient_mapping['y_plot']],
-                                    group_data[orient_mapping['x_plot']],
-                                    bins=[y_bins, x_bins]
-                                )
-                                item1_data.append(h_data)
-                            heatmap_data_item1 = np.mean(np.stack(item1_data), axis=0)
+                        heatmap_data, mask = calculate_heatmap_difference(annot_section_plt, plot_dict[item], plotting_params, orient_mapping,
+                                                                    y_bins, x_bins, bin_size, 'group_diff_cells', 'group_diff_items_cells')
 
-                            item2_data = []
-                            animal_list_item2 = \
-                                plot_dict[item][plot_dict[item][plotting_params['group_diff_cells']] ==
-                                                plotting_params['group_diff_items_cells'][1]][
-                                    'animal_id'].unique()
-                            for animal_id, group_data in plot_dict[item][
-                                plot_dict[item]['animal_id'].isin(animal_list_item2)].groupby('animal_id'):
-                                # Calculate 2D histogram for the current animal
-                                h_data, _, _ = np.histogram2d(
-                                    group_data[orient_mapping['y_plot']],
-                                    group_data[orient_mapping['x_plot']],
-                                    bins=[y_bins, x_bins]
-                                )
-                                item2_data.append(h_data)
-                            heatmap_data_item2 = np.mean(np.stack(item2_data), axis=0)
-                            heatmap_data = heatmap_data_item1 - heatmap_data_item2
-
-                        else:
-                            print(
-                                f"selected items to calculate difference not found: {plotting_params['group_diff_items_cells']}  \n"
-                                f"check if items exists, also check params file if items are stated \n"
-                                f"--> plotting regular density map")
-                            animal_data = []
-                            for animal_id, group_data in plot_dict[item].groupby('animal_id'):
-                                # Calculate 2D histogram for the current animal
-                                h_data, _, _ = np.histogram2d(
-                                    group_data[orient_mapping['y_plot']],
-                                    group_data[orient_mapping['x_plot']],
-                                    bins=[y_bins, x_bins]
-                                )
-                                animal_data.append(h_data)
-                            heatmap_data = np.mean(np.stack(animal_data), axis=0)
-                    # Stack and average across animals
-
-                    resized_heatmap_data = zoom(heatmap_data, (bin_size, bin_size), order=1)
-                    resized_heatmap_data = gaussian_filter(resized_heatmap_data, sigma=1)
-                    mask1 = resized_heatmap_data == 0
-                    mask2 = np.all(annot_section_plt[:, :, 0:3] == 255, axis=2)
-                    mask = mask1 | mask2
-                    sns.heatmap(ax=static_ax[s], data=resized_heatmap_data, mask=mask, cbar=False,
+                    sns.heatmap(ax=static_ax[s], data=heatmap_data, mask=mask, cbar=False,
                                 cmap=color_dict[item]["cmap"],
                                 vmin=plotting_params['vmin_cells'], vmax=plotting_params['vmax_cells'],
                                 )
