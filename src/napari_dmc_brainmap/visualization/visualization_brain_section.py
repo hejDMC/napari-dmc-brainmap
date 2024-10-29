@@ -299,7 +299,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                                                           y_bins, x_bins, bin_size, 'group_diff_proj',
                                                                           'group_diff_items_proj')
 
-                    sns.heatmap(ax=static_ax[s], data=heatmap_data, mask=mask, cbar=False,
+                    sns.heatmap(ax=static_ax[s], data=heatmap_data, mask=mask, cbar=plotting_params['show_cbar'], cbar_kws={'shrink': 0.5},
                                 cmap=color_dict[item]["cmap"],
                                 vmin=plotting_params['vmin_proj'], vmax=plotting_params['vmax_proj'],
                                 )
