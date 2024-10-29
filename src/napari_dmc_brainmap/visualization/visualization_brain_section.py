@@ -6,6 +6,8 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 from skimage import measure
+from scipy.ndimage import zoom
+from scipy.ndimage import gaussian_filter
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -34,14 +36,22 @@ def get_brain_section_params(brainsec_widget):
         "section_range": float(brainsec_widget.section_range.value),
         "groups": brainsec_widget.groups.value,
         "dot_size": int(brainsec_widget.dot_size.value),
-        "bin_width": int(brainsec_widget.bin_width.value),
-        "vmin": int(brainsec_widget.vmin.value),
-        "vmax": int(brainsec_widget.vmax.value),
-        "smooth_proj": brainsec_widget.smooth_proj.value,
-        "smooth_thresh": float(brainsec_widget.smooth_thresh.value),
         "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
+        "color_cells_density": split_to_list(brainsec_widget.cmap_cells.value),
+        "bin_width_cells": int(brainsec_widget.bin_width_cells.value),
+        "vmin_cells": int(brainsec_widget.vmin_cells.value),
+        "vmax_cells": int(brainsec_widget.vmax_cells.value),
+        "group_diff_cells": brainsec_widget.group_diff_cells.value,
+        "group_diff_items_cells": brainsec_widget.group_diff_items_cells.value.split('-'),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
+        "bin_width_proj": int(brainsec_widget.bin_width_proj.value),
+        "vmin_proj": int(brainsec_widget.vmin_proj.value),
+        "vmax_proj": int(brainsec_widget.vmax_proj.value),
+        "group_diff_proj": brainsec_widget.group_diff_proj.value,
+        "group_diff_items_proj": brainsec_widget.group_diff_items_proj.value.split('-'),
+        # "smooth_proj": brainsec_widget.smooth_proj.value,
+        # "smooth_thresh_proj": float(brainsec_widget.smooth_thresh_proj.value),
         "color_injection_site": split_to_list(brainsec_widget.color_inj.value),
         "color_optic_fiber": split_to_list(brainsec_widget.color_optic.value),
         "color_neuropixels_probe": split_to_list(brainsec_widget.color_npx.value),
@@ -72,7 +82,7 @@ def create_color_dict(input_path, animal_list, data_dict, plotting_params):
     for item in plotting_params['plot_item']:
         color_dict[item] = {}
         clr_id = 'color_' + item
-        if item in ['cells', 'projections', 'injection_site', 'genes']:
+        if item in ['cells', 'cells_density', 'projections', 'injection_site', 'genes']:
             if plotting_params["groups"] in ['genotype', 'group']:
                 animal_dict = load_group_dict(input_path, animal_list, group_id=plotting_params["groups"])
                 cmap = create_cmap(animal_dict, plotting_params, clr_id)
@@ -237,7 +247,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
 
         for item in plot_dict:
             if cnt < 1:
-                static_ax[s].imshow(annot_section_plt)
+                static_ax[s].imshow(annot_section_plt, zorder=0)
                 if annot_section_contours.any():
                     static_ax[s].imshow(annot_section_contours)
                 # if orient_mapping['z_plot'][1] == 0:
@@ -273,20 +283,101 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                     else:
                             sns.scatterplot(ax=static_ax[s], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'], data=plot_dict[item],
                                             hue=plotting_params["groups"], palette=color_dict[item]["cmap"], s=plotting_params["dot_size"])
+            elif item == 'cells_density':
+                if plot_dict[item].empty:
+                    pass
+                else:
+                    bin_size = 5
+                    x_dim = annot_section_plt.shape[1]
+                    y_dim = annot_section_plt.shape[0]
+                    x_bins = np.arange(0, x_dim + bin_size, bin_size)
+                    y_bins = np.arange(0, y_dim + bin_size, bin_size)
+                    if plotting_params['group_diff_cells'] == '':
+                        animal_data = []
+                        for animal_id, group_data in plot_dict[item].groupby('animal_id'):
+                            # Calculate 2D histogram for the current animal
+                            h_data, _, _ = np.histogram2d(
+                                group_data[orient_mapping['y_plot']],
+                                group_data[orient_mapping['x_plot']],
+                                bins=[y_bins, x_bins]
+                            )
+                            animal_data.append(h_data)
+                        heatmap_data = np.mean(np.stack(animal_data), axis=0)
+                    else:
+                        group_list = plot_dict[item][plotting_params['group_diff_cells']].unique()
+                        if all([i in group_list for i in plotting_params['group_diff_items_cells']]):
+                            item1_data = []
+                            animal_list_item1 = \
+                            plot_dict[item][plot_dict[item][plotting_params['group_diff_cells']] == plotting_params['group_diff_items_cells'][0]][
+                                'animal_id'].unique()
+                            for animal_id, group_data in plot_dict[item][plot_dict[item]['animal_id'].isin(animal_list_item1)].groupby('animal_id'):
+                                # Calculate 2D histogram for the current animal
+                                h_data, _, _ = np.histogram2d(
+                                    group_data[orient_mapping['y_plot']],
+                                    group_data[orient_mapping['x_plot']],
+                                    bins=[y_bins, x_bins]
+                                )
+                                item1_data.append(h_data)
+                            heatmap_data_item1 = np.mean(np.stack(item1_data), axis=0)
 
+                            item2_data = []
+                            animal_list_item2 = \
+                                plot_dict[item][plot_dict[item][plotting_params['group_diff_cells']] ==
+                                                plotting_params['group_diff_items_cells'][1]][
+                                    'animal_id'].unique()
+                            for animal_id, group_data in plot_dict[item][
+                                plot_dict[item]['animal_id'].isin(animal_list_item2)].groupby('animal_id'):
+                                # Calculate 2D histogram for the current animal
+                                h_data, _, _ = np.histogram2d(
+                                    group_data[orient_mapping['y_plot']],
+                                    group_data[orient_mapping['x_plot']],
+                                    bins=[y_bins, x_bins]
+                                )
+                                item2_data.append(h_data)
+                            heatmap_data_item2 = np.mean(np.stack(item2_data), axis=0)
+                            heatmap_data = heatmap_data_item1 - heatmap_data_item2
+
+                        else:
+                            print(
+                                f"selected items to calculate difference not found: {plotting_params['group_diff_items_cells']}  \n"
+                                f"check if items exists, also check params file if items are stated \n"
+                                f"--> plotting regular density map")
+                            animal_data = []
+                            for animal_id, group_data in plot_dict[item].groupby('animal_id'):
+                                # Calculate 2D histogram for the current animal
+                                h_data, _, _ = np.histogram2d(
+                                    group_data[orient_mapping['y_plot']],
+                                    group_data[orient_mapping['x_plot']],
+                                    bins=[y_bins, x_bins]
+                                )
+                                animal_data.append(h_data)
+                            heatmap_data = np.mean(np.stack(animal_data), axis=0)
+                    # Stack and average across animals
+
+                    resized_heatmap_data = zoom(heatmap_data, (bin_size, bin_size), order=1)
+                    resized_heatmap_data = gaussian_filter(resized_heatmap_data, sigma=1)
+                    mask1 = resized_heatmap_data == 0
+                    mask2 = np.all(annot_section_plt[:, :, 0:3] == 255, axis=2)
+                    mask = mask1 | mask2
+                    sns.heatmap(ax=static_ax[s], data=resized_heatmap_data, mask=mask, cbar=False,
+                                cmap=color_dict[item]["cmap"],
+                                vmin=plotting_params['vmin_cells'], vmax=plotting_params['vmax_cells'],
+                                )
+                    if annot_section_contours.any():
+                        static_ax[s].imshow(annot_section_contours,zorder=100)
             elif item == 'projections':
                 if plot_dict[item].empty:
                     pass
                 else:
-                    if plotting_params['smooth_proj']:
-                        sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'],
-                                    y=orient_mapping['y_plot'],
-                                    cmap=color_dict[item]["cmap"],
-                                    thresh=plotting_params['smooth_thresh'], fill=True)
-                    else:
-                        sns.histplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
-                                 cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width'], vmin=plotting_params['vmin'],
-                                 vmax=plotting_params['vmax'])
+                    # if plotting_params['smooth_proj']:
+                    #     sns.kdeplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'],
+                    #                 y=orient_mapping['y_plot'],
+                    #                 cmap=color_dict[item]["cmap"],
+                    #                 thresh=plotting_params['smooth_thresh_proj'], fill=True)
+                    # else:
+                    sns.histplot(ax=static_ax[s], data=plot_dict[item], x=orient_mapping['x_plot'], y=orient_mapping['y_plot'],
+                             cmap=color_dict[item]["cmap"], binwidth=plotting_params['bin_width_proj'], vmin=plotting_params['vmin_proj'],
+                             vmax=plotting_params['vmax_proj'])
 
             elif item == 'injection_site':
                 if color_dict[item]['single_color']:
