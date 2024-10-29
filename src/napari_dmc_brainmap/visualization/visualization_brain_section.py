@@ -34,14 +34,15 @@ def get_brain_section_params(brainsec_widget):
         "dot_size": int(brainsec_widget.dot_size.value),
         "color_cells_atlas": brainsec_widget.color_cells_atlas.value,
         "color_cells": split_to_list(brainsec_widget.color_cells.value),
+        "show_cbar": brainsec_widget.show_cbar.value,
         "color_cells_density": split_to_list(brainsec_widget.cmap_cells.value),
-        "bin_width_cells": int(brainsec_widget.bin_width_cells.value),
+        "bin_size_cells": int(brainsec_widget.bin_size_cells.value),
         "vmin_cells": int(brainsec_widget.vmin_cells.value),
         "vmax_cells": int(brainsec_widget.vmax_cells.value),
         "group_diff_cells": brainsec_widget.group_diff_cells.value,
         "group_diff_items_cells": brainsec_widget.group_diff_items_cells.value.split('-'),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
-        "bin_width_proj": int(brainsec_widget.bin_width_proj.value),
+        "bin_size_cells": int(brainsec_widget.bin_size_cells.value),
         "vmin_proj": int(brainsec_widget.vmin_proj.value),
         "vmax_proj": int(brainsec_widget.vmax_proj.value),
         "group_diff_proj": brainsec_widget.group_diff_proj.value,
@@ -264,7 +265,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if plot_dict[item].empty:
                     pass
                 else:
-                    bin_size = plotting_params['bin_width_cells']
+                    bin_size = plotting_params['bin_size_cells']
                     x_dim = annot_section_plt.shape[1]
                     y_dim = annot_section_plt.shape[0]
                     x_bins = np.arange(0, x_dim + bin_size, bin_size)
@@ -276,7 +277,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                         heatmap_data, mask = calculate_heatmap_difference(annot_section_plt, plot_dict[item], plotting_params, orient_mapping,
                                                                     y_bins, x_bins, bin_size, 'group_diff_cells', 'group_diff_items_cells')
 
-                    sns.heatmap(ax=static_ax[s], data=heatmap_data, mask=mask, cbar=False,
+                    sns.heatmap(ax=static_ax[s], data=heatmap_data, mask=mask, cbar=plotting_params['show_cbar'], cbar_kws={'shrink': 0.5},
                                 cmap=color_dict[item]["cmap"],
                                 vmin=plotting_params['vmin_cells'], vmax=plotting_params['vmax_cells'],
                                 )
@@ -284,7 +285,7 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                 if plot_dict[item].empty:
                     pass
                 else:
-                    bin_size = plotting_params['bin_width_proj']
+                    bin_size = plotting_params['bin_size_proj']
                     x_dim = annot_section_plt.shape[1]
                     y_dim = annot_section_plt.shape[0]
                     x_bins = np.arange(0, x_dim + bin_size, bin_size)
