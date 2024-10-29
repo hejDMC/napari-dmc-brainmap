@@ -235,15 +235,14 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                            bregma, section, section_range, density))
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     print('...done')
-    cnt = 0
     for s, (annot_section_plt, annot_section_contours, plot_dict, slice_idx) in enumerate(results):
         if not plot_dict:
             plot_dict = {'dummy'}  # plot only contours
             print("no plotting item selected, plotting only contours of brain section")
 
         for item in plot_dict:
-            if cnt < 1:
-                static_ax[s].imshow(annot_section_plt, zorder=0)
+            if s == 0:
+                static_ax[s].imshow(annot_section_plt)
                 if annot_section_contours.any():
                     static_ax[s].imshow(annot_section_contours)
                 # if orient_mapping['z_plot'][1] == 0:
@@ -299,8 +298,6 @@ def do_brain_section_plot(input_path, atlas, data_dict, animal_list, plotting_pa
                                 cmap=color_dict[item]["cmap"],
                                 vmin=plotting_params['vmin_cells'], vmax=plotting_params['vmax_cells'],
                                 )
-                    if annot_section_contours.any():
-                        static_ax[s].imshow(annot_section_contours,zorder=100)
             elif item == 'projections':
                 if plot_dict[item].empty:
                     pass
