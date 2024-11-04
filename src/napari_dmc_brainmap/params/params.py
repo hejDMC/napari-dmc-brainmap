@@ -14,7 +14,7 @@ import json
 import sys
 
 from napari_dmc_brainmap.utils import get_animal_id, update_params_dict, clean_params_dict, get_atlas_dropdown, get_xyz
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from bg_atlasapi import BrainGlobeAtlas
@@ -80,11 +80,15 @@ class ParamsWidget(QWidget):
     def _create_params_file(self):
         input_path = self.params.input_path.value
         # check if user provided a valid input_path
-        if not input_path.is_dir() or str(input_path) == '.':  # todo check on other OS
-            # raise IOError("Input path is not a valid directory \n"
-            #               "Please make sure this exists: {}".format(input_path))
-            print(f"Input path is not a valid directory \n Please make sure this exists: >> '{str(input_path)}' <<")
+        if not input_path.is_dir() or str(input_path) == '.':
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Critical)
+            msg_box.setText(
+                f"Input path is not a valid directory. Please make sure this exists: >> '{str(input_path)}' <<")
+            msg_box.setWindowTitle("Invalid Path Error")
+            msg_box.exec_()  # Show the message box
             return
+
         animal_id = get_animal_id(input_path)
         injection_site = self.params.inj_side.value
         genotype = self.params.geno.value
@@ -92,33 +96,45 @@ class ParamsWidget(QWidget):
         chans_imaged = self.params.chans_imaged.value
         atlas_name = self.params.atlas.value.value
         orientation = self.params.section_orient.value
-        print(f'check existence of local version of {atlas_name} atlas ...')
-        print(f'loading reference atlas {atlas_name} ...')
-        atlas = BrainGlobeAtlas(atlas_name)
-        xyz_dict = get_xyz(atlas, orientation)
-        resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
+        try:
+            print(f'check existence of local version of {atlas_name} atlas ...')
+            print(f'loading reference atlas {atlas_name} ...')
+            atlas = BrainGlobeAtlas(atlas_name)
+            xyz_dict = get_xyz(atlas, orientation)
+            resolution_tuple = (xyz_dict['x'][1], xyz_dict['y'][1])
 
-        # basic structure of params.json dictionary
-        params_dict = {
-            "general": {
-                "animal_id": animal_id,
-                "injection_site": injection_site,
-                "genotype": genotype,
-                "group": group,
-                "chans_imaged": chans_imaged
-            },
-            "atlas_info": {
-                "atlas":  atlas_name,
-                "orientation": orientation,
-                "resolution": resolution_tuple,
-                'xyz_dict': xyz_dict
+            # basic structure of params.json dictionary
+            params_dict = {
+                "general": {
+                    "animal_id": animal_id,
+                    "injection_site": injection_site,
+                    "genotype": genotype,
+                    "group": group,
+                    "chans_imaged": chans_imaged
+                },
+                "atlas_info": {
+                    "atlas":  atlas_name,
+                    "orientation": orientation,
+                    "resolution": resolution_tuple,
+                    'xyz_dict': xyz_dict
 
+                }
             }
-        }
-        params_dict = clean_params_dict(params_dict, "general")  # remove empty keys, e.g. when no genotype specified
-        params_fn = input_path.joinpath('params.json')
-        params_dict = update_params_dict(input_path, params_dict, create=True)
-        with open(params_fn, 'w') as fn:
-            json.dump(params_dict, fn, indent=4)
-        print(f'params.json file for {animal_id} created !')
+            params_dict = clean_params_dict(params_dict, "general")  # remove empty keys, e.g. when no genotype specified
+            params_fn = input_path.joinpath('params.json')
+            params_dict = update_params_dict(input_path, params_dict, create=True)
+            with open(params_fn, 'w') as fn:
+                json.dump(params_dict, fn, indent=4)
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setText(f"params.json file for {animal_id} created successfully!")
+            msg_box.setWindowTitle("Success")
+            msg_box.exec_()
+        except Exception as e:
+            # If any error occurs during processing, show an error message box
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Critical)
+            msg_box.setText(f"An error occurred: {str(e)}")
+            msg_box.setWindowTitle("Processing Error")
+            msg_box.exec_()
 
