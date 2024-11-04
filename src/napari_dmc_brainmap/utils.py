@@ -116,7 +116,37 @@ def load_params(input_path):
                                 "Check Data Integrity at folder: {} \n"
                                 "and try again!".format(input_path))
     
-
+# def load_params(input_path, parent_widget=None):
+#     """
+#     Loads the params.json file from the specified input path.
+#
+#     Parameters:
+#     input_path (Path): Path to the directory where params.json should be located.
+#     parent_widget (QWidget, optional): Parent widget to attach dialogs.
+#
+#     Returns:
+#     dict: The loaded params.json data.
+#     """
+#     params_fn = input_path.joinpath('params.json')
+#
+#     try:
+#         with open(params_fn, 'r') as fn:
+#             params = json.load(fn)
+#             return params
+#     except FileNotFoundError:
+#         msg_box = QMessageBox(parent_widget)
+#         msg_box.setIcon(QMessageBox.Critical)
+#         msg_box.setText(f"params.json not found in {str(params_fn)}")
+#         msg_box.setWindowTitle("File Not Found Error")
+#         msg_box.exec_()
+#         return {}
+#     except json.JSONDecodeError:
+#         msg_box = QMessageBox(parent_widget)
+#         msg_box.setIcon(QMessageBox.Critical)
+#         msg_box.setText("The params.json file is corrupted and could not be decoded.")
+#         msg_box.setWindowTitle("JSON Decode Error")
+#         msg_box.exec_()
+#         return {}
 
 def clean_params_dict(params_dict, key):
     # remove empty keys and processes that have not run

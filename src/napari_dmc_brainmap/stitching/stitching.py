@@ -5,7 +5,7 @@ DMC-BrainMap widget for stitching .tif and .czi files
 """
 
 # import modules
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox
 from napari import Viewer
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
@@ -234,10 +234,13 @@ class StitchingWidget(QWidget):
     def _do_stitching(self):
         input_path = self.stitching.input_path.value
         # check if user provided a valid input_path
-        if not input_path.is_dir() or str(input_path) == '.':  # todo check on other OS
-            # raise IOError("Input path is not a valid directory \n"
-            #               "Please make sure this exists: {}".format(input_path))
-            print(f"Input path is not a valid directory \n Please make sure this exists: >> '{str(input_path)}' <<")
+        if not input_path.is_dir() or str(input_path) == '.':
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Critical)
+            msg_box.setText(
+                f"Input path is not a valid directory. Please make sure this exists: >> '{str(input_path)}' <<")
+            msg_box.setWindowTitle("Invalid Path Error")
+            msg_box.exec_()  # Show the message box
             return
         stitch_tiles = self.stitching.stitch_tiles.value
         params_dict = self._get_stitching_params()
