@@ -27,7 +27,7 @@ from napari.utils.notifications import show_info
 
 from bg_atlasapi import config, BrainGlobeAtlas
 
-from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list, get_im_list
+from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list, get_image_list
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 
 
@@ -166,7 +166,7 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
         image_idx]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
     path_to_im = seg_im_dir.joinpath(im)
     if pre_seg:
-        im_list = get_im_list(input_path)  # to return im base name for loading preseg
+        im_list = get_image_list(input_path)  # to return im base name for loading preseg
         im_name_candidates = [i for i in im_list if im.startswith(i)]
         if len(im_name_candidates) == 1:
             im_name = im_name_candidates[0]

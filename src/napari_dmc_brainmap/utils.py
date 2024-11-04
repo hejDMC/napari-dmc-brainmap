@@ -51,7 +51,7 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
     # if image list is present, load and get suffix
     if im_list_present:
         im0 = image_list[0]
-        im_list = get_im_list(input_path, folder_id=folder)
+        im_list = get_image_list(input_path, folder_id=folder)
         im1 = [i for i in im_list if im0.startswith(i)]
         if len(im1) == 1:
             im1 = im1[0]
@@ -82,7 +82,7 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
     return common_suffix
 
 
-def get_im_list(input_path, folder_id='stitched', file_id='*.tif'):
+def get_image_list(input_path, folder_id='stitched', file_id='*.tif'):
     im_list_name = input_path.joinpath('image_names.csv')
     if im_list_name.exists():
         image_list = pd.read_csv(im_list_name)

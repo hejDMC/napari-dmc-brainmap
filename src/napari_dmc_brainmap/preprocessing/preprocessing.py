@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from napari.qt.threading import thread_worker
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from napari_dmc_brainmap.utils import get_animal_id, get_im_list, update_params_dict, clean_params_dict, load_params, \
+from napari_dmc_brainmap.utils import get_animal_id, get_image_list, update_params_dict, clean_params_dict, load_params, \
     get_threshold_dropdown
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
@@ -468,7 +468,7 @@ class PreprocessingWidget(QWidget):
         preprocessing_params = self._get_preprocessing_params()
         save_dirs = create_dirs(preprocessing_params, input_path)
         filter_list = preprocessing_params['general']['chans_imaged']
-        img_list = get_im_list(input_path)
+        img_list = get_image_list(input_path)
         num_cores = self.footer.num_cores.value
         params_dict = load_params(input_path)
         resolution = params_dict['atlas_info']['resolution']

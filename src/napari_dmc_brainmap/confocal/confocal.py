@@ -7,7 +7,7 @@ import numpy as np
 import cv2
 from aicsimageio.readers import CziReader
 
-from napari_dmc_brainmap.utils import get_animal_id, get_info, get_im_list
+from napari_dmc_brainmap.utils import get_animal_id, get_info, get_image_list
 from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
 
 
@@ -17,7 +17,7 @@ from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
 def create_tifs(input_path, chan_label_map):
     #animal_id = get_animal_id(input_path)
     #data_dir = input_path.joinpath('confocal')
-    image_list = get_im_list(input_path, folder_id='confocal', file_id='*.czi')
+    image_list = get_image_list(input_path, folder_id='confocal', file_id='*.czi')
     for im in image_list:
         print('started with ' + im)
         im_fn = input_path.joinpath('confocal', im + '.czi')
