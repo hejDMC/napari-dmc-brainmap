@@ -4,31 +4,19 @@ import json
 import cv2
 import tifffile as tiff
 from skimage.exposure import rescale_intensity
-from typing import List, Tuple, Optional
 
-def load_meta(section_dir) -> dict:
-    """
-    Load metadata from a .tif file in the specified directory.
 
-    :param section_dir: Directory containing the .tif file.
-    :return: Metadata as a dictionary.
-    """
+def load_meta(section_dir):
     path_to_tiff = section_dir.joinpath([f.parts[-1] for f in section_dir.glob('*.tif')][0])
-    with tiff.TiffFile(path_to_tiff) as tif:
+    with tifffile.TiffFile(path_to_tiff) as tif:
         meta_data = json.loads(tif.imagej_metadata['Info'])
     return meta_data
 
-def get_size_json(pos_list: List[Tuple[int, int]]) -> Tuple[int, int]:
-    """
-    Calculate the width and height of the grid from a list of positions.
-
-    :param pos_list: List of positions as tuples of (x, y).
-    :return: Width and height of the grid.
-    """
+def get_size_json(pos_list):
     pos = np.array(pos_list)
     pos_x = pos[:, 0]
     height = np.sum(np.abs(np.diff(pos_x).astype(int)) < 13) + 1
-    width = int(len(pos_x) / height)
+    width = int(len(pos_x)/height)
     return width, height
 
 def map_loc(width, height):
@@ -191,14 +179,8 @@ def downsample(input_tiff, output_png, size_tuple, contrast_tuple):
     print('-----')
 
 
-def padding_for_atlas(input_array: np.ndarray, resolution: Tuple[int, int]) -> np.ndarray:
-    """
-    Apply padding to an image for atlas registration.
+def padding_for_atlas(input_array, resolution):
 
-    :param image: Input image as a NumPy array.
-    :param resolution: Desired resolution for padding.
-    :return: Padded image as a NumPy array.
-    """
     if resolution:
         # resolution = [x, y]
         x, y = resolution
