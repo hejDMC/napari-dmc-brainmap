@@ -57,14 +57,35 @@ def do_stitching(input_path: Path, filter_list: List[str], params_dict: Dict, st
                 process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track)
             else:
                 process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track)
-        progress_value += progress_step
-        yield int(progress_value)
+            progress_value += progress_step
+            yield int(progress_value)
 
     yield 100
     return animal_id
 
+# def calculate_total_images(data_dir: Path, objs: List[str], filter_list: List[str]) -> int:
+#     """
+#     Calculate the total number of images to be stitched.
+#
+#     Parameters:
+#     data_dir (Path): Path to the directory containing the raw data.
+#     objs (List[str]): List of objects to be stitched.
+#     filter_list (List[str]): List of channels to be stitched.
+#
+#     Returns:
+#     int: Total number of images to be stitched.
+#     """
+#     total_images = 0
+#     for obj in objs:
+#         in_obj = data_dir.joinpath(obj)
+#         for f in filter_list:
+#             meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
+#             with open(meta_json_where, 'r') as data:
+#                 img_meta = json.load(data)
+#             total_images += len(img_meta)
+#     return total_images
 
-def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool) -> None:
+def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool, overlap=205) -> None:
     """
     Process stitching for a folder of tiles.
 
@@ -91,14 +112,14 @@ def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Pa
             if f in sharpy_chans:
                 sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
                 sharpy_im_dir = sharpy_dir.joinpath(f'{section.parts[-1]}_downsampled.tif')
-                stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
+                stitch_folder(section, overlap, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
             else:
-                stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
+                stitch_folder(section, overlap, stitched_path, params_dict, f, resolution=resolution)
         else:
-            stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
+            stitch_folder(section, overlap, stitched_path, params_dict, f, resolution=resolution)
 
 
-def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool) -> None:
+def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool, overlap=205) -> None:
     """
     Process stitching for a stack of tiles.
 
@@ -130,15 +151,15 @@ def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Pat
             if f in sharpy_chans:
                 sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
                 sharpy_im_dir = sharpy_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif')
-                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, resolution=resolution, downsampled_path=sharpy_im_dir)
+                stitch_stack(pos_list, whole_stack, overlap, stitched_path, params_dict, f, resolution=resolution, downsampled_path=sharpy_im_dir)
             else:
-                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, resolution=resolution)
+                stitch_stack(pos_list, whole_stack, overlap, stitched_path, params_dict, f, resolution=resolution)
         else:
-            stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, resolution=resolution)
+            stitch_stack(pos_list, whole_stack, overlap, stitched_path, params_dict, f, resolution=resolution)
         whole_stack = np.delete(whole_stack, [np.arange(len(pos_list))], axis=0)
 
 
-def load_tile_stack(in_chan: Path, stack: List[str]) -> np.ndarray:
+def load_tile_stack(in_chan: Path, stack: List[str], c_size=2048) -> np.ndarray:
     """
     Load a stack of tiles from the specified input channel.
 
@@ -154,7 +175,7 @@ def load_tile_stack(in_chan: Path, stack: List[str]) -> np.ndarray:
     for _ in tif_meta:
         page_count += 1
 
-    whole_stack = np.zeros((page_count, 2048, 2048), dtype=np.uint16)
+    whole_stack = np.zeros((page_count, c_size, c_size), dtype=np.uint16)
     page_count = 0
     for stk in stack:
         with tiff.TiffFile(in_chan.joinpath(stk)) as tif:
@@ -281,11 +302,11 @@ class StitchingWidget(QWidget):
         self.progress_bar.setMaximum(100)
         self.progress_bar.setValue(0)
 
-        btn = QPushButton("Stitch Images")
-        btn.clicked.connect(self._do_stitching)
+        self.btn = QPushButton("Stitch Images")
+        self.btn.clicked.connect(self._do_stitching)
 
         self.layout().addWidget(self.stitching.native)
-        self.layout().addWidget(btn)
+        self.layout().addWidget(self.btn)
         self.layout().addWidget(self.progress_bar)
         self.progress_signal.connect(self.progress_bar.setValue)
 
@@ -343,6 +364,7 @@ class StitchingWidget(QWidget):
         msg_box.setText(f"Stitching finished for {animal_id}!")
         msg_box.setWindowTitle("Stitching successful!")
         msg_box.exec_()
+        self.btn.setText("Stitch Images")  # Reset button text after process completion
 
     def _update_progress(self, value: int) -> None:
         """
@@ -375,5 +397,6 @@ class StitchingWidget(QWidget):
 
         stitching_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track)
         stitching_worker.yielded.connect(self._update_progress)
+        stitching_worker.started.connect(lambda: self.btn.setText("Stitching images..."))  # Change button text when stitching starts
         stitching_worker.returned.connect(self._show_success_message)
         stitching_worker.start()
