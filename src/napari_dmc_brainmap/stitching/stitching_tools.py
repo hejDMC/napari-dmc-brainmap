@@ -126,15 +126,15 @@ def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, do
 
     # save to full resolution to stitched folder
     tiff.imwrite(stitched_path, stitch_canvas)
-    print(stitched_path, ' stitched')
+    # print(stitched_path, ' stitched')
     # downsample and and save to sharpy_track folder
     if downsampled_path:
         contrast_tuple = tuple(params['sharpy_track_params'][chan])
         im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
         # save downsampled image
         tifffile.imwrite(downsampled_path, im_ds)
-        print(downsampled_path, ' downsampled')
-        print('-----')
+        # print(downsampled_path, ' downsampled')
+        # print('-----')
 
 
 
@@ -154,14 +154,14 @@ def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled
     stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
 
     tiff.imwrite(stitched_path, stitch_canvas)
-    print(stitched_path, ' stitched')
+    # print(stitched_path, ' stitched')
     if downsampled_path:
         contrast_tuple = tuple(params['sharpy_track_params'][chan])
         im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
         # save downsampled image
         tifffile.imwrite(downsampled_path, im_ds)
-        print(downsampled_path, ' downsampled')
-        print('-----')
+        # print(downsampled_path, ' downsampled')
+        # print('-----')
 
 def downsample_image(input_tiff, size_tuple, contrast_tuple):
     if isinstance(input_tiff, str):  # if input is a file path

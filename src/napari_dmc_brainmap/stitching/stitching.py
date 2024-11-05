@@ -3,23 +3,8 @@ DMC-BrainMap widget for stitching .tif and .czi files
 
 2024 - FJ, XC
 """
-
-# import modules
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox
-from napari import Viewer
-from napari.qt.threading import thread_worker
-from magicgui import magicgui
-from magicgui.widgets import FunctionGui
-from natsort import natsorted
-import json
-import tifffile as tiff
-import numpy as np
-from concurrent.futures import ThreadPoolExecutor
-
-from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_folder
-from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
-
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox, QProgressBar
 from napari import Viewer
 from napari.qt.threading import thread_worker
 from magicgui import magicgui
@@ -33,7 +18,7 @@ from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_f
 from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
 
 
-@thread_worker
+@thread_worker(progress={'total': 100})
 def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track):
     """
 
@@ -42,6 +27,7 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
     :param params_dict: dict loaded from params.json
     :param stitch_tiles: bool, whether to stitch individual tiles, if False use DMC-FluoImager data as input
     :param direct_sharpy_track: bool, whether to directly create data for SHARPy-track
+    :param progress: Function to update progress for the worker.
     :return:
     """
 
@@ -53,7 +39,8 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
     if not objs:
         print('no object slides under raw-data folder!')
         return
-
+    progress_value = 0
+    progress_step = 100 / (len(objs) * len(filter_list))
     # iterate objs and chans
     for obj in objs:
         in_obj = data_dir.joinpath(obj)
@@ -65,6 +52,9 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
             else:
                 process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution,
                                      direct_sharpy_track)
+        progress_value += progress_step
+        yield int(progress_value)
+    yield 100
     return animal_id
 
 def process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track):
@@ -214,16 +204,26 @@ def initialize_widget() -> FunctionGui:
 
 
 class StitchingWidget(QWidget):
+    progress_signal = Signal(int)
     def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
         self.stitching = initialize_widget()
-        btn = QPushButton("stitch images")
+
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+
+        btn = QPushButton("Stitch Images")
         btn.clicked.connect(self._do_stitching)
 
         self.layout().addWidget(self.stitching.native)
         self.layout().addWidget(btn)
+        self.layout().addWidget(self.progress_bar)
+        self.progress_signal.connect(self.progress_bar.setValue)
+
     def _get_info(self, widget):
 
             return {
@@ -252,12 +252,15 @@ class StitchingWidget(QWidget):
         }
         return params_dict
 
-    def show_success_message(self, animal_id):
+    def _show_success_message(self, animal_id):
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setText(f"Stitching finished for {animal_id}!")
         msg_box.setWindowTitle("Stitching successful!")
         msg_box.exec_()
+
+    def _update_progress(self, value):
+        self.progress_signal.emit(value)
 
     def _do_stitching(self):
         input_path = self.stitching.input_path.value
@@ -270,12 +273,17 @@ class StitchingWidget(QWidget):
             msg_box.setWindowTitle("Invalid Path Error")
             msg_box.exec_()  # Show the message box
             return
+
         stitch_tiles = self.stitching.stitch_tiles.value
         params_dict = self._get_stitching_params()
         direct_sharpy_track = params_dict['operations']['sharpy_track']
         params_dict = clean_params_dict(params_dict, "operations")  # remove empty keys
         params_dict = update_params_dict(input_path, params_dict)  # update params.json file, add info on stitching
         filter_list = params_dict['general']['chans_imaged']
+
         stitching_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track)
+        stitching_worker.yielded.connect(self._update_progress)  # Connect worker's yielded signal to progress update
+        stitching_worker.returned.connect(self._show_success_message)
         stitching_worker.start()
-        stitching_worker.returned.connect(self.show_success_message)
+        # stitching_worker.start()
+        # stitching_worker.returned.connect(self.show_success_message)
