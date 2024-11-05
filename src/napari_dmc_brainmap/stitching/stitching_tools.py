@@ -135,7 +135,7 @@ def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, do
         tifffile.imwrite(downsampled_path, im_ds)
         print(downsampled_path, ' downsampled')
         print('-----')
-    return pop_img
+
 
 
 def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled_path=False, resolution=False):

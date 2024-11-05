@@ -14,11 +14,23 @@ from natsort import natsorted
 import json
 import tifffile as tiff
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 
 from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_folder
 from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
 
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox
+from napari import Viewer
+from napari.qt.threading import thread_worker
+from magicgui import magicgui
+from magicgui.widgets import FunctionGui
+from natsort import natsorted
+import json
+import tifffile as tiff
+import numpy as np
 
+from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_folder
+from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
 
 
 @thread_worker
@@ -48,80 +60,87 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
         for f in filter_list:
             stitch_dir = get_info(input_path, 'stitched', channel=f, create_dir=True, only_dir=True)
             if stitch_tiles:
-                in_chan = in_obj.joinpath(f)
-                section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
-                section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in
-                                    enumerate(section_list)]
-                [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in
-                 zip(section_list, section_list_new)]
-                section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir()])
-                for section in section_dirs:
-
-                    stitched_path = stitch_dir.joinpath(f'{section.parts[-1]}_stitched.tif')
-                    if direct_sharpy_track:
-                        sharpy_chans = params_dict['sharpy_track_params']['channels']
-                        if f in sharpy_chans:
-                            sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                            sharpy_im_dir = sharpy_dir.joinpath(f'{section.parts[-1]}_downsampled.tif')
-                            stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
-                        else:
-                            stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
-                    else:
-                        stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
+                process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution,
+                                      direct_sharpy_track)
             else:
-                in_chan = in_obj.joinpath(f'{obj}_{f}_1')
-                # load tile stack name
-                stack = []
-                im_list = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
-                for fn in im_list:
-                    stack.append(fn)
-                stack.sort()
-
-                # get number of tiles from NDTiff.index file
-                tif_meta = tiff.read_ndtiff_index(in_chan.joinpath("NDTiff.index"))
-                page_count = 0
-                for _ in tif_meta:
-                    page_count += 1
-                # initiate empty numpy array
-                whole_stack = np.zeros((page_count,2048,2048),dtype=np.uint16)
-                page_count = 0
-                for stk in stack:
-                    with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
-                        for page in tif.pages:  # iterate over pages
-                            image = page.asarray()  # convert to array
-                            try:
-                                whole_stack[page_count,:,:] = image
-                            except ValueError:
-                                print("Tile:{} data corrupted. Setting tile pixels value to 0".format(page_count))
-                            page_count += 1
-
-                # load tile location meta data from meta folder
-                meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
-
-                with open(meta_json_where, 'r') as data:
-                    img_meta = json.load(data)
-                # get number of regions on this objective slide
-                region_n = len(img_meta)
-                # iterate regions
-                for rn in range(region_n):
-                    pos_list = img_meta['region_' + str(rn)]
-                    stitched_path = stitch_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_stitched.tif')
-                    if direct_sharpy_track:
-                        sharpy_chans = params_dict['sharpy_track_params']['channels']
-                        if f in sharpy_chans:
-                            sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                            sharpy_im_dir = sharpy_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif')
-                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
-                                                   resolution=resolution, downsampled_path=sharpy_im_dir)
-                        else:
-                            pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
-                                                   resolution=resolution)
-                    else:
-                        pop_img = stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
-                                               resolution=resolution)
-                    # remove stitched tiles from whole_stack
-                    whole_stack = np.delete(whole_stack, [np.arange(pop_img)], axis=0)
+                process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution,
+                                     direct_sharpy_track)
     return animal_id
+
+def process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track):
+    in_chan = in_obj.joinpath(f)
+    section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
+    section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in
+                        enumerate(section_list)]
+    [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in
+     zip(section_list, section_list_new)]
+    section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir()])
+    for section in section_dirs:
+
+        stitched_path = stitch_dir.joinpath(f'{section.parts[-1]}_stitched.tif')
+        if direct_sharpy_track:
+            sharpy_chans = params_dict['sharpy_track_params']['channels']
+            if f in sharpy_chans:
+                sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
+                sharpy_im_dir = sharpy_dir.joinpath(f'{section.parts[-1]}_downsampled.tif')
+                stitch_folder(section, 205, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
+            else:
+                stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
+        else:
+            stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
+
+def process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track):
+    in_chan = in_obj.joinpath(f'{obj}_{f}_1')
+    # load tile stack name
+    stack = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
+    whole_stack = load_tile_stack(in_chan, stack)
+
+    # load tile location meta data from meta folder
+    meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
+    with open(meta_json_where, 'r') as data:
+        img_meta = json.load(data)
+
+    # get number of regions on this objective slide
+    region_n = len(img_meta)
+    # iterate regions
+    for rn in range(region_n):
+        pos_list = img_meta['region_' + str(rn)]
+        stitched_path = stitch_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_stitched.tif')
+        if direct_sharpy_track:
+            sharpy_chans = params_dict['sharpy_track_params']['channels']
+            if f in sharpy_chans:
+                sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
+                sharpy_im_dir = sharpy_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif')
+                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
+                             resolution=resolution, downsampled_path=sharpy_im_dir)
+            else:
+                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
+                             resolution=resolution)
+        else:
+            stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
+                         resolution=resolution)
+        # remove stitched tiles from whole_stack
+        whole_stack = np.delete(whole_stack, [np.arange(len(pos_list))], axis=0)
+
+def load_tile_stack(in_chan, stack):
+    # get number of tiles from NDTiff.index file
+    tif_meta = tiff.read_ndtiff_index(in_chan.joinpath("NDTiff.index"))
+    page_count = 0
+    for _ in tif_meta:
+        page_count += 1
+    # initiate empty numpy array
+    whole_stack = np.zeros((page_count, 2048, 2048), dtype=np.uint16)
+    page_count = 0
+    for stk in stack:
+        with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
+            for page in tif.pages:  # iterate over pages
+                image = page.asarray()  # convert to array
+                try:
+                    whole_stack[page_count, :, :] = image
+                except ValueError:
+                    print("Tile:{} data corrupted. Setting tile pixels value to 0".format(page_count))
+                page_count += 1
+    return whole_stack
 
 
 def initialize_widget() -> FunctionGui:
