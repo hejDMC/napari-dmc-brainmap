@@ -85,7 +85,7 @@ def do_stitching(input_path: Path, filter_list: List[str], params_dict: Dict, st
 #             total_images += len(img_meta)
 #     return total_images
 
-def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool, overlap=205) -> None:
+def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool, overlap: int = 205) -> None:
     """
     Process stitching for a folder of tiles.
 
@@ -99,6 +99,7 @@ def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Pa
     params_dict (Dict): Parameters for stitching.
     resolution (Tuple[int, int]): Resolution of the atlas used for registration.
     direct_sharpy_track (bool): Whether to create SHARPy-track data directly.
+    overlap (int, optional): Overlap for stitching tiles. Default is 205.
     """
     in_chan = in_obj.joinpath(f)
     section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
@@ -119,7 +120,7 @@ def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Pa
             stitch_folder(section, overlap, stitched_path, params_dict, f, resolution=resolution)
 
 
-def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool, overlap=205) -> None:
+def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool, overlap: int = 205) -> None:
     """
     Process stitching for a stack of tiles.
 
@@ -133,6 +134,7 @@ def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Pat
     params_dict (Dict): Parameters for stitching.
     resolution (Tuple[int, int]): Resolution of the atlas used for registration.
     direct_sharpy_track (bool): Whether to create SHARPy-track data directly.
+    overlap (int, optional): Overlap for stitching tiles. Default is 205.
     """
     in_chan = in_obj.joinpath(f'{obj}_{f}_1')
     stack = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
@@ -159,13 +161,14 @@ def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Pat
         whole_stack = np.delete(whole_stack, [np.arange(len(pos_list))], axis=0)
 
 
-def load_tile_stack(in_chan: Path, stack: List[str], c_size=2048) -> np.ndarray:
+def load_tile_stack(in_chan: Path, stack: List[str], c_size: int = 2048) -> np.ndarray:
     """
     Load a stack of tiles from the specified input channel.
 
     Parameters:
     in_chan (Path): Input path containing tiles.
     stack (List[str]): List of tile file names.
+    c_size (int, optional): Size of the tiles. Default is 2048.
 
     Returns:
     np.ndarray: Loaded stack of images as a numpy array.
