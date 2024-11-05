@@ -34,7 +34,7 @@ def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_shar
     """
 
     animal_id = get_animal_id(input_path)
-    resolution = params_dict['atlas_info']['resolution']  # resolution of atlas used for registration, important for padding of stitched images
+    resolution = tuple(params_dict['atlas_info']['resolution'])  # resolution of atlas used for registration, important for padding of stitched images
     # get obj sub-dirs
     data_dir = input_path.joinpath('raw')
     objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])

@@ -72,75 +72,30 @@ def map_loc(width, height):
         loc_map[i] = int(new_loc[i])
     return loc_map
 
-def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, downsampled_path=False, padding=True, resolution=False):
+def get_canvas(width, height, overlap=205, c_size=2048):
 
-    w, h = get_size_json(pos_list)  # pass in pos_list and get size of whole image
-    pop_img = int(w * h)
     # calculate canvas size
-    canvas_w = int(2048*w) - int(overlap*(w-1))
-    canvas_h = int(2048*h) - int(overlap*(h-1))
+    canvas_w = int(c_size*width) - int(overlap*(width-1))
+    canvas_h = int(c_size*height) - int(overlap*(height-1))
     # initialize a empty array
     stitch_canvas = np.zeros((canvas_h, canvas_w), np.uint16)
     # generate tile location map
-    loc_map = map_loc(w, h)
-    # stitch stack image
-    for j in range(h):
-        for i in range(w):
-            d_left, d_up = (0, 0)
-            img = whole_stack[loc_map[int(w*j)+i]]
-            # overlap shifting
-            # horizontal shifting
-            if i == 0:
-                d_left = 0
-            else:
-                d_left = int(overlap*i)
-            # vertical shifting
-            if j == 0:
-                d_up = 0
-            else:
-                d_up = int(overlap*j)
-            # filling in canvas with tiles
-            try:
-                stitch_canvas[int(j*2048)-d_up:int((j+1)*2048)-d_up,int(i*2048)-d_left:int((i+1)*2048)-d_left] = img
-            except:
-                print("image damaged")
-    # apply black margin or not
-    if padding is True:
-        stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
+    loc_map = map_loc(width, height)
+    return stitch_canvas, loc_map
+
+def fill_canvas(width, height, stitch_canvas, loc_map, data_dict, overlap=205, c_size=2048, stack=True):
+    if stack:
+        whole_stack = data_dict['whole_stack']
     else:
-        pass
-    # save to full resolution to stitched folder
-    tiff.imwrite(stitched_path, stitch_canvas)
-    print(stitched_path, ' stitched')
-    # downsample and and save to sharpy_track folder
-    if not downsampled_path:
-        pass
-    else:
-        contrast_tuple = tuple(params['sharpy_track_params'][chan])
-        downsample(stitch_canvas, downsampled_path, tuple(resolution), contrast_tuple)
-    return pop_img
-
-
-def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled_path=False, padding=True, resolution=False):
-
-    meta_data = load_meta(section_dir)
-    data_list = [meta_data['Prefix'] + "_MMStack_" + d['Label'] +'.ome.tif' for d in meta_data['StagePositions']]
-
-    w = max([i['GridCol'] for i in meta_data['StagePositions']]) + 1
-    h = max([i['GridRow'] for i in meta_data['StagePositions']]) + 1
-
-    # calculate canvas size
-    canvas_w = int(2048 * w) - int(overlap * (w - 1))
-    canvas_h = int(2048 * h) - int(overlap * (h - 1))
-    # initialize a empty array
-    stitch_canvas = np.zeros((canvas_h, canvas_w), np.uint16)
-
-    loc_map = map_loc(w, h)
-
-    for j in range(h):
-        for i in range(w):
+        section_dir = data_dict['section_dir']
+        data_list = data_dict['data_list']
+    for j in range(height):
+        for i in range(width):
             d_left, d_up = (0, 0)
-            img = cv2.imread(str(section_dir.joinpath(data_list[loc_map[int(w * j) + i]])), cv2.IMREAD_ANYDEPTH)
+            if stack:
+                img = whole_stack[loc_map[int(width * j) + i]]
+            else:
+                img = cv2.imread(str(section_dir.joinpath(data_list[loc_map[int(width * j) + i]])), cv2.IMREAD_ANYDEPTH)
             # overlap shifting
             # horizontal shifting
             if i == 0:
@@ -154,25 +109,61 @@ def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled
                 d_up = int(overlap * j)
             # filling in canvas with tiles
             try:
-                stitch_canvas[int(j * 2048) - d_up:int((j + 1) * 2048) - d_up,
-                int(i * 2048) - d_left:int((i + 1) * 2048) - d_left] = img
+                stitch_canvas[int(j * c_size) - d_up:int((j + 1) * c_size) - d_up,
+                int(i * c_size) - d_left:int((i + 1) * c_size) - d_left] = img
             except:
                 print("image damaged")
-    # anti-distortion
-    if padding is True:
-        stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
-    else:
-        pass
+    return stitch_canvas
+
+def stitch_stack(pos_list, whole_stack, overlap, stitched_path, params, chan, downsampled_path=False, resolution=False):
+    width, height = get_size_json(pos_list)  # pass in pos_list and get size of whole image
+    pop_img = int(width * height)
+    stitch_canvas, loc_map = get_canvas(width, height, overlap=overlap)
+    # stitch stack image
+    data_dict = {'whole_stack': whole_stack}
+    stitch_canvas = fill_canvas(width, height, stitch_canvas, loc_map, data_dict, overlap=overlap, stack=True)
+    stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
+
+    # save to full resolution to stitched folder
     tiff.imwrite(stitched_path, stitch_canvas)
     print(stitched_path, ' stitched')
-    if not downsampled_path:
-        pass
-    else:
+    # downsample and and save to sharpy_track folder
+    if downsampled_path:
         contrast_tuple = tuple(params['sharpy_track_params'][chan])
-        downsample(stitch_canvas, downsampled_path, tuple(resolution), contrast_tuple)
+        im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
+        # save downsampled image
+        tifffile.imwrite(downsampled_path, im_ds)
+        print(downsampled_path, ' downsampled')
+        print('-----')
+    return pop_img
 
 
-def downsample(input_tiff, output_png, size_tuple, contrast_tuple):
+def stitch_folder(section_dir, overlap, stitched_path, params, chan, downsampled_path=False, resolution=False):
+
+    meta_data = load_meta(section_dir)
+    data_list = [meta_data['Prefix'] + "_MMStack_" + d['Label'] +'.ome.tif' for d in meta_data['StagePositions']]
+
+    width = max([i['GridCol'] for i in meta_data['StagePositions']]) + 1
+    height = max([i['GridRow'] for i in meta_data['StagePositions']]) + 1
+
+    stitch_canvas, loc_map = get_canvas(width, height, overlap=overlap)
+    data_dict = {'section_dir': section_dir, 'data_list': data_list}
+    stitch_canvas = fill_canvas(width, height, stitch_canvas, loc_map, data_dict, overlap=overlap, stack=False)
+
+    # anti-distortion
+    stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
+
+    tiff.imwrite(stitched_path, stitch_canvas)
+    print(stitched_path, ' stitched')
+    if downsampled_path:
+        contrast_tuple = tuple(params['sharpy_track_params'][chan])
+        im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
+        # save downsampled image
+        tifffile.imwrite(downsampled_path, im_ds)
+        print(downsampled_path, ' downsampled')
+        print('-----')
+
+def downsample_image(input_tiff, size_tuple, contrast_tuple):
     if isinstance(input_tiff, str):  # if input is a file path
         # read file to matrix
         img = cv2.imread(input_tiff, cv2.IMREAD_ANYDEPTH)
@@ -185,10 +176,7 @@ def downsample(input_tiff, output_png, size_tuple, contrast_tuple):
     # transform to 8 bit
     img_8 = (img_down >> 8).astype('uint8')
     img_24 = cv2.cvtColor(img_8,cv2.COLOR_GRAY2RGB)
-    # save downsampled image
-    tifffile.imwrite(output_png, img_24)
-    print(output_png, ' downsampled')
-    print('-----')
+    return img_24
 
 
 def padding_for_atlas(input_array: np.ndarray, resolution: Tuple[int, int]) -> np.ndarray:
