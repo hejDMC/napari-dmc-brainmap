@@ -13,60 +13,78 @@ from natsort import natsorted
 import json
 import tifffile as tiff
 import numpy as np
+from pathlib import Path
+from typing import List, Dict, Tuple
 
 from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_folder
 from napari_dmc_brainmap.utils import get_info, get_animal_id, update_params_dict, clean_params_dict
 
 
 @thread_worker(progress={'total': 100})
-def do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track):
+def do_stitching(input_path: Path, filter_list: List[str], params_dict: Dict, stitch_tiles: bool, direct_sharpy_track: bool):
     """
+    Perform stitching operation using input path and parameters provided.
 
-    :param input_path: PosixPath of dir to animal_id containing all data
-    :param filter_list: list of channels to stitch
-    :param params_dict: dict loaded from params.json
-    :param stitch_tiles: bool, whether to stitch individual tiles, if False use DMC-FluoImager data as input
-    :param direct_sharpy_track: bool, whether to directly create data for SHARPy-track
-    :param progress: Function to update progress for the worker.
-    :return:
+    Parameters:
+    input_path (Path): Path to directory containing data for stitching.
+    filter_list (List[str]): List of channels to stitch.
+    params_dict (Dict): Dictionary containing stitching parameters.
+    stitch_tiles (bool): Whether to stitch individual tiles or use DMC-FluoImager data.
+    direct_sharpy_track (bool): Whether to create data for SHARPy-track.
+
+    Yields:
+    int: Progress value for the stitching process.
+
+    Returns:
+    str: The animal ID for which stitching was performed.
     """
-
     animal_id = get_animal_id(input_path)
-    resolution = tuple(params_dict['atlas_info']['resolution'])  # resolution of atlas used for registration, important for padding of stitched images
-    # get obj sub-dirs
+    resolution = tuple(params_dict['atlas_info']['resolution'])
     data_dir = input_path.joinpath('raw')
     objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])
     if not objs:
         print('no object slides under raw-data folder!')
         return
+
     progress_value = 0
     progress_step = 100 / (len(objs) * len(filter_list))
-    # iterate objs and chans
+
     for obj in objs:
         in_obj = data_dir.joinpath(obj)
         for f in filter_list:
             stitch_dir = get_info(input_path, 'stitched', channel=f, create_dir=True, only_dir=True)
             if stitch_tiles:
-                process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution,
-                                      direct_sharpy_track)
+                process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track)
             else:
-                process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution,
-                                     direct_sharpy_track)
+                process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track)
         progress_value += progress_step
         yield int(progress_value)
+
     yield 100
     return animal_id
 
-def process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track):
+
+def process_stitch_folder(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool) -> None:
+    """
+    Process stitching for a folder of tiles.
+
+    Parameters:
+    input_path (Path): Base path to animal data.
+    in_obj (Path): Input path for object data.
+    f (str): Channel to process.
+    stitch_dir (Path): Directory to save stitched data.
+    animal_id (str): Animal ID.
+    obj (str): Object name.
+    params_dict (Dict): Parameters for stitching.
+    resolution (Tuple[int, int]): Resolution of the atlas used for registration.
+    direct_sharpy_track (bool): Whether to create SHARPy-track data directly.
+    """
     in_chan = in_obj.joinpath(f)
     section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
-    section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in
-                        enumerate(section_list)]
-    [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in
-     zip(section_list, section_list_new)]
+    section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in enumerate(section_list)]
+    [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in zip(section_list, section_list_new)]
     section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir()])
     for section in section_dirs:
-
         stitched_path = stitch_dir.joinpath(f'{section.parts[-1]}_stitched.tif')
         if direct_sharpy_track:
             sharpy_chans = params_dict['sharpy_track_params']['channels']
@@ -79,20 +97,31 @@ def process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, par
         else:
             stitch_folder(section, 205, stitched_path, params_dict, f, resolution=resolution)
 
-def process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track):
+
+def process_stitch_stack(input_path: Path, in_obj: Path, f: str, stitch_dir: Path, animal_id: str, obj: str, params_dict: Dict, resolution: Tuple[int, int], direct_sharpy_track: bool) -> None:
+    """
+    Process stitching for a stack of tiles.
+
+    Parameters:
+    input_path (Path): Base path to animal data.
+    in_obj (Path): Input path for object data.
+    f (str): Channel to process.
+    stitch_dir (Path): Directory to save stitched data.
+    animal_id (str): Animal ID.
+    obj (str): Object name.
+    params_dict (Dict): Parameters for stitching.
+    resolution (Tuple[int, int]): Resolution of the atlas used for registration.
+    direct_sharpy_track (bool): Whether to create SHARPy-track data directly.
+    """
     in_chan = in_obj.joinpath(f'{obj}_{f}_1')
-    # load tile stack name
     stack = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
     whole_stack = load_tile_stack(in_chan, stack)
 
-    # load tile location meta data from meta folder
     meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
     with open(meta_json_where, 'r') as data:
         img_meta = json.load(data)
 
-    # get number of regions on this objective slide
     region_n = len(img_meta)
-    # iterate regions
     for rn in range(region_n):
         pos_list = img_meta['region_' + str(rn)]
         stitched_path = stitch_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_stitched.tif')
@@ -101,30 +130,36 @@ def process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, para
             if f in sharpy_chans:
                 sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
                 sharpy_im_dir = sharpy_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif')
-                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
-                             resolution=resolution, downsampled_path=sharpy_im_dir)
+                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, resolution=resolution, downsampled_path=sharpy_im_dir)
             else:
-                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
-                             resolution=resolution)
+                stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, resolution=resolution)
         else:
-            stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f,
-                         resolution=resolution)
-        # remove stitched tiles from whole_stack
+            stitch_stack(pos_list, whole_stack, 205, stitched_path, params_dict, f, resolution=resolution)
         whole_stack = np.delete(whole_stack, [np.arange(len(pos_list))], axis=0)
 
-def load_tile_stack(in_chan, stack):
-    # get number of tiles from NDTiff.index file
+
+def load_tile_stack(in_chan: Path, stack: List[str]) -> np.ndarray:
+    """
+    Load a stack of tiles from the specified input channel.
+
+    Parameters:
+    in_chan (Path): Input path containing tiles.
+    stack (List[str]): List of tile file names.
+
+    Returns:
+    np.ndarray: Loaded stack of images as a numpy array.
+    """
     tif_meta = tiff.read_ndtiff_index(in_chan.joinpath("NDTiff.index"))
     page_count = 0
     for _ in tif_meta:
         page_count += 1
-    # initiate empty numpy array
+
     whole_stack = np.zeros((page_count, 2048, 2048), dtype=np.uint16)
     page_count = 0
     for stk in stack:
-        with tiff.TiffFile(in_chan.joinpath(stk)) as tif:  # read multipaged tif
-            for page in tif.pages:  # iterate over pages
-                image = page.asarray()  # convert to array
+        with tiff.TiffFile(in_chan.joinpath(stk)) as tif:
+            for page in tif.pages:
+                image = page.asarray()
                 try:
                     whole_stack[page_count, :, :] = image
                 except ValueError:
@@ -134,78 +169,108 @@ def load_tile_stack(in_chan, stack):
 
 
 def initialize_widget() -> FunctionGui:
+    """
+    Initialize the magicgui widget for stitching configuration.
+
+    Returns:
+    FunctionGui: Initialized magicgui widget.
+    """
     @magicgui(layout='vertical',
-              input_path=dict(widget_type='FileEdit', 
-                              label='input path (animal_id): ', 
+              input_path=dict(widget_type='FileEdit',
+                              label='input path (animal_id): ',
                               mode='d',
                               tooltip='directory of folder containing subfolders with e.g. raw data, images, segmentation results, NOT '
                                     'folder containing images'),
-              stitch_tiles=dict(widget_type='CheckBox', 
-                                text='stitching image tiles', 
+              stitch_tiles=dict(widget_type='CheckBox',
+                                text='stitching image tiles',
                                 value=False,
                                 tooltip='option to stitch images from tiles acquired by micro-manager (ticked) or to stitch images acquired by DMC-FluoImager (not ticked)'),
-              channels=dict(widget_type='Select', 
-                            label='imaged channels', 
+              channels=dict(widget_type='Select',
+                            label='imaged channels',
                             value=['green', 'cy3'],
                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                             tooltip='select the imaged channels, '
                                 'to select multiple hold ctrl/shift'),
-              sharpy_bool=dict(widget_type='CheckBox', 
+              sharpy_bool=dict(widget_type='CheckBox',
                                text='get images for registration (SHARPy-track)',
                                value=True,
                                tooltip='option to create downsampled images [1140x800 px] for brain registration using SHARPy-track'),
-              sharpy_chan=dict(widget_type='Select', 
-                               label='selected channels', 
+              sharpy_chan=dict(widget_type='Select',
+                               label='selected channels',
                                value='green',
                                choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
                                tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
-              contrast_bool=dict(widget_type='CheckBox', 
+              contrast_bool=dict(widget_type='CheckBox',
                                  text='perform contrast adjustment on images for registration',
                                  value=True,
                                  tooltip='option to adjust contrast on images, see option details below'),
-              contrast_dapi=dict(widget_type='LineEdit', 
+              contrast_dapi=dict(widget_type='LineEdit',
                                  label='set contrast limits for the dapi channel',
-                                 value='50,1000', 
+                                 value='50,1000',
                                  tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_green=dict(widget_type='LineEdit', 
+              contrast_green=dict(widget_type='LineEdit',
                                   label='set contrast limits for the green channel',
-                                  value='50,300', 
+                                  value='50,300',
                                   tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_n3=dict(widget_type='LineEdit', 
+              contrast_n3=dict(widget_type='LineEdit',
                                label='set contrast limits for the n3 channel',
-                               value='50,500', 
+                               value='50,500',
                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy3=dict(widget_type='LineEdit', 
+              contrast_cy3=dict(widget_type='LineEdit',
                                 label='set contrast limits for the cy3 channel',
-                                value='50,500', 
+                                value='50,500',
                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy5=dict(widget_type='LineEdit', 
+              contrast_cy5=dict(widget_type='LineEdit',
                                 label='set contrast limits for the cy5 channel',
-                                value='50,500', 
+                                value='50,500',
                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
               call_button=False)
 
     def stitching_widget(
         viewer: Viewer,
-        input_path,  # posix path
-        stitch_tiles,
-        channels,
-        sharpy_bool,
-        sharpy_chan,
-        contrast_bool,
-        contrast_dapi,
-        contrast_green,
-        contrast_n3,
-        contrast_cy3,
-        contrast_cy5):
-        pass
-    return stitching_widget
+        input_path: Path,
+        stitch_tiles: bool,
+        channels: List[str],
+        sharpy_bool: bool,
+        sharpy_chan: str,
+        contrast_bool: bool,
+        contrast_dapi: str,
+        contrast_green: str,
+        contrast_n3: str,
+        contrast_cy3: str,
+        contrast_cy5: str) -> None:
+        """
+        Function to handle stitching widget parameters.
 
+        Parameters:
+        viewer (Viewer): Napari viewer instance.
+        input_path (Path): Input path for stitching.
+        stitch_tiles (bool): Whether to stitch image tiles.
+        channels (List[str]): Channels to stitch.
+        sharpy_bool (bool): Whether to create downsampled images for registration.
+        sharpy_chan (str): Channels for SHARPy processing.
+        contrast_bool (bool): Whether to adjust contrast.
+        contrast_dapi (str): Contrast limits for DAPI channel.
+        contrast_green (str): Contrast limits for Green channel.
+        contrast_n3 (str): Contrast limits for N3 channel.
+        contrast_cy3 (str): Contrast limits for Cy3 channel.
+        contrast_cy5 (str): Contrast limits for Cy5 channel.
+        """
+        pass
+
+    return stitching_widget
 
 
 class StitchingWidget(QWidget):
     progress_signal = Signal(int)
-    def __init__(self, napari_viewer):
+
+    def __init__(self, napari_viewer: Viewer) -> None:
+        """
+        Initialize StitchingWidget instance.
+
+        Parameters:
+        napari_viewer (Viewer): The Napari viewer instance.
+        """
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
@@ -224,19 +289,33 @@ class StitchingWidget(QWidget):
         self.layout().addWidget(self.progress_bar)
         self.progress_signal.connect(self.progress_bar.setValue)
 
-    def _get_info(self, widget):
+    def _get_info(self, widget: FunctionGui) -> Dict:
+        """
+        Retrieve information from the stitching widget.
 
-            return {
-                "channels": widget.sharpy_chan.value,
-                "contrast_adjustment": widget.contrast_bool.value,
-                "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-                "green": [int(i) for i in widget.contrast_green.value.split(',')],
-                "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
-                "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
-                "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
-            }
+        Parameters:
+        widget (FunctionGui): The stitching widget.
 
-    def _get_stitching_params(self):
+        Returns:
+        Dict: Dictionary containing stitching parameters.
+        """
+        return {
+            "channels": widget.sharpy_chan.value,
+            "contrast_adjustment": widget.contrast_bool.value,
+            "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
+            "green": [int(i) for i in widget.contrast_green.value.split(',')],
+            "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
+            "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
+            "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
+        }
+
+    def _get_stitching_params(self) -> Dict:
+        """
+        Get parameters for the stitching process.
+
+        Returns:
+        Dict: Parameters for stitching.
+        """
         params_dict = {
             "general":
                 {
@@ -252,26 +331,39 @@ class StitchingWidget(QWidget):
         }
         return params_dict
 
-    def _show_success_message(self, animal_id):
+    def _show_success_message(self, animal_id: str) -> None:
+        """
+        Display a success message after stitching is complete.
+
+        Parameters:
+        animal_id (str): The animal ID for which stitching was performed.
+        """
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
         msg_box.setText(f"Stitching finished for {animal_id}!")
         msg_box.setWindowTitle("Stitching successful!")
         msg_box.exec_()
 
-    def _update_progress(self, value):
+    def _update_progress(self, value: int) -> None:
+        """
+        Update the progress bar with the given value.
+
+        Parameters:
+        value (int): Progress value to set.
+        """
         self.progress_signal.emit(value)
 
-    def _do_stitching(self):
+    def _do_stitching(self) -> None:
+        """
+        Initiate the stitching process based on the widget settings.
+        """
         input_path = self.stitching.input_path.value
-        # check if user provided a valid input_path
         if not input_path.is_dir() or str(input_path) == '.':
             msg_box = QMessageBox()
             msg_box.setIcon(QMessageBox.Critical)
-            msg_box.setText(
-                f"Input path is not a valid directory. Please make sure this exists: >> '{str(input_path)}' <<")
+            msg_box.setText(f"Input path is not a valid directory. Please make sure this exists: >> '{str(input_path)}' <<")
             msg_box.setWindowTitle("Invalid Path Error")
-            msg_box.exec_()  # Show the message box
+            msg_box.exec_()
             return
 
         stitch_tiles = self.stitching.stitch_tiles.value
@@ -282,8 +374,6 @@ class StitchingWidget(QWidget):
         filter_list = params_dict['general']['chans_imaged']
 
         stitching_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track)
-        stitching_worker.yielded.connect(self._update_progress)  # Connect worker's yielded signal to progress update
+        stitching_worker.yielded.connect(self._update_progress)
         stitching_worker.returned.connect(self._show_success_message)
         stitching_worker.start()
-        # stitching_worker.start()
-        # stitching_worker.returned.connect(self.show_success_message)
