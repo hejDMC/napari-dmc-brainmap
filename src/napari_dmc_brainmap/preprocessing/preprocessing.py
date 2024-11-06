@@ -13,11 +13,80 @@ from napari_dmc_brainmap.utils import get_animal_id, get_image_list, update_para
     get_threshold_dropdown
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from superqt import QCollapsible
-from magicgui import magicgui
+from magicgui import magicgui, widgets
 from magicgui.widgets import FunctionGui
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
 
 
+
+def create_general_widget(widget_type: str, channels: list, downsampling_default: int = 3, contrast_limits=None) -> magicgui:
+    """
+    Create a generalized MagicGUI widget for image processing.
+
+    Parameters:
+    - widget_type (str): The type of widget being created (e.g., 'RGB', 'Single Channel', etc.)
+    - channels (list): List of available channels to select.
+    - downsampling_default (int): Default value for the downsampling factor.
+    - contrast_limits (dict): Default contrast limit values for each channel.
+
+    Returns:
+    - FunctionGui: The created MagicGUI widget.
+    """
+    if widget_type != 'Binary':
+        contrast_limits = contrast_limits or {
+            'dapi': '50,2000',
+            'green': '50,1000',
+            'cy3': '50,2000',
+            'n3': '50,2000',
+            'cy5': '50,1000'
+        }
+
+        # Create the base widget
+        container = widgets.Container(widgets=[
+            widgets.CheckBox(value=False, label=f'Process {widget_type}', tooltip=f'Tick to process {widget_type} images'),
+            widgets.Select(choices=['all'] + channels, value='all', label='Select channels', tooltip='Select channels to process'),
+            widgets.SpinBox(value=downsampling_default, min=1, label='Downsampling Factor', tooltip='Enter scale factor for downsampling'),
+            widgets.CheckBox(value=True, label=f'Adjust Contrast for {widget_type}', tooltip=f'Option to adjust contrast for {widget_type} images')
+        ],
+            labels=True
+        )
+        if widget_type == 'SHARPy':
+            container.pop(-2)
+        # Add contrast widgets for each channel
+        for channel in channels:
+            container.append(widgets.LineEdit(value=contrast_limits[channel], label=f'Set contrast limits for {channel}', tooltip=f'Enter contrast limits: min,max for {channel}'))
+    else:
+        contrast_limits = contrast_limits or {
+            'dapi': '4000',
+            'green': '1000',
+            'cy3': '2000',
+            'n3': '2000',
+            'cy5': '2000'
+        }
+
+        # Create the base widget
+        container = widgets.Container(widgets=[
+            widgets.CheckBox(value=False, label=f'Process {widget_type}',
+                             tooltip=f'Tick to process {widget_type} images'),
+            widgets.Select(choices=['all'] + channels, value='all', label='Select channels',
+                           tooltip='Select channels to process'),
+            widgets.SpinBox(value=downsampling_default, min=1, label='Downsampling Factor',
+                            tooltip='Enter scale factor for downsampling'),
+            widgets.ComboBox(choices=get_threshold_dropdown(), label='Thresholding method',
+                             tooltip='select a method to compute the threshold value (from:'
+                                     ' https://scikit-image.org/docs/stable/api/skimage.filters.html#module-skimage.filters'),
+            widgets.CheckBox(value=False, label=f'Manually set threshold for {widget_type}',
+                             tooltip=f'Option to manually set threshold for {widget_type} images '
+                                     f'(if not ticked, thresholding method will be used)')
+        ],
+            labels=True
+        )
+        # Add contrast widgets for each channel
+        for channel in channels:
+            container.append(
+                widgets.LineEdit(value=contrast_limits[channel], label=f'Set threshold for {channel}',
+                                 tooltip=f'Enter threshold for {channel}'))
+    return container
 
 def initialize_header_widget() -> FunctionGui:
     @magicgui(input_path=dict(widget_type='FileEdit', 
@@ -39,298 +108,6 @@ def initialize_header_widget() -> FunctionGui:
         pass
     return header_widget
 
-
-def initialize_dorgb_widget() -> FunctionGui:
-    # todo: all these function as class
-    @magicgui(button=dict(widget_type='CheckBox', 
-                          text='create RGB images', 
-                          value=False,
-                          tooltip='tick to create RGB images'),
-              channels=dict(widget_type='Select', 
-                            label='selected channels', 
-                            value='all',
-                            choices=['all', 'dapi', 'green', 'cy3'],
-                            tooltip='select channels to create RGB image, to select multiple hold ctrl/shift'),
-              ds_params=dict(widget_type='SpinBox', 
-                             label='enter downsampling factor', 
-                             value=3,
-                             tooltip='enter scale factor for downsampling'),
-              contrast_bool=dict(widget_type='CheckBox', 
-                                 text='perform contrast adjustment on RGB images', 
-                                 value=True,
-                                 tooltip='option to adjust contrast on images, see option details below'),
-              contrast_dapi=dict(widget_type='LineEdit', 
-                                 label='set contrast limits for the dapi channel',
-                                 value='50,2000', 
-                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_green=dict(widget_type='LineEdit', 
-                                  label='set contrast limits for the green channel',
-                                  value='50,1000', 
-                                  tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy3=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy3 channel',
-                                value='50,2000', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False,
-              scrollable=True)
-    
-    def do_rgb(
-            self,
-            button,
-            channels,
-            ds_params,
-            contrast_bool,
-            contrast_dapi,
-            contrast_green,
-            contrast_cy3):
-        pass
-    return do_rgb
-
-
-def initialize_dosinglechannel_widget() -> FunctionGui:
-    @magicgui(button=dict(widget_type='CheckBox', 
-                          text='process single channels', 
-                          value=False,
-                          tooltip='tick to process single channels individually'),
-              channels=dict(widget_type='Select', 
-                            label='selected channels', 
-                            value='all',
-                            choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
-              ds_params=dict(widget_type='SpinBox', 
-                             label='enter downsampling factor', 
-                             value=3,
-                             tooltip='enter scale factor for downsampling'),
-              contrast_bool=dict(widget_type='CheckBox', 
-                                 text='perform contrast adjustment on single images', 
-                                 value=True,
-                                 tooltip='option to adjust contrast on images, see option details below'),
-              contrast_dapi=dict(widget_type='LineEdit', 
-                                 label='set contrast limits for the dapi channel',
-                                 value='50,2000',
-                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_green=dict(widget_type='LineEdit', 
-                                  label='set contrast limits for the green channel',
-                                  value='50,1000', 
-                                  tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_n3=dict(widget_type='LineEdit', 
-                               label='set contrast limits for the n3 channel',
-                               value='50,2000', 
-                               tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy3=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy3 channel',
-                                value='50,2000', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy5=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy5 channel',
-                                value='50,1000', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False,
-              scrollable=True)
-    
-    def do_single_channel(
-            self,
-            button,
-            channels,
-            ds_params,
-            contrast_bool,
-            contrast_dapi,
-            contrast_green,
-            contrast_n3,
-            contrast_cy3,
-            contrast_cy5):
-        pass
-    return do_single_channel
-
-
-def initialize_dostack_widget() -> FunctionGui:
-    @magicgui(button=dict(widget_type='CheckBox', 
-                          text='create image stack', 
-                          value=False,
-                          tooltip='tick to create image stacks'),
-              channels=dict(widget_type='Select', 
-                            label='selected channels', 
-                            value='all',
-                            choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
-              ds_params=dict(widget_type='SpinBox', 
-                             label='enter downsampling factor', 
-                             value=3,
-                             tooltip='enter scale factor for downsampling'),
-              contrast_bool=dict(widget_type='CheckBox', 
-                                 text='perform contrast adjustment on image stacks', 
-                                 value=True,
-                                 tooltip='option to adjust contrast on images, see option details below'),
-              contrast_dapi=dict(widget_type='LineEdit', 
-                                 label='set contrast limits for the dapi channel',
-                                 value='50,2000', 
-                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_green=dict(widget_type='LineEdit', 
-                                  label='set contrast limits for the green channel',
-                                  value='50,1000', 
-                                  tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_n3=dict(widget_type='LineEdit', 
-                               label='set contrast limits for the n3 channel',
-                               value='50,2000', 
-                               tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy3=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy3 channel',
-                                value='50,2000', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy5=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy5 channel',
-                                value='50,1000', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False,
-              scrollable=True)
-    
-    def do_stack(
-            self,
-            button,
-            channels,
-            ds_params,
-            contrast_bool,
-            contrast_dapi,
-            contrast_green,
-            contrast_n3,
-            contrast_cy3,
-            contrast_cy5):
-        pass
-    return do_stack
-
-
-
-def initialize_dosharpy_widget() -> FunctionGui:
-    @magicgui(button=dict(widget_type='CheckBox', 
-                          text='create downsampled images for SHARPy-track',
-                          value=False,
-                          tooltip='tick to create downsampled images [1140x800 px] for brain registration using SHARPy-track'),
-              channels=dict(widget_type='Select', 
-                            label='selected channels', 
-                            value='all',
-                            choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels for SHARPy-track, to select multiple hold ctrl/shift'),
-              ds_params=dict(widget_type='CheckBox', 
-                             text='perform downsampling on images', 
-                             value=True,
-                             tooltip='downsample image to resolution in SHARPy track'),
-              contrast_bool=dict(widget_type='CheckBox', 
-                                 text='perform contrast adjustment on images for registration', 
-                                 value=True,
-                                 tooltip='option to adjust contrast on images, see option details below'),
-              contrast_dapi=dict(widget_type='LineEdit', 
-                                 label='set contrast limits for the dapi channel',
-                                 value='50,1000', 
-                                 tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_green=dict(widget_type='LineEdit', 
-                                  label='set contrast limits for the green channel',
-                                  value='50,300', 
-                                  tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_n3=dict(widget_type='LineEdit', 
-                               label='set contrast limits for the n3 channel',
-                               value='50,2000', 
-                               tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy3=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy3 channel',
-                                value='50,500', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              contrast_cy5=dict(widget_type='LineEdit', 
-                                label='set contrast limits for the cy5 channel',
-                                value='50,500', 
-                                tooltip='enter contrast limits: min,max (default values for 16-bit image)'),
-              call_button=False,
-              scrollable=True)
-    
-    def do_sharpy(
-            self,
-            button,
-            channels,
-            ds_params,
-            contrast_bool,
-            contrast_dapi,
-            contrast_green,
-            contrast_n3,
-            contrast_cy3,
-            contrast_cy5):
-        pass
-    return do_sharpy
-
-
-def initialize_dobinary_widget() -> FunctionGui:
-    @magicgui(button=dict(widget_type='CheckBox', 
-                          text='create binary images', 
-                          value=False,
-                          tooltip='tick to create binary images'),
-              thresh_func=dict(label='thresholding method',
-                         tooltip='select a method to compute the threshold value'
-                                 '(from https://scikit-image.org/docs/stable/api/skimage.filters.html#module-skimage.filters'),
-              thresh_bool=dict(widget_type='CheckBox',
-                               text='manually set threshold',
-                               value=False,
-                               tooltip='option to use manually set thresholds, otherwise threshold will be determined automatically'),
-              channels=dict(widget_type='Select',
-                            label='selected channels', 
-                            value='all',
-                            choices=['all', 'dapi', 'green', 'n3', 'cy3', 'cy5'],
-                            tooltip='select channels to be processed, to select multiple hold ctrl/shift'),
-              ds_params=dict(widget_type='SpinBox', 
-                             label='enter downsampling factor', 
-                             value=3,
-                             tooltip='enter scale factor for downsampling'),
-              thresh_dapi=dict(widget_type='LineEdit', 
-                               label='set threshold for the dapi channel',
-                               value='4000', 
-                               tooltip='enter threshold for creating binary image (default values for 16-bit image)'),
-              thresh_green=dict(widget_type='LineEdit', 
-                                label='set threshold for the green channel',
-                                value='1000', 
-                                tooltip='enter threshold for creating binary image (default values for 16-bit image)'),
-              thresh_n3=dict(widget_type='LineEdit', 
-                             label='set threshold for the n3 channel',
-                             value='2000', 
-                             tooltip='enter threshold for creating binary image (default values for 16-bit image)'),
-              thresh_cy3=dict(widget_type='LineEdit', 
-                              label='set threshold for the cy3 channel',
-                              value='2000', 
-                              tooltip='enter threshold for creating binary image (default values for 16-bit image)'),
-              thresh_cy5=dict(widget_type='LineEdit', 
-                              label='set threshold for the cy5 channel',
-                              value='2000', 
-                              tooltip='enter threshold for creating binary image (default values for 16-bit image)'),
-              call_button=False,
-              scrollable=True)
-    
-    def do_binary(
-            self,
-            button,
-            thresh_func: get_threshold_dropdown(),
-            thresh_bool,
-            channels,
-            ds_params,
-            thresh_dapi,
-            thresh_green,
-            thresh_n3,
-            thresh_cy3,
-            thresh_cy5):
-        pass
-    return do_binary
-
-
-def initialize_footer_widget() -> FunctionGui:
-    @magicgui(num_cores=dict(widget_type='SpinBox', 
-                             label='enter the number of parallel processes', 
-                             value=1, 
-                             min=1,
-                             tooltip='select number of parallel processes for image processing - NOT IMPLEMENTED'),
-              call_button=False)
-    
-    def footer_widget(
-            self,
-            num_cores):
-        pass
-    return footer_widget
-
-
 @thread_worker
 def do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params, resolution, save_dirs):
 
@@ -338,12 +115,16 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing
     #     print("maximum available cores = " + str(multiprocessing.cpu_count()))
     #     num_cores = multiprocessing.cpu_count()
 
-    if preprocessing_params['operations']['sharpy_track']:
-        resolution_tuple = tuple(resolution)
-    else:
-        resolution_tuple = False
+    # if preprocessing_params['operations']['sharpy_track']:
+    #     resolution_tuple = tuple(resolution)
+    # else:
+    #     resolution_tuple = False
 
-    if any(preprocessing_params['operations'].values()):
+    if "operations" in preprocessing_params.keys():
+        if 'sharpy_track' in preprocessing_params['operations'].keys():
+            resolution_tuple = tuple(resolution)
+        else:
+            resolution_tuple = False
         if num_cores > 1:
             print("parallel processing not implemented yet")
         Parallel(n_jobs=num_cores)(delayed(preprocess_images)
@@ -362,99 +143,163 @@ class PreprocessingWidget(QWidget):
         self.setLayout(QVBoxLayout())
         self.header = initialize_header_widget()
         self.header.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-        self._collapse_rgb = QCollapsible('Create RGB: expand for more', self)
-        self.rgb_widget = initialize_dorgb_widget()
-        self.rgb_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-        self._collapse_rgb.addWidget(self.rgb_widget.root_native_widget)
 
-        self._collapse_single = QCollapsible('Processed single channels: expand for more', self)
-        self.single_channel_widget = initialize_dosinglechannel_widget()
-        self.single_channel_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-        self._collapse_single.addWidget(self.single_channel_widget.root_native_widget)
+        # Add generalized widgets for different operations
+        self.rgb_widget = create_general_widget('RGB', ['dapi', 'green', 'cy3'])
+        self.sharpy_widget = create_general_widget('SHARPy', ['dapi', 'green', 'n3', 'cy3', 'cy5'], contrast_limits={
+            'dapi': '50,1000',
+            'green': '50,300',
+            'cy3': '50,2000',
+            'n3': '50,500',
+            'cy5': '50,500'
+        })
+        self.single_channel_widget = create_general_widget('Single Channel', ['dapi', 'green', 'n3', 'cy3', 'cy5'])
+        self.stack_widget = create_general_widget('Stack', ['dapi', 'green', 'n3', 'cy3', 'cy5'])
+        self.binary_widget = create_general_widget('Binary', ['dapi', 'green', 'n3', 'cy3', 'cy5'])
 
-        self._collapse_stack = QCollapsible('Create image stacks: expand for more', self)
-        self.stack_widget = initialize_dostack_widget()
-        self.stack_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-        self._collapse_stack.addWidget(self.stack_widget.root_native_widget)
+        # Preprocessing button
+        self.btn = QPushButton("Do the preprocessing!")
+        self.btn.clicked.connect(self._do_preprocessing)
 
-        self._collapse_sharpy = QCollapsible('Create SHARPy-track images: expand for more', self)
-        self.sharpy_widget = initialize_dosharpy_widget()
-        self.sharpy_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-        self._collapse_sharpy.addWidget(self.sharpy_widget.root_native_widget)
-
-        self._collapse_binary = QCollapsible('Create binary images: expand for more', self)
-        self.binary_widget = initialize_dobinary_widget()
-        self.binary_widget.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-        self._collapse_binary.addWidget(self.binary_widget.root_native_widget)
-
-        self.footer = initialize_footer_widget()
-        self.footer.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
-
-        btn = QPushButton("Do the preprocessing!")
-        btn.clicked.connect(self._do_preprocessing)
         self.layout().addWidget(self.header.native)
-        self.layout().addWidget(self._collapse_rgb)
-        self.layout().addWidget(self._collapse_sharpy)
-        self.layout().addWidget(self._collapse_single)
-        self.layout().addWidget(self._collapse_stack)
-        self.layout().addWidget(self._collapse_binary)
-        self.layout().addWidget(self.footer.native)
-        self.layout().addWidget(btn)
+        self._add_gui_section('Create RGB: expand for more', self.rgb_widget)
+        self._add_gui_section('Create SHARPy-track images: expand for more', self.sharpy_widget)
+        self._add_gui_section('Processed single channels: expand for more', self.single_channel_widget)
+        self._add_gui_section('Create image stacks: expand for more', self.stack_widget)
+        self._add_gui_section('Create binary images: expand for more', self.binary_widget)
+        self.layout().addWidget(self.btn)
 
-    def _get_info(self, widget, rgb=False):
-        if rgb:
-            return {
-                "channels": widget.channels.value,
-                "downsampling": widget.ds_params.value,
-                "contrast_adjustment": widget.contrast_bool.value,
-                "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-                "green": [int(i) for i in widget.contrast_green.value.split(',')],
-                "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')]
-            }
+
+    def _add_gui_section(self, name, widget):
+        collapsible = QCollapsible(name, self)
+        collapsible.addWidget(widget.native)
+        self.layout().addWidget(collapsible)
+
+
+    # def _get_info(self, widget, rgb=False):
+    #     if rgb:
+    #         return {
+    #             "channels": widget.channels.value,
+    #             "downsampling": widget.ds_params.value,
+    #             "contrast_adjustment": widget.contrast_bool.value,
+    #             "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
+    #             "green": [int(i) for i in widget.contrast_green.value.split(',')],
+    #             "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')]
+    #         }
+    #     else:
+    #         return {
+    #             "channels": widget.channels.value,
+    #             "downsampling": widget.ds_params.value,
+    #             "contrast_adjustment": widget.contrast_bool.value,
+    #             "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
+    #             "green": [int(i) for i in widget.contrast_green.value.split(',')],
+    #             "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
+    #             "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
+    #             "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
+    #         }
+    # def _get_widget_info(self, widget, item):
+    #     if item == 'rgb':
+    #         chan_list = ['dapi', 'green', 'cy3']
+    #     else:
+    #         chan_list = ['dapi', 'green', 'n3', 'cy3', 'cy5']
+    #
+    #     if 'all' in widget[1].value:
+    #         imaged_chan_list = self.header.chans_imaged.value
+    #     else:
+    #         imaged_chan_list = widget[1].value
+    #         # make sure selected channels for preprocessing where imaged
+    #         imaged_chan_list = [i for i in imaged_chan_list if i in self.header.chans_imaged.value]
+    #     if item != 'binary':
+    #         if item == 'sharpy_track':
+    #             return {
+    #                 "channels": imaged_chan_list,
+    #                 "contrast_adjustment": widget[2].value,
+    #                 **{channel: [int(i) for i in widget[3 + idx].value.split(',')]
+    #                    for idx, channel in enumerate(chan_list) if channel in imaged_chan_list}
+    #             }
+    #         else:
+    #             return {
+    #                 "channels": imaged_chan_list,
+    #                 "downsampling": widget[2].value,
+    #                 "contrast_adjustment": widget[3].value,
+    #                 **{channel: [int(i) for i in widget[4 + idx].value.split(',')]
+    #                    for idx, channel in enumerate(chan_list) if channel in imaged_chan_list}
+    #             }
+    #     else:
+    #         if widget[4].value: # manual thresholds
+    #             return {
+    #                 "channels": imaged_chan_list,
+    #                 "downsampling": widget[2].value,
+    #                 "manual_threshold": widget[4].value,
+    #                 **{channel: [int(i) for i in widget[4 + idx].value.split(',')]
+    #                    for idx, channel in enumerate(chan_list) if channel in imaged_chan_list}
+    #             }
+    #         else:
+    #             return {
+    #                 "channels": imaged_chan_list,
+    #                 "downsampling": widget[2].value,
+    #                 "manual_threshold": widget[4].value,
+    #                 "thresh_method": widget[3].value.value
+    #             }
+    def _get_widget_info(self, widget, item):
+        chan_list = ['dapi', 'green', 'cy3'] if item == 'rgb' else ['dapi', 'green', 'n3', 'cy3', 'cy5']
+
+        imaged_chan_list = (widget[1].value if 'all' not in widget[1].value
+                            else self.header.chans_imaged.value)
+        imaged_chan_list = [i for i in imaged_chan_list if i in self.header.chans_imaged.value]
+
+        base_info = {"channels": imaged_chan_list, "downsampling": widget[2].value}
+
+        if item == 'sharpy_track':
+            base_info["contrast_adjustment"] = widget[2].value
+        elif item != 'binary':
+            base_info["contrast_adjustment"] = widget[3].value
+
+        if item == 'binary':
+            if widget[4].value:  # manual thresholds
+                base_info.update({"manual_threshold": widget[4].value})
+                base_info.update({channel: [int(i) for i in widget[4 + idx].value.split(',')] for idx, channel in
+                                  enumerate(chan_list) if channel in imaged_chan_list})
+            else:
+                base_info.update({"manual_threshold": widget[4].value, "thresh_method": widget[3].value.value})
         else:
-            return {
-                "channels": widget.channels.value,
-                "downsampling": widget.ds_params.value,
-                "contrast_adjustment": widget.contrast_bool.value,
-                "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-                "green": [int(i) for i in widget.contrast_green.value.split(',')],
-                "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
-                "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
-                "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
-            }
+            base_info.update({
+                channel: [int(i) for i in widget[(3 if item == 'sharpy_track' else 4) + idx].value.split(',')]
+                for idx, channel in enumerate(chan_list) if channel in imaged_chan_list
+            })
+
+        return base_info
 
     def _get_preprocessing_params(self):
+        op_widg_dict = {
+            "rgb": self.rgb_widget,
+            "sharpy_track": self.sharpy_widget,
+            "single_channel": self.single_channel_widget,
+            "stack": self.stack_widget,
+            "binary": self.binary_widget
+        }
         params_dict = {
             "general":
                 {
                     "animal_id": get_animal_id(self.header.input_path.value),
                     "chans_imaged": self.header.chans_imaged.value
                 },
-            "operations":
-                {
-                    "rgb": self.rgb_widget.button.value,
-                    "single_channel": self.single_channel_widget.button.value,
-                    "stack": self.stack_widget.button.value,
-                    "sharpy_track": self.sharpy_widget.button.value,
-                    "binary": self.binary_widget.button.value
-                },
-            "rgb_params": self._get_info(self.rgb_widget, rgb=True),
-            "single_channel_params": self._get_info(self.single_channel_widget),
-            "stack_params": self._get_info(self.stack_widget),
-            "sharpy_track_params": self._get_info(self.sharpy_widget),
-            "binary_params":
-                {
-                    "channels": self.binary_widget.channels.value,
-                    "downsampling": self.binary_widget.ds_params.value,
-                    "thresh_func": self.binary_widget.thresh_func.value.value,
-                    "thresh_bool": int(self.binary_widget.thresh_bool.value),
-                    "dapi": int(self.binary_widget.thresh_dapi.value),
-                    "green": int(self.binary_widget.thresh_green.value),
-                    "n3": int(self.binary_widget.thresh_n3.value),
-                    "cy3": int(self.binary_widget.thresh_cy3.value),
-                    "cy5": int(self.binary_widget.thresh_cy5.value)
-                }
         }
+        for op, widget in op_widg_dict.items():
+            if widget[0].value:
+                params_dict["operations"] = {op: widget[0].value}
+                params_dict[f"{op}_params"] = self._get_widget_info(widget, op)
+        # "operations":
+        #     {
+        #
+        #     },
+        # "rgb_params": self._get_widget_info(self.rgb_widget, rgb=True),
+        # "single_channel_params": self._get_widget_info(self.single_channel_widget),
+        # "stack_params": self._get_widget_info(self.stack_widget),
+        # "sharpy_track_params": self._get_widget_info(self.sharpy_widget),
+        # "binary_params": self._get_widget_info(self.binary_widget, binary=True)
+
+
         return params_dict
 
     def _do_preprocessing(self):
@@ -469,9 +314,10 @@ class PreprocessingWidget(QWidget):
         save_dirs = create_dirs(preprocessing_params, input_path)
         filter_list = preprocessing_params['general']['chans_imaged']
         img_list = get_image_list(input_path)
-        num_cores = self.footer.num_cores.value
+        num_cores = 1
         params_dict = load_params(input_path)
         resolution = params_dict['atlas_info']['resolution']
+
         preprocessing_worker = do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params,
                                                 resolution, save_dirs)
         preprocessing_worker.start()

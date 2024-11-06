@@ -12,18 +12,20 @@ from napari_dmc_brainmap.utils import get_info
 # todo warning for overwriting
 def create_dirs(params, input_path):
     save_dirs = {}
-    for operation in params['operations']:
-        if params['operations'][operation]:
-            if operation == 'rgb' or operation == 'stack':
-                data_dir = get_info(input_path, operation, create_dir=True, only_dir=True)
-                save_dirs[operation] = data_dir
-            else:
-                chan_list = params[operation+'_params']['channels']
-                filter_list = params['general']['chans_imaged']
-                chans = select_chans(chan_list, filter_list, operation)
-                for chan in chans:
-                    data_dir = get_info(input_path, operation, channel=chan, create_dir=True, only_dir=True)
-                    save_dirs[operation] = data_dir.parent
+    if 'operations' in params.keys():
+        operation_list = list(params['operations'].keys())
+        for operation in operation_list:
+            if params['operations'][operation]:
+                if operation == 'rgb' or operation == 'stack':
+                    data_dir = get_info(input_path, operation, create_dir=True, only_dir=True)
+                    save_dirs[operation] = data_dir
+                else:
+                    chan_list = params[operation+'_params']['channels']
+                    filter_list = params['general']['chans_imaged']
+                    chans = select_chans(chan_list, filter_list, operation)
+                    for chan in chans:
+                        data_dir = get_info(input_path, operation, channel=chan, create_dir=True, only_dir=True)
+                        save_dirs[operation] = data_dir.parent
     return save_dirs
 
 
@@ -182,12 +184,12 @@ def make_binary(data, chan, params):
     if params['binary_params']['downsampling'] > 1:
         scale_factor = params['binary_params']['downsampling']
         data = downsample_image(data, scale_factor)
-    if params['binary_params']['thresh_bool']:
+    if params['binary_params']['manual_threshold']:
         thresh = params['binary_params'][chan]
     else:
-        thresh_func = params['binary_params']['thresh_func']
+        thresh_method = params['binary_params']['thresh_method']
         module = importlib.import_module('skimage.filters')
-        func = getattr(module, thresh_func)
+        func = getattr(module, thresh_method)
         thresh = func(data)
     #
     # binary = data > thresh
@@ -220,7 +222,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
             filter_pres = [f for f in stack_dict.keys() if isinstance(stack_dict[f], np.ndarray)]
         else:
             filter_pres = filter_list
-        if params['operations']['sharpy_track']:
+        if 'sharpy_track' in params['operations']:
             chans = select_chans(params['sharpy_track_params']['channels'], filter_pres, 'sharpy_track')
             for chan in chans:
                 downsampled_image = make_sharpy_track(stack_dict[chan].copy(), chan, params, resolution_tuple)
@@ -229,7 +231,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
                 tiff.imwrite(str(ds_image_path), downsampled_image)
                 # use tifffile to write images, cv2.imwrite resulted in some errors
 
-        if params['operations']['rgb']:
+        if 'rgb' in params['operations']:
             chans = select_chans(params['rgb_params']['channels'], filter_pres, 'rgb')
             rgb_dict = dict((c, stack_dict[c]) for c in chans)
             rgb_stack = make_rgb(rgb_dict, params)
@@ -237,7 +239,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
             rgb_save_dir = save_dirs['rgb'].joinpath(rgb_fn)
             tiff.imwrite(str(rgb_save_dir), rgb_stack)
 
-        if params['operations']['single_channel']:
+        if 'single_channel' in params['operations']:
             chans = select_chans(params['single_channel_params']['channels'], filter_pres, 'single_channel')
             for chan in chans:
                 single_channel_image = make_single_channel(stack_dict[chan].copy(), chan, params)
@@ -245,7 +247,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
                 single_save_dir = save_dirs['single_channel'].joinpath(chan, single_fn)
                 cv2.imwrite(str(single_save_dir), single_channel_image)
 
-        if params['operations']['stack']:
+        if 'stack' in params['operations']:
             if params['stack_params']['channels'] == ['all']:
                 image_stack = make_stack(stack_dict.copy(), filter_pres, params)
             else:
@@ -254,7 +256,7 @@ def preprocess_images(im, filter_list, input_path, params, save_dirs, resolution
             save_stack_path = save_dirs['stack'].joinpath(save_stack_name)
             save_zstack(save_stack_path, image_stack)
 
-        if params['operations']['binary']:
+        if 'binary' in params['operations']:
             chans = select_chans(params['binary_params']['channels'], filter_pres, 'binary_params')
             for chan in chans:
                 binary_image = make_binary(stack_dict[chan].copy(), chan, params)
