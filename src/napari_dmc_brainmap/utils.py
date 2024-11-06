@@ -38,7 +38,6 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
         if not data_dir.exists():
             data_dir.mkdir(parents=True)
             show_info(f'creating folder under: {str(data_dir)}')
-            # print(f'creating folder under: {str(data_dir)}')
     if only_dir:
         return data_dir
     else:
@@ -72,10 +71,10 @@ def find_common_suffix(image_list, input_path=False, folder='unknown', im_list_p
                     else:
                         break
             common_suffix = image_list[0][-i + 1:]
-            # print("estimated common_suffix for " + folder + " folder: " + common_suffix)
+            show_info("estimated common_suffix for " + folder + " folder: " + common_suffix)
         elif len(image_list) == 1:
-            print(f'only one file in {folder} folder: {image_list[0]}')
-            print(
+            show_info(f'only one file in {folder} folder: {image_list[0]}')
+            show_info(
                 'in DMC-BrainMap an image name has a base_string and a suffix. For an image named *animal1_obj1_1_stitched.tif* '
                 '\n the base_string is animal1_obj1_1 and the suffix is _stitched.tif')
             common_suffix = input("please, manually enter suffix: ")
@@ -168,7 +167,7 @@ def clean_params_dict(params_dict, key):
 def update_params_dict(input_path, params_dict, create=False):
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
-        print("params.json exists -- overriding existing values")
+        show_info("params.json exists -- overriding existing values")
         with open(params_fn) as fn:
             params_dict_old = json.load(fn)
         params_dict_new = merge(params_dict_old, params_dict)
@@ -288,13 +287,13 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
                 else:
                     dict[g_id] = [animal_id]
             except KeyError:
-                print(f"no group_id value (* {group_id}*) specified for {animal_id}")
-                print(f"    --> skipping {animal_id}")
+                show_info(f"no group_id value (* {group_id}*) specified for {animal_id}")
+                show_info(f"    --> skipping {animal_id}")
                 pass
 
         else:
-            print(f"No params.json file under {str(params_fn)}")
-            print(f"    --> skipping {animal_id}")
+            show_info(f"No params.json file under {str(params_fn)}")
+            show_info(f"    --> skipping {animal_id}")
 
     return dict
 
@@ -311,8 +310,8 @@ def get_bregma(atlas_id):
     if atlas_id in bregma_dict.keys():
         bregma = bregma_dict[atlas_id]
     else:
-        print(f'no bregma coordinates specified for {atlas_id} \n estimating bregma from atlas dimensions')
-        print("loading reference atlas...")
+        show_info(f'no bregma coordinates specified for {atlas_id} \n estimating bregma from atlas dimensions')
+        show_info("loading reference atlas...")
         atlas = BrainGlobeAtlas(atlas_id)
         bregma = list(atlas.shape)
         for i in range(len(bregma)):

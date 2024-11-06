@@ -7,6 +7,7 @@ from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox, QProgressBar
 from napari import Viewer
 from napari.qt.threading import thread_worker
+from napari.utils.notifications import show_info
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from natsort import natsorted
@@ -43,7 +44,7 @@ def do_stitching(input_path: Path, filter_list: List[str], params_dict: Dict, st
     data_dir = input_path.joinpath('raw')
     objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])
     if not objs:
-        print('no object slides under raw-data folder!')
+        show_info('no object slides under raw-data folder!')
         return
 
     progress_value = 0
@@ -187,7 +188,7 @@ def load_tile_stack(in_chan: Path, stack: List[str], c_size: int = 2048) -> np.n
                 try:
                     whole_stack[page_count, :, :] = image
                 except ValueError:
-                    print("Tile:{} data corrupted. Setting tile pixels value to 0".format(page_count))
+                    show_info("Tile:{} data corrupted. Setting tile pixels value to 0".format(page_count))
                 page_count += 1
     return whole_stack
 

@@ -5,7 +5,7 @@ import cv2
 import tifffile as tiff
 from skimage.exposure import rescale_intensity
 from typing import List, Tuple, Optional
-
+from napari.utils.notifications import show_info
 
 def load_meta(section_dir) -> dict:
     """
@@ -141,7 +141,7 @@ def fill_canvas(width: int, height: int, stitch_canvas: np.ndarray, loc_map: dic
                 stitch_canvas[int(j * c_size) - d_up:int((j + 1) * c_size) - d_up,
                 int(i * c_size) - d_left:int((i + 1) * c_size) - d_left] = img
             except:
-                print("image damaged")
+                show_info("image damaged")
     return stitch_canvas
 
 
