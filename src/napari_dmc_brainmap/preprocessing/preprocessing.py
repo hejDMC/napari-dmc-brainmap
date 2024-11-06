@@ -6,13 +6,14 @@ see: https://napari.org/stable/plugins/guides.html?#widgets
 
 Replace code below according to your needs.
 """
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox, QProgressBar
+from superqt import QCollapsible
 from napari.qt.threading import thread_worker
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from napari_dmc_brainmap.utils import get_animal_id, get_image_list, update_params_dict, clean_params_dict, load_params, \
     get_threshold_dropdown
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
-from superqt import QCollapsible
 from magicgui import magicgui, widgets
 from magicgui.widgets import FunctionGui
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
@@ -108,18 +109,10 @@ def initialize_header_widget() -> FunctionGui:
         pass
     return header_widget
 
-@thread_worker
+@thread_worker(progress={'total': 100})
 def do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params, resolution, save_dirs):
-
-    # if num_cores > multiprocessing.cpu_count():
-    #     print("maximum available cores = " + str(multiprocessing.cpu_count()))
-    #     num_cores = multiprocessing.cpu_count()
-
-    # if preprocessing_params['operations']['sharpy_track']:
-    #     resolution_tuple = tuple(resolution)
-    # else:
-    #     resolution_tuple = False
-
+    progress_value = 0
+    progress_step = 100 / 1
     if "operations" in preprocessing_params.keys():
         if 'sharpy_track' in preprocessing_params['operations'].keys():
             resolution_tuple = tuple(resolution)
@@ -134,10 +127,11 @@ def do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing
         print("DONE!")
     else:
         print("No preprocessing operations selected, expand the respective windows and tick check box")
-
+    yield 100
+    return get_animal_id(input_path)
 
 class PreprocessingWidget(QWidget):
-
+    progress_signal = Signal(int)
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
@@ -161,6 +155,11 @@ class PreprocessingWidget(QWidget):
         self.btn = QPushButton("Do the preprocessing!")
         self.btn.clicked.connect(self._do_preprocessing)
 
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setMinimum(0)
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+
         self.layout().addWidget(self.header.native)
         self._add_gui_section('Create RGB: expand for more', self.rgb_widget)
         self._add_gui_section('Create SHARPy-track images: expand for more', self.sharpy_widget)
@@ -168,79 +167,14 @@ class PreprocessingWidget(QWidget):
         self._add_gui_section('Create image stacks: expand for more', self.stack_widget)
         self._add_gui_section('Create binary images: expand for more', self.binary_widget)
         self.layout().addWidget(self.btn)
-
+        self.layout().addWidget(self.progress_bar)
+        self.progress_signal.connect(self.progress_bar.setValue)
 
     def _add_gui_section(self, name, widget):
         collapsible = QCollapsible(name, self)
         collapsible.addWidget(widget.native)
         self.layout().addWidget(collapsible)
 
-
-    # def _get_info(self, widget, rgb=False):
-    #     if rgb:
-    #         return {
-    #             "channels": widget.channels.value,
-    #             "downsampling": widget.ds_params.value,
-    #             "contrast_adjustment": widget.contrast_bool.value,
-    #             "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-    #             "green": [int(i) for i in widget.contrast_green.value.split(',')],
-    #             "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')]
-    #         }
-    #     else:
-    #         return {
-    #             "channels": widget.channels.value,
-    #             "downsampling": widget.ds_params.value,
-    #             "contrast_adjustment": widget.contrast_bool.value,
-    #             "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-    #             "green": [int(i) for i in widget.contrast_green.value.split(',')],
-    #             "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
-    #             "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
-    #             "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
-    #         }
-    # def _get_widget_info(self, widget, item):
-    #     if item == 'rgb':
-    #         chan_list = ['dapi', 'green', 'cy3']
-    #     else:
-    #         chan_list = ['dapi', 'green', 'n3', 'cy3', 'cy5']
-    #
-    #     if 'all' in widget[1].value:
-    #         imaged_chan_list = self.header.chans_imaged.value
-    #     else:
-    #         imaged_chan_list = widget[1].value
-    #         # make sure selected channels for preprocessing where imaged
-    #         imaged_chan_list = [i for i in imaged_chan_list if i in self.header.chans_imaged.value]
-    #     if item != 'binary':
-    #         if item == 'sharpy_track':
-    #             return {
-    #                 "channels": imaged_chan_list,
-    #                 "contrast_adjustment": widget[2].value,
-    #                 **{channel: [int(i) for i in widget[3 + idx].value.split(',')]
-    #                    for idx, channel in enumerate(chan_list) if channel in imaged_chan_list}
-    #             }
-    #         else:
-    #             return {
-    #                 "channels": imaged_chan_list,
-    #                 "downsampling": widget[2].value,
-    #                 "contrast_adjustment": widget[3].value,
-    #                 **{channel: [int(i) for i in widget[4 + idx].value.split(',')]
-    #                    for idx, channel in enumerate(chan_list) if channel in imaged_chan_list}
-    #             }
-    #     else:
-    #         if widget[4].value: # manual thresholds
-    #             return {
-    #                 "channels": imaged_chan_list,
-    #                 "downsampling": widget[2].value,
-    #                 "manual_threshold": widget[4].value,
-    #                 **{channel: [int(i) for i in widget[4 + idx].value.split(',')]
-    #                    for idx, channel in enumerate(chan_list) if channel in imaged_chan_list}
-    #             }
-    #         else:
-    #             return {
-    #                 "channels": imaged_chan_list,
-    #                 "downsampling": widget[2].value,
-    #                 "manual_threshold": widget[4].value,
-    #                 "thresh_method": widget[3].value.value
-    #             }
     def _get_widget_info(self, widget, item):
         chan_list = ['dapi', 'green', 'cy3'] if item == 'rgb' else ['dapi', 'green', 'n3', 'cy3', 'cy5']
 
@@ -289,27 +223,42 @@ class PreprocessingWidget(QWidget):
             if widget[0].value:
                 params_dict["operations"] = {op: widget[0].value}
                 params_dict[f"{op}_params"] = self._get_widget_info(widget, op)
-        # "operations":
-        #     {
-        #
-        #     },
-        # "rgb_params": self._get_widget_info(self.rgb_widget, rgb=True),
-        # "single_channel_params": self._get_widget_info(self.single_channel_widget),
-        # "stack_params": self._get_widget_info(self.stack_widget),
-        # "sharpy_track_params": self._get_widget_info(self.sharpy_widget),
-        # "binary_params": self._get_widget_info(self.binary_widget, binary=True)
-
-
         return params_dict
+
+    def _show_success_message(self, animal_id: str) -> None:
+        """
+        Display a success message after stitching is complete.
+
+        Parameters:
+        animal_id (str): The animal ID for which stitching was performed.
+        """
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setText(f"Preprocessing finished for {animal_id}!")
+        msg_box.setWindowTitle("Preprocessing successful!")
+        msg_box.exec_()
+        self.btn.setText("Do the preprocessing!")  # Reset button text after process completion
+
+    def _update_progress(self, value: int) -> None:
+        """
+        Update the progress bar with the given value.
+
+        Parameters:
+        value (int): Progress value to set.
+        """
+        self.progress_signal.emit(value)
 
     def _do_preprocessing(self):
         input_path = self.header.input_path.value
         # check if user provided a valid input_path
-        if not input_path.is_dir() or str(input_path) == '.':  # todo check on other OS
-            # raise IOError("Input path is not a valid directory \n"
-            #               "Please make sure this exists: {}".format(input_path))
-            print(f"Input path is not a valid directory \n Please make sure this exists: >> '{str(input_path)}' <<")
+        if not input_path.is_dir() or str(input_path) == '.':
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Critical)
+            msg_box.setText(f"Input path is not a valid directory. Please make sure this exists: >> '{str(input_path)}' <<")
+            msg_box.setWindowTitle("Invalid Path Error")
+            msg_box.exec_()
             return
+
         preprocessing_params = self._get_preprocessing_params()
         save_dirs = create_dirs(preprocessing_params, input_path)
         filter_list = preprocessing_params['general']['chans_imaged']
@@ -320,6 +269,10 @@ class PreprocessingWidget(QWidget):
 
         preprocessing_worker = do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params,
                                                 resolution, save_dirs)
+        preprocessing_worker.yielded.connect(self._update_progress)
+        preprocessing_worker.started.connect(
+            lambda: self.btn.setText("Preprocessing images..."))  # Change button text when stitching starts
+        preprocessing_worker.returned.connect(self._show_success_message)
         preprocessing_worker.start()
 
 
