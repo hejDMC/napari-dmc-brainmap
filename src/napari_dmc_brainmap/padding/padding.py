@@ -13,24 +13,41 @@ from magicgui.widgets import FunctionGui
 import tifffile
 from natsort import natsorted
 import pandas as pd
+from pathlib import Path
 from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
 from napari_dmc_brainmap.utils import load_params, get_info, get_animal_id
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Generator
+
 
 @thread_worker(progress={'total': 100})
-def do_padding(input_path, channels, pad_folder, resolution):
-    # check if pad_folder name is "confocal"
+def do_padding(input_path: Path, channels: List[str], pad_folder: str, resolution: Tuple[int, int]) -> Generator[int, None, str]:
+    """
+    Pad .tif images to match the atlas resolution.
+
+    Parameters:
+    input_path (Path): Path to the input directory containing subfolders for images.
+    channels (List[str]): List of channels to process.
+    pad_folder (str): Name of the folder containing images to be padded.
+    resolution (Tuple[int, int]): The desired resolution for padding.
+
+    Yields:
+    int: Progress value during padding.
+
+    Returns:
+    str: The animal ID of the processed images.
+    """
     if pad_folder == "confocal":
         raise NotImplementedError("'confocal' is a keyword reserved for CZI file format,"
                                   "\nPlease rename the folder something else (such as 'to_pad'), if these are tif files to pad."
                                   "\nFor CZI files, please goto 'Stitch czi images' function."
                                   "\nExiting padding function!")
+
     animal_id = get_animal_id(input_path)
     progress_value = 0
     image_count = count_images(input_path, pad_folder, channels)
     progress_step = 100 / image_count
+
     for chan in channels:
-        # Cache the list of tif files to avoid multiple `.glob()` calls
         tif_files = list(input_path.joinpath(pad_folder, chan).glob("*.tif"))
         if not tif_files[0].name.endswith("_stitched.tif"):
             rename_image_files(tif_files, input_path, pad_folder, chan)
@@ -44,12 +61,14 @@ def do_padding(input_path, channels, pad_folder, resolution):
             except Exception as e:
                 show_info(f"Failed to read {im_fn}: {e}")
                 continue
+
             im_padded = padding_for_atlas(im_array, resolution)
             try:
                 tifffile.imwrite(str(im_fn), im_padded)
             except Exception as e:
                 show_info(f"Failed to write {im_fn}: {e}")
                 continue
+
             progress_value += progress_step
             yield int(progress_value)
 
@@ -57,7 +76,18 @@ def do_padding(input_path, channels, pad_folder, resolution):
     return animal_id
 
 
-def count_images(input_path, pad_folder, channels):
+def count_images(input_path: Path, pad_folder: str, channels: List[str]) -> int:
+    """
+    Count the number of images in the specified folder and channels.
+
+    Parameters:
+    input_path (Path): Path to the input directory.
+    pad_folder (str): Name of the folder containing images to be padded.
+    channels (List[str]): List of channels to count images for.
+
+    Returns:
+    int: The total count of images in the specified channels.
+    """
     image_count = 0
     for chan in channels:
         image_count += len(list(input_path.joinpath(pad_folder, chan).glob("*.tif")))
@@ -65,30 +95,45 @@ def count_images(input_path, pad_folder, channels):
         image_count = 1
     return image_count
 
-def rename_image_files(tif_files, input_path, pad_folder, chan):
+
+def rename_image_files(tif_files: List[Path], input_path: Path, pad_folder: str, chan: str) -> None:
     """
     Rename image files to add '_stitched' suffix if missing.
+
+    Parameters:
+    tif_files (List[Path]): List of tif files to rename.
+    input_path (Path): Path to the input directory.
+    pad_folder (str): Name of the folder containing images to be renamed.
+    chan (str): Channel name for which images are being renamed.
     """
     for im in tif_files:
         im_old = input_path.joinpath(pad_folder, chan, im.name)
         im_new = input_path.joinpath(pad_folder, chan, f"{im.stem}_stitched.tif")
-        # print(f"Renaming ===> {str(im_old)} \nto {str(im_new)} <===")
         im_old.rename(im_new)
 
 
-def save_image_names_csv(tif_files, input_path):
+def save_image_names_csv(tif_files: List[Path], input_path: Path) -> None:
     """
     Save the list of image names to 'image_names.csv' if it does not already exist.
+
+    Parameters:
+    tif_files (List[Path]): List of tif files whose names are to be saved.
+    input_path (Path): Path to the input directory.
     """
     image_names_csv = input_path.joinpath("image_names.csv")
     if not image_names_csv.exists():
         image_list = natsorted([tif.name.split("_stitched.tif")[0] for tif in tif_files])
         image_list_store = pd.DataFrame(image_list)
         image_list_store.to_csv(image_names_csv, index=False)
-        # print(f"Image names saved to {image_names_csv}")
 
 
 def initialize_widget() -> FunctionGui:
+    """
+    Initialize the MagicGUI widget for padding.
+
+    Returns:
+    FunctionGui: The initialized MagicGUI widget.
+    """
     @magicgui(layout='vertical',
               input_path=dict(widget_type='FileEdit',
                               label='input path (animal_id): ',
@@ -106,7 +151,7 @@ def initialize_widget() -> FunctionGui:
                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                             tooltip='select the imaged channels, to select multiple hold ctrl/shift'),
               call_button=False)
-    def padding_widget(viewer: Viewer, input_path, channels, pad_folder):
+    def padding_widget(viewer: Viewer, input_path: Path, channels: List[str], pad_folder: str):
         pass
 
     return padding_widget
@@ -114,7 +159,14 @@ def initialize_widget() -> FunctionGui:
 
 class PaddingWidget(QWidget):
     progress_signal = Signal(int)
-    def __init__(self, napari_viewer):
+
+    def __init__(self, napari_viewer: Viewer):
+        """
+        Initialize the padding widget.
+
+        Parameters:
+        napari_viewer (Viewer): The napari viewer instance.
+        """
         super().__init__()
         self.viewer = napari_viewer
         self.setLayout(QVBoxLayout())
@@ -135,10 +187,10 @@ class PaddingWidget(QWidget):
 
     def _show_success_message(self, animal_id: str) -> None:
         """
-        Display a success message after stitching is complete.
+        Display a success message after padding is complete.
 
         Parameters:
-        animal_id (str): The animal ID for which stitching was performed.
+        animal_id (str): The animal ID for which padding was performed.
         """
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
@@ -156,7 +208,10 @@ class PaddingWidget(QWidget):
         """
         self.progress_signal.emit(value)
 
-    def _do_padding(self):
+    def _do_padding(self) -> None:
+        """
+        Execute the padding operation with confirmation from the user.
+        """
         reply = QMessageBox.question(self, 'Warning',
                                      "This will override existing files. Do you want to continue?",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -169,6 +224,6 @@ class PaddingWidget(QWidget):
             padding_worker = do_padding(input_path, channels, pad_folder, resolution)
             padding_worker.yielded.connect(self._update_progress)
             padding_worker.started.connect(
-                lambda: self.btn.setText("Padding images..."))  # Change button text when stitching starts
+                lambda: self.btn.setText("Padding images..."))  # Change button text when padding starts
             padding_worker.returned.connect(self._show_success_message)
             padding_worker.start()
