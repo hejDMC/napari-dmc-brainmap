@@ -8,6 +8,7 @@ from bg_atlasapi.list_atlases import descriptors, utils
 from bg_atlasapi import BrainGlobeAtlas
 import numpy as np
 import skimage.filters as filters
+from napari.utils.notifications import show_info
 
 def get_animal_id(input_path):
     animal_id = input_path.parts[-1]
@@ -36,7 +37,8 @@ def get_info(input_path, folder_id, channel=False, seg_type=False, create_dir=Fa
     if create_dir:
         if not data_dir.exists():
             data_dir.mkdir(parents=True)
-            print(f'creating folder under: {str(data_dir)}')
+            show_info(f'creating folder under: {str(data_dir)}')
+            # print(f'creating folder under: {str(data_dir)}')
     if only_dir:
         return data_dir
     else:
