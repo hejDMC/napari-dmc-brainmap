@@ -198,6 +198,7 @@ class PaddingWidget(QWidget):
         msg_box.setWindowTitle("Padding successful!")
         msg_box.exec_()
         self.btn.setText("Do the padding (WARNING - overriding existing files!)")  # Reset button text after process completion
+        self.progress_signal.emit(0)
 
     def _update_progress(self, value: int) -> None:
         """
