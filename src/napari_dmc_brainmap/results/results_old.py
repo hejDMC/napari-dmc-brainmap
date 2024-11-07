@@ -1,253 +1,556 @@
-from napari import Viewer
-from napari.layers import Image, Shapes
+import sys
+
+from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from superqt import QCollapsible
+from napari.qt.threading import thread_worker
 from magicgui import magicgui
-from natsort import natsorted
-import cv2
+from magicgui.widgets import FunctionGui
 import numpy as np
 import pandas as pd
-from matplotlib import path
-from sklearn.preprocessing import minmax_scale
-from napari_dmc_brainmap.utils import get_animal_id, get_info
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.find_structure import sliceHandle
+
+from natsort import natsorted
+
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib as mpl
+
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.sans-serif'] = 'Arial'
+mpl.rcParams['svg.fonttype'] = 'none'
+
+import seaborn as sns
+from napari_dmc_brainmap.utils import get_animal_id, get_info, split_strings_layers, clean_results_df, load_params, \
+    create_regi_dict, split_to_list
+from napari_dmc_brainmap.visualization.visualization_tools import load_data
+from napari_dmc_brainmap.results.results_tools import sliceHandle, transform_points_to_regi, \
+    export_results_to_brainrender
+from napari_dmc_brainmap.results.tract_calculation import load_probe_data, get_linefit3d, get_probe_tract
+from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
+from bg_atlasapi import BrainGlobeAtlas
 import json
 
-# todo path things for regi data
 
-def results_widget():
-    from napari.qt.threading import thread_worker
+# def plot_quant_injection_site(df): #(input_path, c):
+#
+#     # results_dir = get_info(input_path, 'results', channel=c, seg_type='injection_site', only_dir=True)
+#     # fn = results_dir.joinpath('quantification_injection_site.csv')
+#     # df = pd.read_csv(fn)
+#     # df = df.drop('animal_id', axis=1)
+#     clrs = sns.color_palette(quant_inj_widget.cmap.value)
+#     mpl_widget = FigureCanvas(Figure(figsize=([int(i) for i in quant_inj_widget.plot_size.value.split(',')])))
+#     static_ax = mpl_widget.figure.subplots()
+#     static_ax.pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
+#     # static_ax.title.set_text('quantification of the injection site in ' + c + " channel")
+#     static_ax.axis('off')
+#     # if quant_inj_widget.save_fig.value:
+#         # save_fn = results_dir.joinpath('quantification_injection_site.svg')
+#         # mpl_widget.figure.savefig(save_fn)
+#     return mpl_widget
 
-    def split_strings_layers(s):
-        # from: https://stackoverflow.com/questions/430079/how-to-split-strings-into-text-and-number
-        if s.startswith('TEa'):  # special case due to small 'a', will otherwise split 'TE' + 'a1', not 'TEa' + '1'
-            head = s[:3]
-            tail = s[3:]
+def calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert):
+    # get number of probes
+    results_dir = get_info(input_path, 'results', seg_type=seg_type, only_dir=True)
+    probes_list = natsorted([p.parts[-1] for p in results_dir.iterdir() if p.is_dir()])
+    probes_dict = {}
+    ax_map = {'ap': 'AP', 'si': 'DV', 'rl': 'ML'}
+    # if len(probe_insert) != len(probes_list):
+    #     print("WARNING, different number of probes and probe insert lengths detected!")
+    #     diff = len(probe_insert) - len(probes_list)
+    #     if diff < 0:
+    #         for d in range(diff):
+    #             probe_insert.append(4000)
+
+    print("calculating probe tract for...")
+    for i in range(
+            len(probes_list) - len(probe_insert)):  # append false value if less probe insert values that probes found
+        print("Warning -- less manipulator values than probes provides, estimation of probe track from clicked points "
+              "is still experimental!")
+        probe_insert.append(False)
+
+    for probe, p_insert in zip(probes_list, probe_insert):
+        print(f"... {probe}")
+        probe_df = load_probe_data(results_dir, probe, s.atlas)
+
+        linefit, linevox, ax_primary = get_linefit3d(probe_df, s.atlas)
+        print(p_insert)
+        probe_tract, _col_names = get_probe_tract(input_path, s.atlas, seg_type, ax_primary, probe_df, probe,
+                                                  p_insert, linefit, linevox)
+        # save probe tract data
+        animal_id = get_animal_id(input_path)
+        save_fn = results_dir.joinpath(probe, f'{animal_id}_{seg_type}.csv')  # override file
+        probe_tract.to_csv(save_fn)
+        probes_dict[probe] = {'axis': ax_map[s.atlas.space.axes_description[ax_primary]]}
+        probes_dict[probe]['Voxel'] = linevox[["a_coord", "b_coord", "c_coord"]].to_numpy().tolist()
+
+    save_fn = results_dir.joinpath(f'{seg_type}_data.json')
+    with open(save_fn, 'w') as f:
+        json.dump(probes_dict, f)  # write multiple voxelized probes, file can be opened in probe visualizer
+    print("DONE!")
+
+
+@thread_worker
+def create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict, include_all, export,
+                        probe_insert):
+    animal_id = get_animal_id(input_path)
+    regi_dir, regi_im_list, regi_suffix = get_info(input_path, 'sharpy_track', channel=regi_chan)
+    with open(regi_dir.joinpath('registration.json')) as fn:
+        regi_data = json.load(fn)
+
+    regi_dict = create_regi_dict(input_path, regi_chan)
+    s = sliceHandle(regi_dict)
+    if seg_type in ["optic_fiber", "neuropixels_probe"]:
+        seg_super_dir = get_info(input_path, 'segmentation', seg_type=seg_type, only_dir=True)
+        channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
+
+    for chan in channels:
+        data = pd.DataFrame()
+        if seg_folder == 'rgb':
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, seg_folder)
         else:
-            head = s.rstrip('0123456789/ab')
-            tail = s[len(head):]
-        return head, tail
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, seg_folder, channel=chan)
+        segment_dir, segment_list, segment_suffix = get_info(input_path, 'segmentation', channel=chan,
+                                                             seg_type=seg_type)
+        if len(segment_list) > 0:
+            results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True,
+                                   only_dir=True)
+            for im in segment_list:
+                try:
+                    section_data = transform_points_to_regi(s, im, seg_type, segment_dir, segment_suffix, seg_im_dir,
+                                                            seg_im_suffix, regi_data,
+                                                            regi_dir, regi_suffix)
+                    if not include_all:
+                        section_data = section_data[section_data['structure_id'] != 0].reset_index(drop=True)
+                    if section_data is None:
+                        pass
+                    else:
+                        data = pd.concat((data, section_data))
+                except KeyError:  # something wrong with registration data
+                    print("Registration data for {} is not complete, skip.".format(im))
+            fn = results_dir.joinpath(f'{animal_id}_{seg_type}.csv')
+            data.to_csv(fn)
+            if export and seg_type == 'cells':
+                bg_data = export_results_to_brainrender(data, s.atlas)
+                bg_fn = results_dir.joinpath(f'{animal_id}_{seg_type}.npy')
+                np.save(bg_fn, bg_data)
+                print(f"exported data to brainrender format in {str(bg_fn)}")
+            print(f"done! data saved to: {str(fn)}")
+        else:
+            print(f"No segmentation images found in {str(segment_dir)}")
+    print("DONE!")
+    if seg_type in ["optic_fiber", "neuropixels_probe"]:
+        print(f'..calculating {seg_type} trajectory for {chan} ...')
+        calculate_probe_tract(s, input_path, seg_type, params_dict, probe_insert)
 
-    # def check_results_dir(input_path, seg_type):
-    #     results_dir = input_path.joinpath('results', seg_type)
-    #     if not results_dir.exists():
-    #         results_dir.mkdir(parents=True)
-    #         print("creating results folder under: " + str(results_dir))
-    #     return results_dir
 
-    def clean_results_df(df, st):  # todo this somewhere seperate
-        path_list = st['structure_id_path'][df['sphinx_id']]
-        path_list = path_list.to_list()
-        df['path_list'] = path_list
-        df = df.reset_index()
+@thread_worker
+def quantify_results(input_path, atlas, chan, seg_type='injection_site', expression=False, is_merge=False):
+    # if seg_type not in ['injection_site', 'cells']:
+    #     print("not implemented! please, select 'injection_site' as segmentation type")
+    #     return
 
-        # clean data - not cells in root, fiber tracts and ventricles
-        # drop "root"
-        df = df.drop(df[df['name'] == 'root'].index)
+    animal_id = get_animal_id(input_path)
+    results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
+    results_fn = results_dir.joinpath(animal_id + '_' + seg_type + '.csv')
+    if results_fn.exists():
+        results_data = pd.read_csv(results_fn)  # load the data
+        results_data['animal_id'] = [animal_id] * len(
+            results_data)  # add the animal_id as a column for later identification
+        # add the injection hemisphere stored in params.json file
+    else:
+        print(f'no results file under: {results_fn}')
+        return
+    if atlas.metadata['name'] == 'allen_mouse':
+        results_data = clean_results_df(results_data, atlas)
+    # step 1: get the absolute pixel count on area level (not layers)
+    # add parent acronym to the injection data
+    acronym_parent = [split_strings_layers(s, atlas_name=atlas.metadata['name'])[0] for s in results_data['acronym']]
+    results_data['acronym_parent'] = acronym_parent
+    # count pixels (injection site) for each cell, add 0 for empty regions
+    quant_df = pd.DataFrame()
+    if expression:
+        gene_expression_fn, gene = expression
+        columns_to_load = ['spot_id', gene]
+        print("loading gene expression data...")
+        gene_expression_df = pd.read_csv(gene_expression_fn, usecols=columns_to_load)
+        gene_expression_df.rename(columns={gene: 'gene_expression'}, inplace=True)
+        results_data = pd.merge(results_data, gene_expression_df, on='spot_id', how='left')
+        results_data['gene_expression'] = results_data['gene_expression'].fillna(0)
+        temp_data = results_data.groupby('acronym_parent')['gene_expression'].mean().reset_index()
+        temp_data.rename(columns={"acronym_parent": "acronym", 'gene_expression': 'quant_distribution'}, inplace=True)
+    else:
+        if is_merge:
+            animal_key = 'animal_id_ind'
+            animal_list = results_data[animal_key].unique()
+        else:
+            animal_key = 'animal_id'
+            animal_list = results_data[animal_key].unique()
+        for animal_id in animal_list:
+            temp_data = pd.DataFrame(results_data[results_data[animal_key] == animal_id]
+                                     ["acronym_parent"].value_counts())
+            temp_data = temp_data.reset_index()
+            temp_data.rename(columns={"acronym_parent": "acronym", "count": "quant_volume"}, inplace=True)
 
-        # fiber tracks and all children of it
-        fiber_path = st[st['name'] == 'fiber tracts']['structure_id_path'].iloc[0]
-        df = df.drop(
-            df[df['path_list'].str.contains(fiber_path)].index)
+            temp_data['quant_distribution'] = temp_data['quant_volume'] / temp_data[
+                'quant_volume'].sum()
 
-        ventricle_path = st[st['name'] == 'ventricular systems']['structure_id_path'].iloc[0]
-        df = df.drop(
-            df[df['path_list'].str.contains(ventricle_path)].index)
-        df = df.reset_index(drop=True)
-        return df
+            temp_data['animal_id'] = animal_id
+            quant_df = pd.concat((quant_df, temp_data), axis=0)
 
-    @thread_worker
-    def create_results_file(input_path, seg_type):
+    quant_df_pivot = quant_df.pivot(columns='acronym', values='quant_distribution',
+                                    index='animal_id').fillna(0)
 
-        if seg_type == 'cells':
-            print("not implemented yet")
-            return
-        animal_id = get_animal_id(input_path)
-        regi_dir, regi_im_list, regi_suffix = get_info(input_path, 'registration')
-        with open(regi_dir.joinpath('registration.json')) as fn:
-            regi_data = json.load(fn)
-
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        stats_dir, stats_list, stats_suffix = get_info(input_path, 'stats', seg_type=seg_type)
-        results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
-        s = sliceHandle(regi_dir.joinpath('registration.json'))
-        injection_data = pd.DataFrame()  # todo not only for injection data
-        for im in stats_list:
-            curr_im = im[:-len(stats_suffix)]
-            img = cv2.imread(str(seg_im_dir.joinpath(curr_im + seg_im_suffix)))
-            y_im, x_im, z_im = img.shape  # original resolution of image
-            # correct for 0 indices
-            y_im -= 1
-            x_im -= 1
-            img_regi = cv2.imread(str(regi_dir.joinpath(curr_im + regi_suffix)))
-            y_low, x_low, z_low = img_regi.shape  # original resolution of image
-            # correct for 0 indices
-            y_low -= 1
-            x_low -= 1
-
-            stats = pd.read_csv(stats_dir.joinpath(im))
-            y_pos = list(stats['Position Y'])
-            x_pos = list(stats['Position X'])
-            # append mix max values for rescaling
-            y_pos.append(0)
-            y_pos.append(y_im)
-            x_pos.append(0)
-            x_pos.append(x_im)
-
-            y_scaled = np.ceil(minmax_scale(y_pos, feature_range=(0, y_low)))[:-2].astype(int)
-            x_scaled = np.ceil(minmax_scale(x_pos, feature_range=(0, x_low)))[:-2].astype(int)
-            # coords = np.stack([x_scaled, y_scaled], axis=1)
-
-            poly_points = [(x_scaled[i], y_scaled[i]) for i in range(0, len(x_scaled))]
-            polygon = path.Path(poly_points)
-
-            # get all possible points on canvas
-            # xx, yy = np.meshgrid(np.arange(img_regi.shape[1]), np.arange(img_regi.shape[0]))
-            x_min, x_max = x_scaled.min(), x_scaled.max()
-            y_min, y_max = y_scaled.min(), y_scaled.max()
-            xx, yy = np.meshgrid(np.linspace(x_min, x_max, (x_max - x_min) + 1),
-                                 np.linspace(y_min, y_max, (y_max - y_min) + 1))
-            # xx, yy = np.meshgrid(np.arange(img_regi.shape[1]), np.arange(img_regi.shape[0]))
-            canvas_points = [(np.ndarray.flatten(xx)[i], np.ndarray.flatten(yy)[i]) for i in
-                             range(0, len(np.ndarray.flatten(xx)))]
-            idx_in_polygon = polygon.contains_points(canvas_points)
-            points_in_polygon = [c for c, i in zip(canvas_points, idx_in_polygon) if i]
-            x_poly = [p[0] for p in points_in_polygon]
-            y_poly = [p[1] for p in points_in_polygon]
-            coords = np.stack([x_poly, y_poly], axis=1)
-            slice_idx = list(regi_data['imgName'].values()).index(curr_im + regi_suffix)
-            s.setImgFolder(regi_dir)
-            # set which slice in there
-            s.setSlice(slice_idx)
-            # s.visualizeMapping(coords)
-            section_data = s.getBrainArea(coords, (curr_im + regi_suffix))
-            injection_data = pd.concat((injection_data, section_data))
-        fn = results_dir.joinpath(animal_id + '_injection.csv')
-        injection_data.to_csv(fn)
-        print("done! data saved to: " + str(fn))
-
-    @thread_worker
-    def quantify_injection_side(input_path, seg_type):
-
-        if seg_type == 'cells':
-            print("not implemented ! only for injection side!")
-            return
-        regi_dir, regi_im_list, regi_suffix = get_info(input_path, 'registration')
-        s = sliceHandle(regi_dir.joinpath('registration.json'))
-        st = s.df_tree
-        animal_id = get_animal_id(input_path)
-        results_dir = get_info(input_path, 'results', seg_type=seg_type, create_dir=True, only_dir=True)
-        results_fn = results_dir.joinpath(animal_id + '_injection.csv')  # todo fix this to be seg_type name
-        if results_fn.exists():
-            results_data = pd.read_csv(results_fn)  # load the data
-            results_data['sphinx_id'] -= 1  # correct for matlab indices starting at 1
-            results_data['animal_id'] = [animal_id] * len(
-                    results_data)  # add the animal_id as a column for later identification
-            # add the injection hemisphere stored in params.json file
-            params_file = input_path.joinpath('params.json')  # directory of params.json file   # todo this as function
-            with open(params_file) as fn:  # load the file
-                params_data = json.load(fn)
-            injection_side = params_data['general']['injection_side']  # add the injection_side as a column
-            results_data['injection_side'] = [injection_side] * len(results_data)
-            # add if the location of a cell is ipsi or contralateral to the injection side
-            # injection_data = get_ipsi_contra(injection_data)
-            # read the genotype
-            genotype = params_data['general']['genotype']
-            # if geno != genotype:
-            #     print("WARNING: genotype doesn't match for " + animal_id)
-            # and add column
-            results_data['genotype'] = [genotype] * len(results_data)
-            # injection_data_merged = pd.concat([injection_data_merged, injection_data])
-        print("loaded " + animal_id)
-        results_data = clean_results_df(results_data, st)
-        # step 1: get the absolute pixel count on area level (not layers)
-        # add parent acronym to the injection data
-        acronym_parent = [split_strings_layers(s)[0] for s in results_data['acronym']]
-        results_data['acronym_parent'] = acronym_parent
-
-        # get list of all areas with cells (=tgt_list)
-        tgt_list = results_data['acronym_parent'].unique().tolist()
-
-        # count pixels (injection side) for each cell, add 0 for empty regions
-        quant_df = pd.DataFrame()
-        temp_data = pd.DataFrame(results_data[results_data["animal_id"] == animal_id]
-                                             ["acronym_parent"].value_counts())
-        temp_data = temp_data.reset_index()
-        temp_data = temp_data.rename(columns={"index": "acronym", "acronym_parent": "injection_volume"})
-        # missing_areas = pd.DataFrame(set(tgt_list).difference(temp_data['acronym'].to_list()),
-        #                                 columns={'acronym'})
-        # missing_areas['injection_volume'] = 0  # todo this crashes on windows if no missing areas? (if n=1, no missing areas anyhow)
-        # temp_data = pd.concat((temp_data, missing_areas), axis=0)
-        # temp_data = temp_data.reset_index(drop=True)
-        temp_data['injection_distribution'] = temp_data['injection_volume'] / temp_data[
-                'injection_volume'].sum()
-
-        temp_data['animal_id'] = animal_id
-        quant_df = pd.concat((quant_df, temp_data), axis=0)
-
-        quant_df_pivot = quant_df.pivot(columns='acronym', values='injection_distribution',
-                                                        index='animal_id')
-
-        save_fn = results_dir.joinpath('quantification_injection_side.csv')
+    if expression:
+        save_fn = results_dir.joinpath(f'quantification_{seg_type}_{gene}.csv')
         quant_df_pivot.to_csv(save_fn)
-        print(quant_df_pivot)
+        # print(f"Quantification of {seg_type} for {gene} gene:")
+    else:
+        save_fn = results_dir.joinpath(f'quantification_{seg_type}_{chan}.csv')
+        quant_df_pivot.to_csv(save_fn)
+    #     print(f"Quantification of {seg_type} for {chan} channel:")
+    return [quant_df_pivot, chan, seg_type, results_data, expression, is_merge]
 
-    # todo think about solution to check and load atlas data
-    @magicgui(
-        layout='vertical',
-        input_path=dict(widget_type='FileEdit', label='input path (animal_id): ', mode='d',
-                        tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                'folder containing segmentation results'),
-        seg_type=dict(widget_type='ComboBox', label='segmentation type',
-                      choices=['cells', 'injection_side'], value='cells',
-                      tooltip='select to either segment cells (points) or areas (e.g. for the injection side)'),
-        results_button=dict(widget_type='PushButton', text='create results file',
-                               tooltip='create one combined results datafile for segmentation results specified above'),
-        quant_button=dict(widget_type='PushButton', text='quantify injection side',
-                              tooltip='quick way to quantify injection side data'),  # todo: specify level, and give option for quantitfy cells
-        call_button=False
-    )
 
-    def widget(
+def initialize_results_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit',
+                              label='input path (animal_id): ',
+                              mode='d',
+                              tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
+                                      'folder containing segmentation results'),
+              seg_folder=dict(widget_type='LineEdit',
+                              label='folder name of segmentation images: ',
+                              value='rgb',
+                              tooltip='name of folder containing the segmentation images, needs to be in same folder as '
+                                      'folder containing the segmentation results  (i.e. animal_id folder)'),
+              regi_chan=dict(widget_type='ComboBox',
+                             label='registration channel',
+                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                             value='green',
+                             tooltip='select the channel you registered to the brain atlas'),
+              seg_type=dict(widget_type='ComboBox',
+                            label='segmentation type',
+                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe',
+                                     'genes'],
+                            value='cells',
+                            tooltip="select the segmentation type you want to create results from."),
+              probe_insert=dict(widget_type='LineEdit',
+                                label='insertion depth of probe (um)',
+                                value='4000',
+                                tooltip='specifiy the depth of optic fibers/neuropixels probe in brain in um, if left '
+                                        'empty insertion depth will be estimated based on segmentation (experimental)'),
+              channels=dict(widget_type='Select',
+                            label='selected channels',
+                            value=['green', 'cy3'],
+                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            tooltip='select channels for results files, '
+                                    'to select multiple hold ctrl/shift'),
+              include_all=dict(widget_type='CheckBox',
+                               label='include segmented objects outside of brain?',
+                               value=False,
+                               tooltip='tick to include segmented objects that are outside of the brain'),
+              export=dict(widget_type='CheckBox', label='export to brainrender', value=False,
+                          tooltip='export data to .npy formatted to be loaded into brainrender software '
+                                  '(https://brainglobe.info/documentation/brainrender/). Currently, only implemented '
+                                  'for cells.'),
+              call_button=False)
+    def results_widget(
             input_path,
+            seg_folder,
+            regi_chan,
             seg_type,
-            results_button,
-            quant_button
-    ) -> None:
-        if not hasattr(widget, 'dummy'):  # todo, delete this or None exception?
-            widget.dummy = []
+            probe_insert,
+            channels,
+            include_all,
+            export):
+        pass
 
-    @widget.results_button.changed.connect
-    def _create_results_file():
-        # todo check input path
-        input_path = widget.input_path.value
-        seg_type = widget.seg_type.value
-        worker_results_file = create_results_file(input_path, seg_type)
+    return results_widget
+
+
+def initialize_quant_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              is_merge=dict(widget_type='CheckBox',
+                            label='using merged data?',
+                            value=False,
+                            tooltip='tick when using data from merged animals '
+                                    '(created with Create merged dataset widget below)'),
+              save_fig=dict(widget_type='CheckBox',
+                            label='save figure?',
+                            value=False,
+                            tooltip='tick to save figure'),
+              expression=dict(widget_type='CheckBox',
+                              label='quantify gene expression levels?',
+                              value=False,
+                              tooltip="Choose to visualize the expression levels of one target gene. This option requires "
+                                      "the presence of a .csv file holding gene expression data, rows are gene "
+                                      "expression, columns genes plus one column named 'spot_id' containing the spot ID"),
+              gene_expression_file=dict(widget_type='FileEdit',
+                                        label='gene expression data file: ',
+                                        value='',
+                                        mode='r',
+                                        tooltip='file containing gene expression data by spot'),
+              gene=dict(widget_type='LineEdit',
+                        label='gene:',
+                        value='Slc17a7',
+                        tooltip='enter the name of the gene to visualize'),
+              plot_size=dict(widget_type='LineEdit',
+                             label='enter plot size',
+                             value='16,12',
+                             tooltip='enter the COMMA SEPERATED size of the plot'),
+              cmap=dict(widget_type='LineEdit',
+                        label='colormap',
+                        value='Blues',
+                        tooltip='enter colormap to use for the pie chart'),
+              kde_axis=dict(widget_type='ComboBox',
+                            label='select axis for density plots',
+                            choices=['AP', 'ML', 'DV', 'AP/ML', 'AP/DV', 'ML/DV'],
+                            value='AP',
+                            tooltip='AP=antero-posterior, ML=medio-lateral, DV=dorso-ventral'),
+              call_button=False)
+    def quant_widget(
+            is_merge,
+            save_fig,
+            expression,
+            gene_expression_file,
+            gene,
+            plot_size,
+            cmap,
+            kde_axis):
+        pass
+
+    return quant_widget
+
+
+def initialize_merge_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              input_path=dict(widget_type='FileEdit',
+                              label='input path: ',
+                              value='',
+                              mode='d',
+                              tooltip='directory of folder containing folders with animals'),
+              animal_list=dict(widget_type='LineEdit',
+                               label='list of animals',
+                               value='animal1,animal2',
+                               tooltip='enter the COMMA SEPERATED list of animals (no white spaces: animal1,animal2)'),
+              merge_id=dict(widget_type='LineEdit',
+                            label='merge_id: ',
+                            value='merge_animal',
+                            tooltip='dummy animal_id that will store merged results for quantification, '
+                                    'data will be stored as for normal animal_ids, '
+                                    'i.e. results/seg_type/channel/*.csv'),
+              channels=dict(widget_type='Select',
+                            label='select channels to plot',
+                            value=['green', 'cy3'],
+                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            tooltip='select the channels with segmented cells to be plotted, '
+                                    'to select multiple hold ctrl/shift'),
+              seg_type=dict(widget_type='ComboBox',
+                            label='segmentation type',
+                            choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe',
+                                     'genes'],
+                            value='cells',
+                            tooltip="select the segmentation type you want to create results from."),
+              call_button=False)
+    def merge_widget(
+            input_path,
+            animal_list,
+            merge_id,
+            channels,
+            seg_type):
+        pass
+
+    return merge_widget
+
+
+def initialize_probevis_widget() -> FunctionGui:
+    @magicgui(layout='vertical',
+              call_button=False)
+    def probe_visualizer():
+        pass
+
+    return probe_visualizer
+
+
+class ResultsWidget(QWidget):
+    def __init__(self, napari_viewer):
+        super().__init__()
+        self.viewer = napari_viewer
+        self.setLayout(QVBoxLayout())
+        self.results = initialize_results_widget()
+        btn_results = QPushButton("create results file")
+        btn_results.clicked.connect(self._create_results_file)
+
+        self._collapse_quant = QCollapsible('Quantify results file: expand for more', self)
+        self.quant = initialize_quant_widget()
+        self._collapse_quant.addWidget(self.quant.native)
+        btn_quant = QPushButton("quantify results file")
+        btn_quant.clicked.connect(self._quantify_results)
+        self._collapse_quant.addWidget(btn_quant)
+
+        self._collapse_merge = QCollapsible('Create merged datasets: expand for more', self)
+        self.merge = initialize_merge_widget()
+        self._collapse_merge.addWidget(self.merge.native)
+        btn_merge = QPushButton("create merged datasets")
+        btn_merge.clicked.connect(self._merge_datasets)
+        self._collapse_merge.addWidget(btn_merge)
+
+        self._collapse_probe_vis = QCollapsible('Launch ProbeViewer: expand for more', self)
+        self.probe_vis = initialize_probevis_widget()
+        self._collapse_probe_vis.addWidget(self.probe_vis.native)
+        btn_probe_vis = QPushButton("start ProbeViewer")
+        btn_probe_vis.clicked.connect(self._start_probe_visualizer)
+        self._collapse_probe_vis.addWidget(btn_probe_vis)
+
+        self.layout().addWidget(self.results.native)
+        self.layout().addWidget(btn_results)
+        self.layout().addWidget(self._collapse_quant)
+        self.layout().addWidget(self._collapse_merge)
+        self.layout().addWidget(self._collapse_probe_vis)
+
+    def _create_results_file(self):
+        input_path = self.results.input_path.value
+        seg_folder = self.results.seg_folder.value
+        regi_chan = self.results.regi_chan.value
+        seg_type = self.results.seg_type.value
+        channels = self.results.channels.value
+        params_dict = load_params(input_path)
+        include_all = self.results.include_all.value
+        export = self.results.export.value
+        probe_insert = split_to_list(self.results.probe_insert.value, out_format='int')
+        if not probe_insert:
+            probe_insert = []
+        worker_results_file = create_results_file(input_path, seg_type, channels, seg_folder, regi_chan, params_dict,
+                                                  include_all, export, probe_insert)
         worker_results_file.start()
 
-    @widget.quant_button.changed.connect
-    def _quantify_injection_side():
-        # todo check input path
-        input_path = widget.input_path.value
-        seg_type = widget.seg_type.value
-        worker_quantification = quantify_injection_side(input_path, seg_type)
-        worker_quantification.start()
+    def _quantify_results(self):
+        input_path = self.results.input_path.value
+        params_dict = load_params(input_path)
+        channels = self.results.channels.value
+        seg_type = self.results.seg_type.value
+        is_merge = self.quant.is_merge.value
+        if self.quant.expression.value:
+            try:
+                gene_expression_fn = self.quant.gene_expression_file.value
+            except IsADirectoryError:
+                print(f'no gene expression .csv file found under: {str(gene_expression_fn)}')
+            gene = self.quant.gene.value
+            expression = [gene_expression_fn, gene]
+        else:
+            expression = False
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
+        for chan in channels:
+            worker_quantification = quantify_results(input_path, atlas, chan, seg_type=seg_type, expression=expression,
+                                                     is_merge=is_merge)
+            worker_quantification.returned.connect(self._plot_quant_data)
+            worker_quantification.start()
 
-    return widget
+    def _merge_datasets(self):
+        input_path = self.merge.input_path.value
+        animal_list = split_to_list(self.merge.animal_list.value)
+        channels = self.merge.channels.value
+        seg_type = self.merge.seg_type.value
+        params_dict = load_params(input_path.joinpath(animal_list[0]))
+        print("loading reference atlas...")
+        atlas = BrainGlobeAtlas(params_dict['atlas_info']['atlas'])
+        merge_id = self.merge.merge_id.value
+        merge_path = input_path.joinpath(merge_id)
+        for chan in channels:
+            df = load_data(input_path, atlas, animal_list, [chan], data_type=seg_type)
+            df.rename(columns={'animal_id': 'animal_id_ind'}, inplace=True)
+            results_dir = get_info(merge_path, 'results', channel=chan, seg_type=seg_type, create_dir=True,
+                                   only_dir=True)
+            results_fn = results_dir.joinpath(merge_id + '_' + seg_type + '.csv')
+            df.to_csv(results_fn)
+        params_dict['animal_id'] = merge_id
+        params_fn = merge_path.joinpath('params.json')
+        with open(params_fn, 'w') as fn:
+            json.dump(params_dict, fn, indent=4)
 
-# def get_regi_info(input_path):
-        #     regi_dir = input_path.joinpath('registration')
-        #     regi_im_list = natsorted([f.parts[-1] for f in regi_dir.glob('*.tif')])  # todo check if this is necessary
-        #     regi_suffix = find_common_suffix(regi_im_list, folder='registration')
-        #
-        #     return regi_dir, regi_im_list, regi_suffix, regi_data
-        #
-        # def get_stats_info(input_path, seg_type):
-        #     stats_dir = input_path.joinpath('stats', seg_type)
-        #     stats_list = natsorted([f.parts[-1] for f in stats_dir.glob('*.tif')])
-        #     stats_suffix = find_common_suffix(stats_list, folder='stats')
-        #     return stats_dir, stats_list, stats_suffix
-        #
-        # def get_seg_info(input_path):
-        #     seg_im_dir = input_path.joinpath('rgb')
-        #     seg_im_list = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])
-        #     seg_im_suffix = find_common_suffix(seg_im_list, folder='segmented images')
-        #     return seg_im_dir, seg_im_list, seg_im_suffix
+    def _plot_quant_data(self, in_data):
+        df, chan, seg_type, results_data, expression, is_merge = in_data
+        input_path = self.results.input_path.value
+        results_dir = get_info(input_path, 'results', channel=chan, seg_type=seg_type, only_dir=True)
+        clrs = sns.color_palette(self.quant.cmap.value)
+        figsize = [int(i) for i in self.quant.plot_size.value.split(',')]
+        mpl_widget = FigureCanvas(Figure(figsize=figsize))
+
+        plt_axis = self.quant.kde_axis.value.split('/')
+        axis_dict = {
+            'AP': ['ap_mm', 'antero-posterior coordinates [mm]'],
+            'ML': ['ml_mm', 'medio-lateral coordinates [mm]'],
+            'DV': ['dv_mm', 'dorso-ventral coordinates [mm]']
+        }
+
+        static_ax = mpl_widget.figure.subplots(1, 2)
+        df.iloc[0][df.iloc[0] < 0] = 0
+        if is_merge:
+            df = pd.DataFrame(df.mean(axis=0)).transpose()
+        static_ax[0].pie(df.iloc[0], labels=df.columns.to_list(), colors=clrs, autopct='%.0f%%', normalize=True)
+        if expression:
+            static_ax[0].title.set_text(f"quantification of {expression[1]} expression")
+        else:
+            static_ax[0].title.set_text(f"quantification of {seg_type} in {chan} channel")
+        static_ax[0].axis('off')
+        if len(plt_axis) == 1:
+            if expression:
+                sns.lineplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], y='gene_expression',
+                             color=clrs[-2])
+            else:
+                if is_merge:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], hue='animal_id_ind',
+                                palette=sns.light_palette(clrs[-2]), common_norm=False, fill=True, legend=False)
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-2],
+                                common_norm=False, fill=True, legend=False)
+                else:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0], color=clrs[-2],
+                                common_norm=False, fill=True, legend=False)
+            static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
+        else:
+            if expression:
+                x_bins = 25
+                y_bins = 15
+                # results_data_binned = pd.DataFrame()
+                results_data['x'] = pd.cut(results_data[axis_dict[plt_axis[0]][0]], bins=x_bins, labels=False)
+                results_data['y'] = pd.cut(results_data[axis_dict[plt_axis[1]][0]], bins=y_bins, labels=False)
+                x_bin_labels = results_data.groupby('x')[axis_dict[plt_axis[0]][0]].mean()
+                y_bin_labels = results_data.groupby('y')[axis_dict[plt_axis[1]][0]].mean()
+                pivot_df = results_data.pivot_table(values='gene_expression', index='y', columns='x', aggfunc='mean',
+                                                    dropna=False)
+                pivot_df.index = pivot_df.index.map(round(y_bin_labels, 2))
+                pivot_df.columns = pivot_df.columns.map(round(x_bin_labels, 2))
+                # pivot_df=pivot_df.fillna(0)
+                sns.heatmap(ax=static_ax[1], data=pivot_df, cmap=self.quant.cmap.value, vmin=0,
+                            vmax=pivot_df.max().max() * 1.5)
+            else:
+                if is_merge:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0],
+                                y=axis_dict[plt_axis[1]][0], hue='animal_id_ind', palette=sns.light_palette(clrs[-2]),
+                                common_norm=False, fill=True, legend=False)
+                    # sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0],
+                    #             y=axis_dict[plt_axis[1]][0],
+                    #             color=clrs[-2], common_norm=False, fill=True, legend=False)
+                else:
+                    sns.kdeplot(ax=static_ax[1], data=results_data, x=axis_dict[plt_axis[0]][0],
+                                y=axis_dict[plt_axis[1]][0],
+                                color=clrs[-2], common_norm=False, fill=True, legend=False)
+            static_ax[1].set_xlabel(axis_dict[plt_axis[0]][1])
+            static_ax[1].set_ylabel(axis_dict[plt_axis[1]][1])
+        static_ax[1].spines['top'].set_visible(False)
+        static_ax[1].spines['right'].set_visible(False)
+        if expression:
+            static_ax[1].title.set_text(f"kde plot of {expression[1]} expression")
+            save_fn = results_dir.joinpath(f'quantification_{seg_type}_{expression[1]}.svg')
+        else:
+            static_ax[1].title.set_text(f"kde plot of {seg_type} in {chan} channel")
+            save_fn = results_dir.joinpath(f'quantification_{seg_type}_{chan}.svg')
+        if self.quant.save_fig.value:
+            mpl_widget.figure.savefig(save_fn)
+        self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
+
+    def _start_probe_visualizer(self):
+        input_path = self.results.input_path.value
+        params_dict = load_params(input_path)
+        probe_vis = ProbeVisualizer(self.viewer, params_dict)
+        probe_vis.show()

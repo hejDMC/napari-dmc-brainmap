@@ -3,7 +3,7 @@ import numpy as np
 from PyQt5.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
-from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
+# from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
 
 

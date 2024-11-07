@@ -2,7 +2,6 @@ from napari import Viewer
 from napari.qt.threading import thread_worker
 from natsort import natsorted
 import cv2
-from napari_dmc_brainmap.utils import get_info, load_params
 from superqt import QCollapsible
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
 from magicgui import magicgui
@@ -25,127 +24,65 @@ from skimage.morphology import remove_small_objects
 from skimage.measure import label, regionprops, regionprops_table
 from napari.utils.notifications import show_info
 
-from bg_atlasapi import config, BrainGlobeAtlas
+from bg_atlasapi import BrainGlobeAtlas
 
-from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list, get_image_list
+from napari_dmc_brainmap.utils import get_bregma, coord_mm_transform, split_to_list, get_image_list, get_info, \
+    load_params
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
+from napari_dmc_brainmap.segment.segment_tools import loadAnnotBool, angleSlice, get_cmap
 
-
-
-# todo put these function in segment_tools.py file (to be created)
-def calculateImageGrid(x_res, y_res): # one time calculation
-    y = np.arange(y_res)
-    x = np.arange(x_res)
-    grid_x, grid_y = np.meshgrid(x, y)
-    r_grid_x = grid_x.ravel()
-    r_grid_y = grid_y.ravel()
-    grid = np.stack([grid_y, grid_x], axis=2)
-    return grid, r_grid_x, r_grid_y
-
-def loadAnnotBool(atlas):
-    brainglobe_dir = config.get_brainglobe_dir()
-    atlas_name_general = f"{atlas}_v*"
-    atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[
-        0]  # glob returns generator object, need to exhaust it in list, then take out
-    annot_bool_dir = brainglobe_dir.joinpath(atlas_names_local, 'annot_bool.npy')
-    # for any atlas else, in this case test with zebrafish atlas
-    print('checking for annot_bool volume...')
-    if annot_bool_dir.exists():  # when directory has 8-bit template volume, load it
-        print('loading annot_bool volume...')
-        annot_bool = np.load(annot_bool_dir)
-
-    else:  # when saved template not found
-        # check if template volume from brainglobe is already 8-bit
-        print('... local version not found, loading annotation volume...')
-        annot = BrainGlobeAtlas(atlas).annotation
-
-        print('... creating annot_bool version...')
-
-        annot_bool = np.where(annot>0, 255, 0)  # 0, outside brain, 255 inside brain
-        np.save(annot_bool_dir, annot_bool)
-
-    return annot_bool
-
-def angleSlice(x_angle, y_angle, z, annot_bool, z_idx, z_res, bregma, xyz_dict):
-    # calculate from ml and dv angle, the plane of current slice
-    x_shift = int(np.tan(np.deg2rad(x_angle)) * (xyz_dict['x'][1] / 2))
-    y_shift = int(np.tan(np.deg2rad(y_angle)) * (xyz_dict['y'][1] / 2))
-    # pick up slice
-    z_coord = coord_mm_transform([z], [bregma[z_idx]],
-                                 [z_res], mm_to_coord=True)
-
-    center = np.array([z_coord, (xyz_dict['y'][1] / 2), (xyz_dict['x'][1] / 2)])
-    c_right = np.array([z_coord+x_shift, (xyz_dict['y'][1] / 2), (xyz_dict['x'][1] - 1)])
-    c_top = np.array([z_coord-y_shift, 0, (xyz_dict['x'][1] / 2)])
-    # calculate plane normal vector
-    vec_1 = c_right-center
-    vec_2 = c_top-center
-    vec_n = np.cross(vec_1,vec_2)
-    # calculate ap matrix
-    grid,r_grid_x,r_grid_y = calculateImageGrid(xyz_dict['x'][1], xyz_dict['y'][1])
-    ap_mat = (-vec_n[1]*(grid[:,:,0]-center[1])-vec_n[2]*(grid[:,:,1]-center[2]))/vec_n[0] + center[0]
-    ap_flat = ap_mat.astype(int).ravel()
-    # within volume check
-    outside_vol = np.argwhere((ap_flat<0)|(ap_flat>(xyz_dict['z'][1]-1))) # outside of volume index
-    if outside_vol.size == 0: # if outside empty, inside of volume
-        # index volume with ap_mat and grid
-        slice = annot_bool[ap_mat.astype(int).ravel(),r_grid_y,r_grid_x].reshape(xyz_dict['y'][1],xyz_dict['x'][1])
-    else: # if not empty, show black image
-        slice = np.zeros((xyz_dict['y'][1], xyz_dict['x'][1]),dtype=np.uint8)
-    return slice
-
-def cmap_cells():
-    # return default colormap for channel and color of cells
-    cmap = {
-        'dapi': 'yellow',
-        'green': 'magenta',
-        'n3': 'gray',
-        'cy3': 'cyan',
-        'cy5': 'lightblue'
-    }
-    return cmap
-
-
-def cmap_npx():
-    # return default colormap for channel and color of cells
-    cmap = {
-        '0': 'deepskyblue',
-        '1': 'orange',
-        '2': 'springgreen',
-        '3': 'darkgray',
-        '4': 'fuchsia',
-        '5': 'royalblue',
-        '6': 'gold',
-        '7': 'powderblue',
-        '8': 'lightsalmon',
-        '9': 'olive'
-    }
-
-    return cmap
-
-
-def cmap_injection():
-    # return default colormap for channel and color of cells
-    cmap = {
-        'dapi': 'gold',
-        'green': 'purple',
-        'n3': 'navy',
-        'cy3': 'darkorange',
-        'cy5': 'cornflowerblue'
-    }
-    return cmap
-
-
-
-def cmap_display():
-    cmap = {
-        'dapi': 'blue',
-        'green': 'green',
-        'n3': 'orange',
-        'cy3': 'red',
-        'cy5': 'pink'
-    }
-    return cmap
+# def cmap_cells():
+#     # return default colormap for channel and color of cells
+#     cmap = {
+#         'dapi': 'yellow',
+#         'green': 'magenta',
+#         'n3': 'gray',
+#         'cy3': 'cyan',
+#         'cy5': 'lightblue'
+#     }
+#     return cmap
+#
+#
+# def cmap_npx():
+#     # return default colormap for channel and color of cells
+#     cmap = {
+#         '0': 'deepskyblue',
+#         '1': 'orange',
+#         '2': 'springgreen',
+#         '3': 'darkgray',
+#         '4': 'fuchsia',
+#         '5': 'royalblue',
+#         '6': 'gold',
+#         '7': 'powderblue',
+#         '8': 'lightsalmon',
+#         '9': 'olive'
+#     }
+#
+#     return cmap
+#
+#
+# def cmap_injection():
+#     # return default colormap for channel and color of cells
+#     cmap = {
+#         'dapi': 'gold',
+#         'green': 'purple',
+#         'n3': 'navy',
+#         'cy3': 'darkorange',
+#         'cy5': 'cornflowerblue'
+#     }
+#     return cmap
+#
+#
+#
+# def cmap_display():
+#     cmap = {
+#         'dapi': 'blue',
+#         'green': 'green',
+#         'n3': 'orange',
+#         'cy3': 'red',
+#         'cy5': 'pink'
+#     }
+#     return cmap
 
 
 def default_save_dict():
@@ -156,6 +93,7 @@ def default_save_dict():
         "n_probes": False
     }
     return save_dict
+
 
 def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_seg=False):
     if single_channel:
@@ -179,132 +117,256 @@ def get_path_to_im(input_path, image_idx, single_channel=False, chan=False, pre_
     else:
         return path_to_im
 
+################################### PRESEG ########################################################
+def load_segmentation_image(image_path: Path, channel: str, single_channel: bool, structure_channel: int) -> np.ndarray:
+    """
+    Load the segmentation image for the specified channel.
 
+    Parameters:
+    image_path (Path): Path to the image file.
+    channel (str): Channel identifier.
+    single_channel (bool): Whether the image is single channel or RGB.
+    structure_channel (int): Index of the structure channel in the RGB image.
+
+    Returns:
+    np.ndarray: Loaded image.
+    """
+    reader = AICSImage(str(image_path))
+    img = reader.data.astype(np.float32)
+    if single_channel:
+        return img[0, 0, 0, :, :].copy()
+    else:
+        return img[0, 0, 0, :, :, structure_channel].copy()
+
+
+# Method refactoring
 @thread_worker
 def do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan, preseg_params,
-                                              start_end_im, mask_folder, output_folder, seg_type='cells'):
+                       start_end_im, mask_folder, output_folder, seg_type='cells'):
+    """
+    Perform pre-segmentation on the provided image data.
 
+    Parameters:
+    input_path (Path): The path to the input images.
+    params_dict (dict): Dictionary containing various parameters for the process.
+    channels (list): List of channels to segment.
+    single_channel (bool): Flag to indicate if the image is a single channel.
+    regi_bool (bool): Whether the registration was performed.
+    regi_chan (str): Registration channel.
+    preseg_params (dict): Pre-segmentation parameters.
+    start_end_im (list): Start and end indices for image range to presegment.
+    mask_folder (str): Folder name for masks.
+    output_folder (str): Folder name for output.
+    seg_type (str): Segmentation type.
+    """
     xyz_dict = params_dict['atlas_info']['xyz_dict']
     atlas_id = params_dict['atlas_info']['atlas']
+    regi_list = []
     if regi_bool:
-        regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
-        regi_fn = regi_dir.joinpath("registration.json")
-        if regi_fn.is_file():
-            with open(regi_fn, 'r') as f:
-                regi_data = json.load(f)
-            annot_bool = loadAnnotBool(atlas_id)
-            atlas = BrainGlobeAtlas(atlas_id)
-            z_idx = atlas.space.axes_description.index(xyz_dict['z'][0])
-            z_res = xyz_dict["z"][2]
-            bregma = get_bregma(atlas_id)
-        else:
-            print("NO REGISTRATION DATA FOUND")
+        try:
+            regi_data, annot_bool, z_idx, z_res, bregma = _load_registration_data(input_path, regi_chan, atlas_id, xyz_dict)
+            regi_list = [regi_data, annot_bool, z_idx, z_res, bregma]
+        except FileNotFoundError:
+            show_info('NO REGISTRATION DATA FOUND')
             regi_bool = False
-    print('running presegmentation of ...')
 
-    if not single_channel:
-        chan_dict = {
-            'cy3': 0,
-            'green': 1,
-            'dapi': 2
-        }
-        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-        seg_im_list = natsorted(seg_im_list)
-        if start_end_im:
-            if len(start_end_im) == 2:
-                seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]+1]
 
     for chan in channels:
-        mask_dir = get_info(input_path, mask_folder, channel=chan, seg_type=seg_type,
-                            create_dir=True, only_dir=True)
-        output_dir = get_info(input_path, output_folder, channel=chan, seg_type=seg_type,
-                            create_dir=True, only_dir=True)
-        print(f'... channel {chan}')
-        if single_channel:
-            seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=chan)
-            seg_im_list = natsorted(seg_im_list)
-            if start_end_im:
-                if len(start_end_im) == 2:
-                    seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1]+1]
-        for im in seg_im_list:
-            print(f'... {im}')
-            im_fn = seg_im_dir.joinpath(im)
-            reader = AICSImage(str(im_fn))
-            img = reader.data.astype(np.float32)  # input image is a single RGB image
-            if single_channel:
-                struct_img0 = img[0, 0, 0, :, :].copy()
-            else:
-                structure_channel = chan_dict[chan] # 0:cy3, 1:green, 2:dapi for RGB
-                struct_img0 = img[0, 0, 0, :, :, structure_channel].copy()
-            struct_img0 = np.array([struct_img0, struct_img0])  # make duplicate layer stack
-            # preprocessing
-            intensity_scaling_param = preseg_params["intensity_norm"] # default[1000], [0.5,17.5] works better
-            gaussian_smoothing_sigma = preseg_params["gaussian_smoothing_sigma"]
-            struct_img = intensity_normalization(struct_img0, scaling_param=intensity_scaling_param)
-            structure_img_smooth = image_smoothing_gaussian_slice_by_slice(struct_img, sigma=gaussian_smoothing_sigma)
-            # core
-            response = dot_3d(structure_img_smooth, log_sigma=preseg_params["dot_3d_sigma"])
-            bw = response > preseg_params["dot_3d_cutoff"]
-            # postprocessing
-            bw_filled = hole_filling(bw, preseg_params["hole_min_max"][0], preseg_params["hole_min_max"][1], True)
-            seg = remove_small_objects(bw_filled, min_size=preseg_params["minArea"], connectivity=1) # min_size=3 a lot of small objects detected # ,min size 6 is still too small
-            # output segmentation binary image
-            seg = seg>0
-            seg = seg.astype(np.uint8)
-            seg[seg>0]=255
-            if np.mean(seg[0]) == 0:
-                pass
-            else:
-                # write binary image to file
-                writer = OmeTiffWriter()
-                mask_save_fn = mask_dir.joinpath(im[:-len(seg_im_suffix)] + '_masks.tiff')
-                writer.save(seg[0], str(mask_save_fn)) # save only one layer binary image
-                # centroid detection
-                label_img = label(seg[0])
-                props = regionprops_table(label_img, properties=['centroid'])
-                if regi_bool:
-                    dim_rgb = seg[0].shape
-                    x_res = xyz_dict['x'][1]
-                    y_res = xyz_dict['y'][1]
-                    x_rgb = props["centroid-1"] / dim_rgb[1] * x_res
-                    y_rgb = props["centroid-0"] / dim_rgb[0] * y_res
-                    for k, v in regi_data['imgName'].items():
-                        if v.startswith(im[:-len(seg_im_suffix)]):
-                            regi_index = k
-                    # get transformation
-                    tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
-                    # slice annotation volume
-                    x_angle, y_angle, z = regi_data['atlasLocation'][regi_index]
+        mask_dir, output_dir = _prepare_segmentation_folders(input_path, mask_folder, output_folder, chan, seg_type)
 
-                    annot_slice = angleSlice(x_angle, y_angle, z, annot_bool, z_idx, z_res, bregma, xyz_dict)
-                    # mark invalid coordinates
-                    drop_bool = []
-                    for x, y in zip(x_rgb, y_rgb):
-                        x_atlas, y_atlas = mapPointTransform(x, y, tform)
-                        x_atlas, y_atlas = int(x_atlas), int(y_atlas)
-                        if (x_atlas < 0) | (y_atlas < 0) | (x_atlas >= xyz_dict['x'][1]) | (y_atlas >= xyz_dict['y'][1]):
-                            drop_bool.append(1)
-                        else:
-                            if annot_slice[y_atlas, x_atlas] == 0:
-                                drop_bool.append(1)
-                            else:
-                                drop_bool.append(0)
-                    csv_to_save = pd.DataFrame(props)
-                    csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
-                    csv_to_save = csv_to_save.iloc[np.where(np.array(drop_bool) == 0)[0], :].copy().reset_index(
-                        drop=True)
-                else:
-                    csv_to_save = pd.DataFrame(props)
-                    csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
+        seg_im_dir, seg_im_list, seg_im_suffix = _load_image_list(input_path, start_end_im, channels, single_channel)
+
+        for im in seg_im_list:
+            print(f'Processing image: {im}')
+            image_path = seg_im_dir.joinpath(im)
+            chan_dict = {
+                'cy3': 0,
+                'green': 1,
+                'dapi': 2
+            }
+            struct_img0 = load_segmentation_image(image_path, chan, single_channel, structure_channel=chan_dict[chan])
+            struct_img0 = np.array([struct_img0, struct_img0])  # Duplicate layer stack
+
+            structure_img_smooth = preprocess_image(struct_img0, preseg_params)
+
+            segmentation = segment_image(structure_img_smooth, preseg_params)
+            if np.mean(segmentation[0]) != 0:
+                mask_save_fn = mask_dir.joinpath(im[:-len(seg_im_suffix)] + '_masks.tiff')
+                save_segmentation_to_tiff(segmentation, mask_save_fn)
 
                 csv_save_name = output_dir.joinpath(im.split('.')[0] + '_' + seg_type + '.csv')
-                csv_to_save.to_csv(csv_save_name)
+                save_segmentation_to_csv(segmentation, csv_save_name, regi_bool, regi_list, xyz_dict, im, seg_im_suffix)
+
     print("DONE with presegmentation")
 
 
+# Supporting functions
+def preprocess_image(image: np.ndarray, params: dict) -> np.ndarray:
+    """
+    Pre-process the image using intensity normalization and Gaussian smoothing.
+
+    Parameters:
+    image (np.ndarray): The image to preprocess.
+    params (dict): Pre-segmentation parameters.
+
+    Returns:
+    np.ndarray: The preprocessed image.
+    """
+    image = intensity_normalization(image, scaling_param=params["intensity_norm"])
+    return image_smoothing_gaussian_slice_by_slice(image, sigma=params["gaussian_smoothing_sigma"])
+
+
+def segment_image(image: np.ndarray, params: dict) -> np.ndarray:
+    """
+    Segment the given image based on dot_3d filter and other parameters.
+
+    Parameters:
+    image (np.ndarray): The preprocessed image to segment.
+    params (dict): Pre-segmentation parameters.
+
+    Returns:
+    np.ndarray: Binary segmented image.
+    """
+    response = dot_3d(image, log_sigma=params["dot_3d_sigma"])
+    bw = response > params["dot_3d_cutoff"]
+    bw_filled = hole_filling(bw, params["hole_min_max"][0], params["hole_min_max"][1], True)
+    seg = remove_small_objects(bw_filled, min_size=params["minArea"], connectivity=1)
+    # output segmentation binary image
+    seg = seg > 0
+    seg = seg.astype(np.uint8)
+    seg[seg > 0] = 255
+    return seg
+
+def save_segmentation_to_tiff(segmentation, mask_save_fn):
+    writer = OmeTiffWriter()
+    writer.save(segmentation[0], str(mask_save_fn))
+
+def save_segmentation_to_csv(segmentation: np.ndarray, file_path: Path, regi_bool: bool, regi_list, xyz_dict, im, seg_im_suffix):
+
+    # Additional CSV saving logic can be added here if needed.
+    label_img = label(segmentation[0])
+    props = regionprops_table(label_img, properties=['centroid'])
+
+    # Example: centroid detection (if regi_bool is True)
+    if regi_bool:
+        drop_bool = exclude_segment_objects(segmentation, props, regi_list, xyz_dict, im, seg_im_suffix)
+    else:
+        drop_bool = False
+    csv_to_save = pd.DataFrame(props)
+    csv_to_save.rename(columns={"centroid-0": "Position Y", "centroid-1": "Position X"}, inplace=True)
+    if regi_bool and drop_bool:
+        csv_to_save = csv_to_save.iloc[np.where(np.array(drop_bool) == 0)[0], :].copy().reset_index(
+                drop=True)
+    csv_to_save.to_csv(file_path)
+
+def exclude_segment_objects(segmentation, props, regi_list, xyz_dict, im, seg_im_suffix):
+    regi_data, annot_bool, z_idx, z_res, bregma  = regi_list
+    dim_rgb = segmentation[0].shape
+    x_res = xyz_dict['x'][1]
+    y_res = xyz_dict['y'][1]
+    x_rgb = props["centroid-1"] / dim_rgb[1] * x_res
+    y_rgb = props["centroid-0"] / dim_rgb[0] * y_res
+    for k, v in regi_data['imgName'].items():
+        if v.startswith(im[:-(len(seg_im_suffix)-1)]):
+            regi_index = k
+    try:
+        # get transformation
+        tform = fitGeoTrans(regi_data['sampleDots'][regi_index], regi_data['atlasDots'][regi_index])
+        # slice annotation volume
+        x_angle, y_angle, z = regi_data['atlasLocation'][regi_index]
+
+        annot_slice = angleSlice(x_angle, y_angle, z, annot_bool, z_idx, z_res, bregma, xyz_dict)
+        # mark invalid coordinates
+        drop_bool = []
+        for x, y in zip(x_rgb, y_rgb):
+            x_atlas, y_atlas = mapPointTransform(x, y, tform)
+            x_atlas, y_atlas = int(x_atlas), int(y_atlas)
+            if (x_atlas < 0) | (y_atlas < 0) | (x_atlas >= xyz_dict['x'][1]) | (
+                    y_atlas >= xyz_dict['y'][1]):
+                drop_bool.append(1)
+            else:
+                if annot_slice[y_atlas, x_atlas] == 0:
+                    drop_bool.append(1)
+                else:
+                    drop_bool.append(0)
+    except KeyError:
+        show_info(f"No registration data for {regi_data['imgName'][regi_index]}")
+        drop_bool = False
+
+    return drop_bool
+
+def _load_registration_data(input_path, regi_chan, atlas_id, xyz_dict):
+    """
+    Load the registration data.
+
+    Parameters:
+    input_path (Path): The path to the input images.
+    regi_chan (str): Registration channel.
+    atlas_id (str): Atlas identifier.
+    xyz_dict (dict): Atlas information.
+
+    Returns:
+    tuple: Registration data, annotation boolean volume, z index, z resolution, bregma coordinates.
+    """
+    regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
+    regi_fn = regi_dir.joinpath("registration.json")
+    if regi_fn.is_file():
+        with open(regi_fn, 'r') as f:
+            regi_data = json.load(f)
+        annot_bool = loadAnnotBool(atlas_id)
+        atlas = BrainGlobeAtlas(atlas_id)
+        z_idx = atlas.space.axes_description.index(xyz_dict['z'][0])
+        z_res = xyz_dict["z"][2]
+        bregma = get_bregma(atlas_id)
+        return regi_data, annot_bool, z_idx, z_res, bregma
+    else:
+        raise FileNotFoundError
+
+
+def _prepare_segmentation_folders(input_path, mask_folder, output_folder, chan, seg_type):
+    """
+    Prepare directories for segmentation.
+
+    Parameters:
+    input_path (Path): Path to the input images.
+    mask_folder (str): Name of the folder for masks.
+    output_folder (str): Name of the output folder.
+    chan (str): Channel identifier.
+    seg_type (str): Segmentation type.
+
+    Returns:
+    tuple: Paths to mask and output directories.
+    """
+    mask_dir = get_info(input_path, mask_folder, channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
+    output_dir = get_info(input_path, output_folder, channel=chan, seg_type=seg_type, create_dir=True, only_dir=True)
+    return mask_dir, output_dir
+
+
+def _load_image_list(input_path, start_end_im, channels, single_channel):
+    """
+    Load the list of images to be segmented.
+
+    Parameters:
+    input_path (Path): Path to the input images.
+    start_end_im (list): Start and end indices for image range.
+    channels (list): List of channels to segment.
+    single_channel (bool): Whether the images are single channel or RGB.
+
+    Returns:
+    tuple: Directory path, list of images, and image suffix.
+    """
+    if single_channel:
+        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=channels[0])
+    else:
+        seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
+    if start_end_im:
+        if len(start_end_im) == 2:
+            seg_im_list = seg_im_list[start_end_im[0]:start_end_im[1] + 1]
+    return seg_im_dir, seg_im_list, seg_im_suffix
+####################################################################################################333
+
 @thread_worker
 def create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_chan, binary_folder, output_folder):
-
     xyz_dict = params_dict['atlas_info']['xyz_dict']
     atlas_id = params_dict['atlas_info']['atlas']
     if regi_bool:
@@ -370,6 +432,7 @@ def create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_
         print(f"Done with {chan}")
     print('Done with creating projections presegmentation files!')
 
+
 @thread_worker
 def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type='cells'):
     for chan in channels:
@@ -380,131 +443,131 @@ def get_center_coord(input_path, channels, mask_folder, output_folder, mask_type
         for im_name in mask_images:
             path_to_im = mask_dir.joinpath(im_name)
             image = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
-            label_img = label(image) # identify individual segmented structures
-            regions = regionprops(label_img) # get there properties -> we want to have the centroid point as a "location" of the cell
+            label_img = label(image)  # identify individual segmented structures
+            regions = regionprops(
+                label_img)  # get there properties -> we want to have the centroid point as a "location" of the cell
             cent = np.zeros((np.size(regions), 2))
             for idx, props in enumerate(regions):
-                cent[idx, 0] = props.centroid[0] # y-coordinates
-                cent[idx, 1] = props.centroid[1] # x-coordinates
+                cent[idx, 0] = props.centroid[0]  # y-coordinates
+                cent[idx, 1] = props.centroid[1]  # x-coordinates
             # create csv file in folders to match imaris output
             csv_to_save = pd.DataFrame(cent)
             csv_to_save = csv_to_save.rename(columns={0: "Position Y", 1: "Position X"})
             csv_save_name = output_dir.joinpath(im_name.split('.')[0] + '_' + mask_type + '.csv')
             csv_to_save.to_csv(csv_save_name)
             #
-            location_binary = np.zeros((image.shape)) # make new binary with centers of segmented cells only
+            location_binary = np.zeros((image.shape))  # make new binary with centers of segmented cells only
             cent = (np.round(cent)).astype(int)
             for val in cent:
                 location_binary[val[0], val[1]] = 255
             location_binary = location_binary.astype(int)
-            location_binary = location_binary.astype('uint8') # convert to 8-bit
+            location_binary = location_binary.astype('uint8')  # convert to 8-bit
             save_name = im_name.split('.')[0] + '_centroids.tif'  # get the name
             cv2.imwrite(str(mask_dir.joinpath(save_name)), location_binary)
             # progress_bar.update(100 / len(binary_images))
         print(f"Done with {chan}")
 
 
-
 def initialize_segment_widget() -> FunctionGui:
     @magicgui(layout='vertical',
-              input_path=dict(widget_type='FileEdit', 
-                              label='input path (animal_id): ', 
+              input_path=dict(widget_type='FileEdit',
+                              label='input path (animal_id): ',
                               mode='d',
                               tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
-                                    'folder containing segmentation results'),
-              single_channel_bool=dict(widget_type='CheckBox', 
-                                       text='use single channel', 
+                                      'folder containing segmentation results'),
+              single_channel_bool=dict(widget_type='CheckBox',
+                                       text='use single channel',
                                        value=False,
                                        tooltip='tick to use single channel images (not RGB), one can still select '
-                                        'multiple channels'),
-              seg_type=dict(widget_type='ComboBox', 
+                                               'multiple channels'),
+              seg_type=dict(widget_type='ComboBox',
                             label='segmentation type',
                             choices=['cells', 'injection_site', 'optic_fiber', 'neuropixels_probe', 'projections'],
                             value='cells',
                             tooltip='select to either segment cells, projections, optic fiber tracts, probe tracts (points) or injection sites (regions) '
-                                'IMPORTANT: before switching between types, load next image, delete all image layers '
-                                'and reload image of interest!'),
-              n_probes=dict(widget_type='LineEdit', 
-                            label='number of fibers/probes', 
+                                    'IMPORTANT: before switching between types, load next image, delete all image layers '
+                                    'and reload image of interest!'),
+              n_probes=dict(widget_type='LineEdit',
+                            label='number of fibers/probes',
                             value=1,
                             tooltip='number (int) of optic fibres and or probes used to segment, leave this value unchanged for '
-                                'segmenting cells/injection site/projections'),
+                                    'segmenting cells/injection site/projections'),
               point_size=dict(widget_type='LineEdit',
-                            label='point size',
-                            value=5,
-                            tooltip='enter the size of points for cells/projections/optic fibers/neuropixels probes'),
-              channels=dict(widget_type='Select', 
-                            label='selected channels', 
+                              label='point size',
+                              value=5,
+                              tooltip='enter the size of points for cells/projections/optic fibers/neuropixels probes'),
+              channels=dict(widget_type='Select',
+                            label='selected channels',
                             value=['green', 'cy3'],
                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                             tooltip='select channels to be used for segmentation, '
-                                'to select multiple hold ctrl/shift'),
-              contrast_dapi=dict(widget_type='LineEdit', 
+                                    'to select multiple hold ctrl/shift'),
+              contrast_dapi=dict(widget_type='LineEdit',
                                  label='set contrast limits for the dapi channel',
-                                 value='0,100', 
+                                 value='0,100',
                                  tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-              contrast_green=dict(widget_type='LineEdit', 
+              contrast_green=dict(widget_type='LineEdit',
                                   label='set contrast limits for the green channel',
-                                  value='0,100', 
+                                  value='0,100',
                                   tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-              contrast_n3=dict(widget_type='LineEdit', 
+              contrast_n3=dict(widget_type='LineEdit',
                                label='set contrast limits for the n3 channel',
-                               value='0,100', 
+                               value='0,100',
                                tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-              contrast_cy3=dict(widget_type='LineEdit', 
+              contrast_cy3=dict(widget_type='LineEdit',
                                 label='set contrast limits for the cy3 channel',
-                                value='0,100', 
+                                value='0,100',
                                 tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-              contrast_cy5=dict(widget_type='LineEdit', 
+              contrast_cy5=dict(widget_type='LineEdit',
                                 label='set contrast limits for the cy5 channel',
-                                value='0,100', 
+                                value='0,100',
                                 tooltip='enter contrast limits: min,max (default values for 8-bit image)'),
-              image_idx=dict(widget_type='LineEdit', 
-                             label='image to be loaded', 
+              image_idx=dict(widget_type='LineEdit',
+                             label='image to be loaded',
                              value=0,
                              tooltip='index (int) of image to be loaded and segmented next'),
               call_button=False)
-    
     def segment_widget(
-        viewer: Viewer,
-        input_path,  # posix path
-        seg_type,
-        n_probes,
-        point_size,
-        channels,
-        contrast_dapi,
-        contrast_green,
-        contrast_n3,
-        contrast_cy3,
-        contrast_cy5,
-        image_idx,
-        single_channel_bool):
+            viewer: Viewer,
+            input_path,  # posix path
+            seg_type,
+            n_probes,
+            point_size,
+            channels,
+            contrast_dapi,
+            contrast_green,
+            contrast_n3,
+            contrast_cy3,
+            contrast_cy5,
+            image_idx,
+            single_channel_bool):
         pass
+
     return segment_widget
 
 
 def initialize_loadpreseg_widget() -> FunctionGui:
     @magicgui(layout='vertical',
-              load_bool=dict(widget_type='CheckBox', 
+              load_bool=dict(widget_type='CheckBox',
                              label='load presegmented data',
                              value=False,
                              tooltip='tick to load presegmented data for manual curation'),
-              pre_seg_folder=dict(widget_type='LineEdit', 
+              pre_seg_folder=dict(widget_type='LineEdit',
                                   label='folder name with presegmented data',
                                   value='presegmentation',
                                   tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called '
-                                '*segmentation*, manual curation will override existing data. '
-                                'Presegmented data needs to be .csv file and column names specifying *Position X* and '
-                                '*Position Y* for coordinates. For loading neuropixels/optic fiber data specify the number of probes correctly.'),
+                                          '*segmentation*, manual curation will override existing data. '
+                                          'Presegmented data needs to be .csv file and column names specifying *Position X* and '
+                                          '*Position Y* for coordinates. For loading neuropixels/optic fiber data specify the number of probes correctly.'),
               call_button=False,
               scrollable=True)
-
     def load_preseg_widget(
-        viewer: Viewer,
-        load_bool,
-        pre_seg_folder
+            viewer: Viewer,
+            load_bool,
+            pre_seg_folder
     ):
         pass
+
     return load_preseg_widget
 
 
@@ -516,48 +579,48 @@ def initialize_dopreseg_widget():
                                        tooltip='tick to use single channel images (not RGB), one can still select '
                                                'multiple channels'),
               regi_bool=dict(widget_type='CheckBox',
-                                       text='registration done?',
-                                       value=True,
-                                       tooltip='tick to indicate if brain was registered (it is advised to register '
-                                               'the brain first to exclude presegmentation artefacts outside of the '
-                                               'brain'),
+                             text='registration done?',
+                             value=True,
+                             tooltip='tick to indicate if brain was registered (it is advised to register '
+                                     'the brain first to exclude presegmentation artefacts outside of the '
+                                     'brain'),
               regi_chan=dict(widget_type='ComboBox',
-                                     label='registration channel',
-                                     choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
-                                     value='green',
-                                     tooltip='select the registration channel (images need to be in sharpy_track folder)'),
+                             label='registration channel',
+                             choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                             value='green',
+                             tooltip='select the registration channel (images need to be in sharpy_track folder)'),
               seg_type=dict(widget_type='ComboBox',
                             label='segmentation type',
                             choices=['cells'], value='cells',
-                            tooltip='select segmentation type to load'), # todo other than cells?
+                            tooltip='select segmentation type to load'),  # todo other than cells?
               intensity_norm=dict(widget_type='LineEdit', label='intensity normalization', value='0.5,17.5',
                                   tooltip='intensity normalization parameter for rab5a model from aics-segmentation;'
                                           'https://github.com/AllenInstitute/aics-segmentation'),
               gaussian_smoothing_sigma=dict(widget_type='LineEdit', label='gauss. smooth. sigma', value='1',
                                             tooltip='gaussian smoothing sigma parameter for rab5a model from aics-segmentation;'
                                                     'https://github.com/AllenInstitute/aics-segmentation'),
-              #gaussian_smoothing_truncate_range=dict(widget_type='LineEdit', label='gauss. smooth. trunc. range',
+              # gaussian_smoothing_truncate_range=dict(widget_type='LineEdit', label='gauss. smooth. trunc. range',
               #                                       value='',
               #                                       tooltip='gaussian smoothing truncate range parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               dot_3d_sigma=dict(widget_type='LineEdit', label='dot 3d sigma',
-                                                     value='1',
-                                                     tooltip='dot 3d sigma parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+                                value='1',
+                                tooltip='dot 3d sigma parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               dot_3d_cutoff=dict(widget_type='LineEdit', label='dot 3d cutoff',
-                                                     value='0.03',
-                                                     tooltip='dot 3d cutoff parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+                                 value='0.03',
+                                 tooltip='dot 3d cutoff parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               hole_min_max=dict(widget_type='LineEdit', label='hole min/max',
-                                                     value='0,81',
-                                                     tooltip='hole min/max parameters (COMMA SEPARATED) for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+                                value='0,81',
+                                tooltip='hole min/max parameters (COMMA SEPARATED) for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               minArea=dict(widget_type='LineEdit', label='min. area',
-                                                     value='3',
-                                                     tooltip='min area parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+                           value='3',
+                           tooltip='min area parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               start_end_im=dict(widget_type='LineEdit', label='image range to presegment', value='',
-                                  tooltip='if you only want to segment a subset of images enter COMMA SEPARATED indices '
-                                          'of the first and last image to presegment, e.g. 0,10'),
+                                tooltip='if you only want to segment a subset of images enter COMMA SEPARATED indices '
+                                        'of the first and last image to presegment, e.g. 0,10'),
               mask_folder=dict(widget_type='LineEdit',
-                                 label='masks folder',
-                                 value='segmentation_masks',
-                                 tooltip='name of output folder for storing segmentation masks'),
+                               label='masks folder',
+                               value='segmentation_masks',
+                               tooltip='name of output folder for storing segmentation masks'),
 
               output_folder=dict(widget_type='LineEdit',
                                  label='output folder',
@@ -565,7 +628,6 @@ def initialize_dopreseg_widget():
                                  tooltip='name of output folder for storing the presegmentation results'),
               call_button=False,
               scrollable=True)
-    
     def do_preseg_widget(
             viewer: Viewer,
             single_channel_bool,
@@ -600,10 +662,10 @@ def initialize_projectionpreseg_widget():
                              value='green',
                              tooltip='select the registration channel (images need to be in sharpy_track folder)'),
               binary_folder=dict(widget_type='LineEdit',
-                               label='folder name with presegmented projections',
-                               value='binary',
-                               tooltip='folder needs to contain subfolders with channel names and .tif binary images '
-                                       'of segmented of projections'),
+                                 label='folder name with presegmented projections',
+                                 value='binary',
+                                 tooltip='folder needs to contain subfolders with channel names and .tif binary images '
+                                         'of segmented of projections'),
               output_folder=dict(widget_type='LineEdit',
                                  label='output folder',
                                  value='presegmentation',
@@ -623,31 +685,30 @@ def initialize_projectionpreseg_widget():
 
 def initialize_findcentroids_widget():
     @magicgui(layout='vertical',
-              mask_folder=dict(widget_type='LineEdit', 
+              mask_folder=dict(widget_type='LineEdit',
                                label='folder name with presegmented data',
                                value='segmentation_masks',
                                tooltip='folder needs to contain subfolders with channel names and .tif images with segmented '
-                                'of cells'),
-              mask_type=dict(widget_type='ComboBox', 
+                                       'of cells'),
+              mask_type=dict(widget_type='ComboBox',
                              label='segmentation type',
-                             choices=['cells'], 
+                             choices=['cells'],
                              value='cells',
                              tooltip='select segmentation type to load'),  # todo other than cells?
-              output_folder=dict(widget_type='LineEdit', 
-                                 label='output folder', 
+              output_folder=dict(widget_type='LineEdit',
+                                 label='output folder',
                                  value='presegmentation',
                                  tooltip='name of output folder for storing centroids of segmentation masks'),
               call_button=False,
               scrollable=True)
-    
     def find_centroids_widget(
-        viewer: Viewer,
-        mask_folder,
-        mask_type,
-        output_folder):
+            viewer: Viewer,
+            mask_folder,
+            mask_type,
+            output_folder):
         pass
-    return find_centroids_widget
 
+    return find_centroids_widget
 
 
 class SegmentWidget(QWidget):
@@ -757,7 +818,6 @@ class SegmentWidget(QWidget):
         self.segment.image_idx.value = image_idx
         # change_index(image_idx)
 
-
     def _load_rgb(self, path_to_im, channels, contrast_dict):
         im_loaded = cv2.imread(str(path_to_im))  # loads RGB as BGR
         if 'cy3' in channels:
@@ -772,14 +832,15 @@ class SegmentWidget(QWidget):
 
     def _load_single(self, path_to_im, chan, contrast_dict):
 
-        cmap_disp = cmap_display()
+        cmap_disp = get_cmap('display')
         im_loaded = cv2.imread(str(path_to_im), cv2.IMREAD_GRAYSCALE)
         self.viewer.add_image(im_loaded, name=chan + ' channel', colormap=cmap_disp[chan], opacity=0.5)
         self.viewer.layers[chan + ' channel'].contrast_limits = contrast_dict[chan]
 
     def _load_preseg_object(self, input_path, chan, image_idx, seg_type):
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
-        pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type, channel=chan)
+        pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type,
+                                                             channel=chan)
         im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(im_name + '_')]
         if len(fn_to_load) > 0:
@@ -795,28 +856,30 @@ class SegmentWidget(QWidget):
 
         return pre_seg_data
 
-
     def _create_seg_objects(self, input_path, seg_type, channels, n_probes, image_idx):
         if seg_type == 'injection_site':
-            cmap_dict = cmap_injection()
+            cmap_dict = get_cmap('injection')
             if self.load_preseg.load_bool.value:
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
-                    self.viewer.add_shapes(pre_seg_data, name=chan, shape_type='polygon', face_color=cmap_dict[chan], opacity=0.4)
+                    self.viewer.add_shapes(pre_seg_data, name=chan, shape_type='polygon', face_color=cmap_dict[chan],
+                                           opacity=0.4)
             else:
                 for chan in channels:
                     self.viewer.add_shapes(name=chan, face_color=cmap_dict[chan], opacity=0.4)
         elif seg_type in ['cells', 'projections']:
-            cmap_dict = cmap_cells()
+            cmap_dict = get_cmap('cells')
             if self.load_preseg.load_bool.value:
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
-                    self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=chan, face_color=cmap_dict[chan])
+                    self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=chan,
+                                           face_color=cmap_dict[chan])
             else:
                 for chan in channels:
-                    self.viewer.add_points(size=int(self.segment.point_size.value), name=chan, face_color=cmap_dict[chan])
+                    self.viewer.add_points(size=int(self.segment.point_size.value), name=chan,
+                                           face_color=cmap_dict[chan])
         else:
-            cmap_dict = cmap_npx()
+            cmap_dict = get_cmap('npx')
             for i in range(n_probes):
                 if i < 10:
                     p_color = cmap_dict[str(i)]
@@ -826,7 +889,8 @@ class SegmentWidget(QWidget):
                 print(p_id)
                 if self.load_preseg.load_bool.value:
                     pre_seg_data = self._load_preseg_object(input_path, p_id, image_idx, seg_type)
-                    self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=p_id, face_color=p_color)
+                    self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=p_id,
+                                           face_color=p_color)
                 else:
                     self.viewer.add_points(size=int(self.segment.point_size.value), name=p_id, face_color=p_color)
 
@@ -846,8 +910,8 @@ class SegmentWidget(QWidget):
             try:
 
                 segment_dir = get_info(input_path, 'segmentation', channel=chan, seg_type=seg_type_save,
-                                    create_dir=True,
-                                    only_dir=True)
+                                       create_dir=True,
+                                       only_dir=True)
                 if seg_type_save == 'injection_site':
                     data = pd.DataFrame()
                     for i in range(len(self.viewer.layers[chan].data)):
@@ -907,7 +971,8 @@ class SegmentWidget(QWidget):
         mask_folder = self.do_preseg.mask_folder.value
         output_folder = self.do_preseg.output_folder.value
         do_preseg_worker = do_presegmentation(input_path, params_dict, channels, single_channel, regi_bool, regi_chan,
-                                              preseg_params, start_end_im, mask_folder, output_folder, seg_type=seg_type)
+                                              preseg_params, start_end_im, mask_folder, output_folder,
+                                              seg_type=seg_type)
         do_preseg_worker.start()
 
     def _create_projection_preseg(self):
@@ -918,5 +983,6 @@ class SegmentWidget(QWidget):
         regi_chan = self.projections.regi_chan.value
         binary_folder = self.projections.binary_folder.value
         output_folder = self.projections.output_folder.value
-        projection_worker = create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_chan, binary_folder, output_folder)
+        projection_worker = create_projection_preseg(input_path, params_dict, channels, regi_bool, regi_chan,
+                                                     binary_folder, output_folder)
         projection_worker.start()
