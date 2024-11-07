@@ -6,19 +6,42 @@ see: https://napari.org/stable/plugins/guides.html?#widgets
 
 Replace code below according to your needs.
 """
+import os
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox, QProgressBar
 from superqt import QCollapsible
-from napari.qt.threading import thread_worker
-from tqdm import tqdm
 from joblib import Parallel, delayed
+from napari.qt.threading import thread_worker
+from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils import get_animal_id, get_image_list, update_params_dict, clean_params_dict, load_params, \
-    get_threshold_dropdown
+    get_threshold_dropdown, chunk_list
 from magicgui import magicgui, widgets
 from magicgui.widgets import FunctionGui
-from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs
+from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs, get_channels
 
-
+@thread_worker(progress={'total': 100})
+def do_preprocessing(input_path, channels, img_list, preprocessing_params, resolution, save_dirs):
+    if "operations" in preprocessing_params.keys():
+        if 'sharpy_track' in preprocessing_params['operations'].keys():
+            resolution_tuple = tuple(resolution)
+        else:
+            resolution_tuple = False
+        num_cores = os.cpu_count()
+        chunk_img_list = chunk_list(img_list, chunk_size=num_cores)
+        progress_value = 0
+        progress_step = 100 / len(chunk_img_list)
+        for chunk in chunk_img_list:
+            Parallel(n_jobs=num_cores)(delayed(preprocess_images)
+                                   (im, channels, input_path, preprocessing_params, save_dirs, resolution_tuple) for
+                                   im in chunk)
+            progress_value += progress_step
+            yield int(progress_value)
+        preprocessing_params = clean_params_dict(preprocessing_params, "operations")
+        update_params_dict(input_path, preprocessing_params)
+    else:
+        show_info("No preprocessing operations selected, expand the respective windows and tick check box")
+    yield 100
+    return get_animal_id(input_path)
 
 def create_general_widget(widget_type: str, channels: list, downsampling_default: int = 3, contrast_limits=None) -> magicgui:
     """
@@ -109,27 +132,6 @@ def initialize_header_widget() -> FunctionGui:
         pass
     return header_widget
 
-@thread_worker(progress={'total': 100})
-def do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params, resolution, save_dirs):
-    progress_value = 0
-    progress_step = 100 / 1
-    if "operations" in preprocessing_params.keys():
-        if 'sharpy_track' in preprocessing_params['operations'].keys():
-            resolution_tuple = tuple(resolution)
-        else:
-            resolution_tuple = False
-        if num_cores > 1:
-            print("parallel processing not implemented yet")
-        Parallel(n_jobs=num_cores)(delayed(preprocess_images)
-                                   (im, filter_list, input_path, preprocessing_params, save_dirs, resolution_tuple) for im in tqdm(img_list))
-        preprocessing_params = clean_params_dict(preprocessing_params, "operations")
-        update_params_dict(input_path, preprocessing_params)
-        print("DONE!")
-    else:
-        print("No preprocessing operations selected, expand the respective windows and tick check box")
-    yield 100
-    return get_animal_id(input_path)
-
 class PreprocessingWidget(QWidget):
     progress_signal = Signal(int)
     def __init__(self, parent=None):
@@ -219,9 +221,13 @@ class PreprocessingWidget(QWidget):
                     "chans_imaged": self.header.chans_imaged.value
                 },
         }
+        k = 0
         for op, widget in op_widg_dict.items():
             if widget[0].value:
-                params_dict["operations"] = {op: widget[0].value}
+                if k < 1:
+                    params_dict["operations"] = {}
+                    k += 1
+                params_dict["operations"][op] = widget[0].value
                 params_dict[f"{op}_params"] = self._get_widget_info(widget, op)
         return params_dict
 
@@ -238,6 +244,7 @@ class PreprocessingWidget(QWidget):
         msg_box.setWindowTitle("Preprocessing successful!")
         msg_box.exec_()
         self.btn.setText("Do the preprocessing!")  # Reset button text after process completion
+        self.progress_signal.emit(0)
 
     def _update_progress(self, value: int) -> None:
         """
@@ -261,13 +268,12 @@ class PreprocessingWidget(QWidget):
 
         preprocessing_params = self._get_preprocessing_params()
         save_dirs = create_dirs(preprocessing_params, input_path)
-        filter_list = preprocessing_params['general']['chans_imaged']
+        channels = get_channels(preprocessing_params)
         img_list = get_image_list(input_path)
-        num_cores = 1
         params_dict = load_params(input_path)
         resolution = params_dict['atlas_info']['resolution']
 
-        preprocessing_worker = do_preprocessing(num_cores, input_path, filter_list, img_list, preprocessing_params,
+        preprocessing_worker = do_preprocessing(input_path, channels, img_list, preprocessing_params,
                                                 resolution, save_dirs)
         preprocessing_worker.yielded.connect(self._update_progress)
         preprocessing_worker.started.connect(

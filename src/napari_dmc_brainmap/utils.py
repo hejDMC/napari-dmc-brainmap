@@ -105,6 +105,8 @@ def get_image_list(input_path, folder_id='stitched', file_id='*.tif'):
 
     return image_list
 
+def chunk_list(input_list, chunk_size=4):
+    return [input_list[i:i + chunk_size] for i in range(0, len(input_list), chunk_size)]
 
 def load_params(input_path):
     params_fn = input_path.joinpath('params.json')
