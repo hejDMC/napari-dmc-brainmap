@@ -18,9 +18,35 @@ from napari_dmc_brainmap.utils import get_animal_id, get_image_list, update_para
 from magicgui import magicgui, widgets
 from magicgui.widgets import FunctionGui
 from napari_dmc_brainmap.preprocessing.preprocessing_tools import preprocess_images, create_dirs, get_channels
+from typing import List, Dict, Tuple, Union, Optional
+
 
 @thread_worker(progress={'total': 100})
-def do_preprocessing(input_path, channels, img_list, preprocessing_params, resolution, save_dirs):
+def do_preprocessing(
+    input_path: str,
+    channels: List[str],
+    img_list: List[str],
+    preprocessing_params: Dict[str, Union[str, dict]],
+    resolution: Tuple[int, int],
+    save_dirs: Dict[str, str]
+) -> str:
+    """
+    Perform preprocessing on a list of images in a multithreaded manner.
+
+    Parameters:
+    - input_path (str): Path to the input directory containing images.
+    - channels (List[str]): List of channels to process.
+    - img_list (List[str]): List of image file names to process.
+    - preprocessing_params (Dict[str, Union[str, dict]]): Parameters for preprocessing operations.
+    - resolution (Tuple[int, int]): Tuple containing resolution information for preprocessing.
+    - save_dirs (Dict[str, str]): Dictionary containing paths to save preprocessed images.
+
+    Yields:
+    - int: Progress of the preprocessing operation in percentage.
+
+    Returns:
+    - str: Animal ID for which preprocessing was performed.
+    """
     if "operations" in preprocessing_params.keys():
         if 'sharpy_track' in preprocessing_params['operations'].keys():
             resolution_tuple = tuple(resolution)
@@ -32,8 +58,8 @@ def do_preprocessing(input_path, channels, img_list, preprocessing_params, resol
         progress_step = 100 / len(chunk_img_list)
         for chunk in chunk_img_list:
             Parallel(n_jobs=num_cores)(delayed(preprocess_images)
-                                   (im, channels, input_path, preprocessing_params, save_dirs, resolution_tuple) for
-                                   im in chunk)
+                                       (im, channels, input_path, preprocessing_params, save_dirs, resolution_tuple) for
+                                       im in chunk)
             progress_value += progress_step
             yield int(progress_value)
         preprocessing_params = clean_params_dict(preprocessing_params, "operations")
@@ -43,15 +69,21 @@ def do_preprocessing(input_path, channels, img_list, preprocessing_params, resol
     yield 100
     return get_animal_id(input_path)
 
-def create_general_widget(widget_type: str, channels: list, downsampling_default: int = 3, contrast_limits=None) -> magicgui:
+
+def create_general_widget(
+    widget_type: str,
+    channels: List[str],
+    downsampling_default: int = 3,
+    contrast_limits: Optional[Dict[str, str]] = None
+) -> magicgui:
     """
     Create a generalized MagicGUI widget for image processing.
 
     Parameters:
     - widget_type (str): The type of widget being created (e.g., 'RGB', 'Single Channel', etc.)
-    - channels (list): List of available channels to select.
+    - channels (List[str]): List of available channels to select.
     - downsampling_default (int): Default value for the downsampling factor.
-    - contrast_limits (dict): Default contrast limit values for each channel.
+    - contrast_limits (Optional[Dict[str, str]]): Default contrast limit values for each channel.
 
     Returns:
     - FunctionGui: The created MagicGUI widget.
@@ -112,29 +144,40 @@ def create_general_widget(widget_type: str, channels: list, downsampling_default
                                  tooltip=f'Enter threshold for {channel}'))
     return container
 
+
 def initialize_header_widget() -> FunctionGui:
-    @magicgui(input_path=dict(widget_type='FileEdit', 
-                              label='input path (animal_id): ', 
+    """
+    Initialize a header widget for selecting the input path and imaged channels.
+
+    Returns:
+    - FunctionGui: The initialized header widget.
+    """
+    @magicgui(input_path=dict(widget_type='FileEdit',
+                              label='input path (animal_id): ',
                               mode='d',
                               tooltip='directory of folder containing subfolders with stitched images, '
-                                'NOT folder containing stitched images'),
-              chans_imaged=dict(widget_type='Select', 
-                                label='imaged channels', 
+                                      'NOT folder containing stitched images'),
+              chans_imaged=dict(widget_type='Select',
+                                label='imaged channels',
                                 choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
                                 value=['green', 'cy3'],
                                 tooltip='select all channels imaged, to select multiple hold ctrl/shift'),
               call_button=False)
-
-    def header_widget(
-            self,
-            input_path,
-            chans_imaged):
+    def header_widget(self, input_path: str, chans_imaged: List[str]) -> None:
         pass
     return header_widget
 
+
 class PreprocessingWidget(QWidget):
     progress_signal = Signal(int)
-    def __init__(self, parent=None):
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        """
+        Initialize the PreprocessingWidget, which contains several sections for various preprocessing operations.
+
+        Parameters:
+        - parent (Optional[QWidget]): Parent widget.
+        """
         super().__init__(parent)
         self.setLayout(QVBoxLayout())
         self.header = initialize_header_widget()
@@ -172,12 +215,29 @@ class PreprocessingWidget(QWidget):
         self.layout().addWidget(self.progress_bar)
         self.progress_signal.connect(self.progress_bar.setValue)
 
-    def _add_gui_section(self, name, widget):
+    def _add_gui_section(self, name: str, widget: FunctionGui) -> None:
+        """
+        Add a collapsible GUI section to the layout.
+
+        Parameters:
+        - name (str): The name of the collapsible section.
+        - widget (FunctionGui): The widget to add within the collapsible section.
+        """
         collapsible = QCollapsible(name, self)
         collapsible.addWidget(widget.native)
         self.layout().addWidget(collapsible)
 
-    def _get_widget_info(self, widget, item):
+    def _get_widget_info(self, widget: FunctionGui, item: str) -> Dict[str, Union[List[int], int, str]]:
+        """
+        Retrieve information from a given widget based on the type of item.
+
+        Parameters:
+        - widget (FunctionGui): The widget to retrieve information from.
+        - item (str): Type of operation (e.g., 'rgb', 'sharpy_track').
+
+        Returns:
+        - Dict[str, Union[List[int], int, str]]: Information extracted from the widget.
+        """
         chan_list = ['dapi', 'green', 'cy3'] if item == 'rgb' else ['dapi', 'green', 'n3', 'cy3', 'cy5']
 
         imaged_chan_list = (widget[1].value if 'all' not in widget[1].value
@@ -206,7 +266,13 @@ class PreprocessingWidget(QWidget):
 
         return base_info
 
-    def _get_preprocessing_params(self):
+    def _get_preprocessing_params(self) -> Dict[str, Union[str, Dict[str, Union[str, List[int], int]]]]:
+        """
+        Retrieve preprocessing parameters based on user selections.
+
+        Returns:
+        - Dict[str, Union[str, Dict[str, Union[str, List[int], int]]]]: Dictionary of preprocessing parameters.
+        """
         op_widg_dict = {
             "rgb": self.rgb_widget,
             "sharpy_track": self.sharpy_widget,
@@ -233,10 +299,10 @@ class PreprocessingWidget(QWidget):
 
     def _show_success_message(self, animal_id: str) -> None:
         """
-        Display a success message after stitching is complete.
+        Display a success message after preprocessing is complete.
 
         Parameters:
-        animal_id (str): The animal ID for which stitching was performed.
+        - animal_id (str): The animal ID for which preprocessing was performed.
         """
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
@@ -251,11 +317,14 @@ class PreprocessingWidget(QWidget):
         Update the progress bar with the given value.
 
         Parameters:
-        value (int): Progress value to set.
+        - value (int): Progress value to set.
         """
         self.progress_signal.emit(value)
 
-    def _do_preprocessing(self):
+    def _do_preprocessing(self) -> None:
+        """
+        Perform the preprocessing of images based on user input and display progress.
+        """
         input_path = self.header.input_path.value
         # check if user provided a valid input_path
         if not input_path.is_dir() or str(input_path) == '.':
@@ -280,8 +349,3 @@ class PreprocessingWidget(QWidget):
             lambda: self.btn.setText("Preprocessing images..."))  # Change button text when stitching starts
         preprocessing_worker.returned.connect(self._show_success_message)
         preprocessing_worker.start()
-
-
-
-
-

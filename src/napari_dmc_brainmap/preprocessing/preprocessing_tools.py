@@ -1,4 +1,3 @@
-
 import importlib
 import cv2
 import math
@@ -7,10 +6,20 @@ from skimage.exposure import rescale_intensity
 import tifffile as tiff
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils import get_info
+from typing import Dict, List, Union
 
 
-# todo warning for overwriting
-def create_dirs(params, input_path):
+def create_dirs(params: Dict[str, Union[str, dict]], input_path) -> Dict[str, str]:
+    """
+    Create directories for saving processed images based on given parameters.
+
+    Parameters:
+    - params (Dict[str, Union[str, dict]]): Preprocessing parameters including operations and channels.
+    - input_path: The path to the input directory.
+
+    Returns:
+    - Dict[str, str]: Dictionary containing paths to save directories for each operation.
+    """
     save_dirs = {}
     if 'operations' in params.keys():
         operation_list = list(params['operations'].keys())
@@ -28,7 +37,17 @@ def create_dirs(params, input_path):
                         save_dirs[operation] = data_dir.parent
     return save_dirs
 
-def get_channels(params):
+
+def get_channels(params: Dict[str, Union[str, dict]]) -> List[str]:
+    """
+    Retrieve a list of channels from preprocessing parameters.
+
+    Parameters:
+    - params (Dict[str, Union[str, dict]]): Preprocessing parameters including operations and channels.
+
+    Returns:
+    - List[str]: List of unique channels to be processed.
+    """
     channels = []
     if 'operations' in params.keys():
         operation_list = list(params['operations'].keys())
@@ -38,22 +57,42 @@ def get_channels(params):
     channels = list(set(channels))
     return channels
 
-def load_stitched_images(input_path, chan, image):
-    #
-    # load and return stitched image in R-made folder of same name
+
+def load_stitched_images(input_path, chan: str, image: str):
+    """
+    Load and return stitched images from the specified directory.
+
+    Parameters:
+    - input_path: The path to the directory containing images.
+    - chan (str): Channel name.
+    - image (str): Image name.
+
+    Returns:
+    - The loaded image as a numpy array, or False if not found.
+    """
     im_fn = input_path.joinpath('stitched', chan, image + '_stitched.tif')
     if im_fn.exists():
         image = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # 0 for grayscale mode
     else:
-        show_info(f'WARNING - no stitched images of name {image}_stitched.tif found in {im_fn}!\n '
-                  f'Do padding on images if _stitched.tif suffix is missing.\n '
+        show_info(f'WARNING - no stitched images of name {image}_stitched.tif found in {im_fn}!'
+                  f'Do padding on images if _stitched.tif suffix is missing.'
                   f'DMC-BrainMap requires single channel 16-bit tif images for preprocessing.')
         image = False
     return image
 
-def downsample_and_adjust_contrast(image, params, scale_key, contrast_key):
+
+def downsample_and_adjust_contrast(image: np.ndarray, params: Dict[str, Union[str, list]], scale_key: str, contrast_key: str) -> np.ndarray:
     """
-    Downsample and adjust contrast for an image.
+    Downsample and adjust contrast for an image based on given parameters.
+
+    Parameters:
+    - image (np.ndarray): The image to be downsampled and contrast adjusted.
+    - params (Dict[str, Union[str, list]]): Parameters for scaling and contrast adjustment.
+    - scale_key (str): Key to retrieve scaling factor from params.
+    - contrast_key (str): Key to retrieve contrast limits from params.
+
+    Returns:
+    - np.ndarray: The downsampled and contrast adjusted image.
     """
     if params[scale_key] > 1:
         scale_factor = params[scale_key]
@@ -67,8 +106,16 @@ def downsample_and_adjust_contrast(image, params, scale_key, contrast_key):
     return image
 
 
-def do_8bit(data):
-    # only if input data is 16-bit
+def do_8bit(data: np.ndarray) -> np.ndarray:
+    """
+    Convert a 16-bit image to 8-bit, or return if it is already an 8-bit image.
+
+    Parameters:
+    - data (np.ndarray): The input image data.
+
+    Returns:
+    - np.ndarray: The image in 8-bit format.
+    """
     if data.dtype == 'uint16':
         data = data.astype(int)
         data8bit = (data >> 8).astype('uint8')
@@ -79,54 +126,42 @@ def do_8bit(data):
         raise TypeError("Input data for bit shift is not uint8 or uint16! got {} instead.".format(data.dtype))
 
 
-def save_zstack(path, stack_dict):
-    #
+def save_zstack(path, stack_dict: Dict[str, np.ndarray]) -> None:
+    """
+    Save a z-stack of images to a given path.
+
+    Parameters:
+    - path: The path to save the z-stack.
+    - stack_dict (Dict[str, np.ndarray]): A dictionary containing the image stack data.
+    """
     with tiff.TiffWriter(path) as tif:
         for value in stack_dict.values():
             tif.write(value)
 
 
-def make_rgb(stack_dict, params, im, save_dirs, resolution_tuple):
-    #
-    # check which channels are there, and add a zero array for the missing one
-    rgb_list = ['cy3', 'green', 'dapi'] # channels for R(ed)G(reen)B(lue) images
+def make_rgb(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union[str, dict]], im: str, save_dirs: Dict[str, str], resolution_tuple) -> None:
+    """
+    Create an RGB image from a stack of different channel images.
+
+    Parameters:
+    - stack_dict (Dict[str, np.ndarray]): Dictionary containing channel image stacks.
+    - params (Dict[str, Union[str, dict]]): Parameters for processing.
+    - im (str): Image name.
+    - save_dirs (Dict[str, str]): Save directories for processed images.
+    - resolution_tuple: Tuple indicating the resolution.
+    """
+    rgb_list = ['cy3', 'green', 'dapi']  # channels for R(ed)G(reen)B(lue) images
     missing_channels = list(set(rgb_list) - set(stack_dict.keys()))
     default_dtype = "uint16"
 
     for chan in stack_dict.keys():
         stack_dict[chan] = downsample_and_adjust_contrast(stack_dict[chan], params['rgb_params'], 'downsampling', chan)
-    # todo check if still needed?
-    # dtype has to be either uint16 or uint8
-    # dtype_list = []
-    # dtype_chan = []
-    # for k,v in stack_dict.items():
-    #     dtype_list.append(v.dtype)
-    #     dtype_chan.append(k)
-    #     if v.dtype == default_dtype:
-    #         pass
-    #     elif v.dtype == 'uint8':
-    #         print("INFO: Stitched Image for Channel: [{}] has data type of 'uint8', "
-    #               "however 'uint16' is recommended. Please consider using 16-bit stitched image.\n"
-    #               "Continue with 'uint8' data type".format(k))
-    #         default_dtype = "uint8"
-    #     else:
-    #         raise TypeError("ERROR: Stitched Image for Channel: [{}] has data type of {}, "
-    #                         "however 'uint16' (recommended) or 'uint8' is required. ".format(k, v.dtype))
-    # # dtypes in stack_dict should be the same
-    # dtype_same = True
-    # for dtype,chan in zip(dtype_list,dtype_chan):
-    #     if dtype != default_dtype:
-    #         dtype_same = False
-    #         print("ERROR: Handling Stitched Image as type: {}, but type : {} was found in Channel: [{}].".format(default_dtype, dtype, chan))
-    # if not dtype_same:
-    #     raise TypeError("ERROR: Data types of stitched images are not the same between channels! Please check the image data types.")
 
     image_size = stack_dict[next(iter(stack_dict))].shape  # get the shape of the images
-    # add empty array for missing filters
     for missing_chan in missing_channels:
         stack_dict[missing_chan] = np.zeros(image_size, dtype=default_dtype)
 
-    rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])).astype(default_dtype) # create a stack of all three channels
+    rgb_stack = np.dstack((stack_dict['cy3'], stack_dict['green'], stack_dict['dapi'])).astype(default_dtype)  # create a stack of all three channels
     rgb_stack_8bit = do_8bit(rgb_stack)  # convert to 8bit (RGB is 0-255)
 
     rgb_fn = im + '_RGB.tif'
@@ -134,8 +169,17 @@ def make_rgb(stack_dict, params, im, save_dirs, resolution_tuple):
     tiff.imwrite(str(rgb_save_dir), rgb_stack_8bit)
 
 
+def make_single_channel(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union[str, dict]], im: str, save_dirs: Dict[str, str], resolution_tuple) -> None:
+    """
+    Create single-channel images from a stack of channel images.
 
-def make_single_channel(stack_dict, params, im, save_dirs, resolution_tuple):
+    Parameters:
+    - stack_dict (Dict[str, np.ndarray]): Dictionary containing channel image stacks.
+    - params (Dict[str, Union[str, dict]]): Parameters for processing.
+    - im (str): Image name.
+    - save_dirs (Dict[str, str]): Save directories for processed images.
+    - resolution_tuple: Tuple indicating the resolution.
+    """
     for chan in stack_dict.keys():
         single_channel_image = downsample_and_adjust_contrast(stack_dict[chan], params['single_channel_params'],
                                                               'downsampling', chan)
@@ -144,8 +188,17 @@ def make_single_channel(stack_dict, params, im, save_dirs, resolution_tuple):
         tiff.imwrite(str(single_save_dir), single_channel_image)
 
 
-def make_sharpy_track(stack_dict, params, im, save_dirs, resolution_tuple):
+def make_sharpy_track(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union[str, dict]], im: str, save_dirs: Dict[str, str], resolution_tuple) -> None:
+    """
+    Create Sharpy-track images from a stack of channel images.
 
+    Parameters:
+    - stack_dict (Dict[str, np.ndarray]): Dictionary containing channel image stacks.
+    - params (Dict[str, Union[str, dict]]): Parameters for processing.
+    - im (str): Image name.
+    - save_dirs (Dict[str, str]): Save directories for processed images.
+    - resolution_tuple: Tuple indicating the resolution.
+    """
     for chan in stack_dict.keys():
         if params['sharpy_track_params']['contrast_adjustment']:
             contrast_tuple = tuple(params['sharpy_track_params'][chan])
@@ -156,9 +209,18 @@ def make_sharpy_track(stack_dict, params, im, save_dirs, resolution_tuple):
         ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
         tiff.imwrite(str(ds_image_path), sharpy_image)
 
-# create a stack and process accordingly
-def make_stack(stack_dict, params, im, save_dirs, resolution_tuple):
 
+def make_stack(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union[str, dict]], im: str, save_dirs: Dict[str, str], resolution_tuple) -> None:
+    """
+    Create a z-stack of images from a dictionary of channel images.
+
+    Parameters:
+    - stack_dict (Dict[str, np.ndarray]): Dictionary containing channel image stacks.
+    - params (Dict[str, Union[str, dict]]): Parameters for processing.
+    - im (str): Image name.
+    - save_dirs (Dict[str, str]): Save directories for processed images.
+    - resolution_tuple: Tuple indicating the resolution.
+    """
     for chan in stack_dict.keys():
         stack_dict[chan] = downsample_and_adjust_contrast(stack_dict[chan], params['stack_params'],
                                                           'downsampling', chan)
@@ -167,8 +229,17 @@ def make_stack(stack_dict, params, im, save_dirs, resolution_tuple):
     save_zstack(save_stack_path, stack_dict)
 
 
-#
-def make_binary(stack_dict, params, im, save_dirs, resolution_tuple):
+def make_binary(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union[str, dict]], im: str, save_dirs: Dict[str, str], resolution_tuple) -> None:
+    """
+    Create binary images from a stack of channel images.
+
+    Parameters:
+    - stack_dict (Dict[str, np.ndarray]): Dictionary containing channel image stacks.
+    - params (Dict[str, Union[str, dict]]): Parameters for processing.
+    - im (str): Image name.
+    - save_dirs (Dict[str, str]): Save directories for processed images.
+    - resolution_tuple: Tuple indicating the resolution.
+    """
     for chan in stack_dict.keys():
         if params['binary_params']['downsampling'] > 1:
             scale_factor = params['binary_params']['downsampling']
@@ -182,7 +253,6 @@ def make_binary(stack_dict, params, im, save_dirs, resolution_tuple):
             module = importlib.import_module('skimage.filters')
             func = getattr(module, thresh_method)
             thresh = func(image)
-        # binary = data > thresh
         binary = do_8bit(image)
         binary[image < thresh] = 0
         binary[image >= thresh] = 255
@@ -191,7 +261,19 @@ def make_binary(stack_dict, params, im, save_dirs, resolution_tuple):
         binary_image_path = save_dirs['binary'].joinpath(chan, binary_image_name)
         tiff.imwrite(str(binary_image_path), binary)
 
-def select_chans(chan_list, filter_list, operation):
+
+def select_chans(chan_list: List[str], filter_list: List[str], operation: str) -> List[str]:
+    """
+    Select valid channels for a given operation.
+
+    Parameters:
+    - chan_list (List[str]): List of requested channels.
+    - filter_list (List[str]): List of available channels.
+    - operation (str): Name of the operation.
+
+    Returns:
+    - List[str]: List of selected channels.
+    """
     if chan_list == ['all']:
         chans = filter_list
     else:
@@ -200,7 +282,6 @@ def select_chans(chan_list, filter_list, operation):
             show_info(f"WARNING -- selected {n} channel for {operation} not found in imaged channels!")
         chans = list(set(chan_list) & set(filter_list))
     return chans
-
 
 
 PROCESSING_STEPS = {
@@ -212,7 +293,18 @@ PROCESSING_STEPS = {
 }
 
 
-def preprocess_images(im, channels, input_path, params, save_dirs, resolution_tuple):
+def preprocess_images(im: str, channels: List[str], input_path, params: Dict[str, Union[str, dict]], save_dirs: Dict[str, str], resolution_tuple) -> None:
+    """
+    Preprocess images for a given set of operations and channels.
+
+    Parameters:
+    - im (str): Image name.
+    - channels (List[str]): List of channels to be processed.
+    - input_path: Path to the input directory containing images.
+    - params (Dict[str, Union[str, dict]]): Parameters for preprocessing.
+    - save_dirs (Dict[str, str]): Save directories for processed images.
+    - resolution_tuple: Tuple indicating the resolution.
+    """
     stack_dict = {}  # save all loaded channels as dict['chan'][array]
     for chan in channels:
         stack_dict[chan] = load_stitched_images(input_path, chan, im)
@@ -226,5 +318,3 @@ def preprocess_images(im, channels, input_path, params, save_dirs, resolution_tu
             chans = select_chans(params[f'{operation}_params']['channels'], chan_pres, operation)
             # process data
             func({c: stack_dict[c] for c in chans}, params, im, save_dirs, resolution_tuple)
-
-
