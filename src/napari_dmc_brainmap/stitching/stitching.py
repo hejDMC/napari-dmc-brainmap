@@ -369,6 +369,7 @@ class StitchingWidget(QWidget):
         msg_box.setWindowTitle("Stitching successful!")
         msg_box.exec_()
         self.btn.setText("Stitch Images")  # Reset button text after process completion
+        self.progress_signal.emit(0)
 
     def _update_progress(self, value: int) -> None:
         """
