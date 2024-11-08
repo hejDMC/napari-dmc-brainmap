@@ -42,7 +42,7 @@ def get_brain_section_params(brainsec_widget):
         "group_diff_cells": brainsec_widget.group_diff_cells.value,
         "group_diff_items_cells": brainsec_widget.group_diff_items_cells.value.split('-'),
         "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
-        "bin_size_cells": int(brainsec_widget.bin_size_cells.value),
+        "bin_size_proj": int(brainsec_widget.bin_size_cells.value),
         "vmin_proj": int(brainsec_widget.vmin_proj.value),
         "vmax_proj": int(brainsec_widget.vmax_proj.value),
         "group_diff_proj": brainsec_widget.group_diff_proj.value,

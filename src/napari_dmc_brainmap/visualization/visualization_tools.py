@@ -5,6 +5,7 @@ from pathlib import Path
 import random
 from skimage import measure
 from scipy.ndimage import zoom
+from skimage.transform import resize
 from scipy.ndimage import gaussian_filter
 from scipy.spatial.distance import cdist
 from sklearn.preprocessing import MinMaxScaler
@@ -635,7 +636,10 @@ def calculate_heatmap_difference(annot_section_plt, df, plotting_params, orient_
     return heatmap_data, mask
 
 def resize_heatmap(heatmap_data, annot_section_plt, bin_size):
-    resized_heatmap_data = zoom(heatmap_data, (bin_size, bin_size), order=1)
+    # resized_heatmap_data = zoom(heatmap_data, (bin_size, bin_size), order=1)
+    resized_heatmap_data = resize(heatmap_data, (annot_section_plt.shape[0], annot_section_plt.shape[1]), order=1,
+                                  mode='reflect',
+                                  anti_aliasing=True)
     resized_heatmap_data = gaussian_filter(resized_heatmap_data, sigma=1)
     mask = get_heatmap_mask(resized_heatmap_data, annot_section_plt)
 
