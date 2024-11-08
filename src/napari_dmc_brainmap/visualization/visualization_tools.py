@@ -610,6 +610,8 @@ def calculate_heatmap(annot_section_plt, df, orient_mapping, y_bins, x_bins, bin
             group_data[orient_mapping['x_plot']],
             bins=[y_bins, x_bins]
         )
+        num_sections = len(df[df['animal_id'] == animal_id]['section_name'].unique())
+        h_data /= num_sections
         animal_data.append(h_data)
     heatmap_data = np.mean(np.stack(animal_data), axis=0)
     heatmap_data, mask = resize_heatmap(heatmap_data, annot_section_plt, bin_size)
