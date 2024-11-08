@@ -170,7 +170,7 @@ def initialize_header_widget() -> FunctionGui:
 
 class PreprocessingWidget(QWidget):
     progress_signal = Signal(int)
-
+    """Signal emitted to update the progress bar with an integer value."""
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         """
         Initialize the PreprocessingWidget, which contains several sections for various preprocessing operations.

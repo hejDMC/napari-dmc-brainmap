@@ -184,3 +184,6 @@ src/napari_dmc_brainmap/atlas/
 src/napari_dmc_brainmap/registration/sharpy_track/atlas/
 src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/atlas
 
+# ignore documentation build content
+doc/_build
+
