@@ -159,7 +159,7 @@ def initialize_widget() -> FunctionGui:
 
 class PaddingWidget(QWidget):
     progress_signal = Signal(int)
-
+    """Signal emitted to update the progress bar with an integer value."""
     def __init__(self, napari_viewer: Viewer):
         """
         Initialize the padding widget.

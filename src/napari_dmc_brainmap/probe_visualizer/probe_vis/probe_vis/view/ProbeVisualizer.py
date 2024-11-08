@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QFileDialog, QApplication
 from napari_dmc_brainmap.probe_visualizer.probe_vis.probe_vis.view.MainWidget import MainWidget
-from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
+# from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils import get_bregma
 
 import numpy as np
