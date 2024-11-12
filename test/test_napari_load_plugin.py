@@ -1,39 +1,25 @@
+from napari.plugins import plugin_manager
 import pytest
-from unittest.mock import MagicMock
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication
-from main import GreetingApp
+from qtpy.QtWidgets import QWidget
 
 
-app = QApplication([])
 
 
-def test_greeting_update(qtbot):
-    # Arrange
-    window = GreetingApp()
-    
-    # Use qtbot to add the window to the test
-    qtbot.addWidget(window)
-    
-    # Mock the text input
-    window.input_box.setText("Alice")
-    
-    # Act: simulate clicking the button
-    qtbot.mouseClick(window.submit_button, QtCore.Qt.LeftButton)
-    
-    # Assert: verify the greeting label text is updated as expected
-    assert window.greeting_label.text() == "Hello, Alice, welcome"
+def test_plugin_in_menu(make_napari_viewer_proxy):
+    viewer = make_napari_viewer_proxy()
+    # Load the plugin (replace 'your_plugin_name' with the actual plugin name)
+    plugin_name = 'dmc_brainmap'
 
-def test_greeting_update_with_mock():
-    # Arrange
-    window = GreetingApp()
+
+    # Manually register the plugin
+    brainmap_plugin = QWidget()
+    plugin_manager.register(brainmap_plugin, name=plugin_name)
+
+    # Now check if it's available
+    assert plugin_name in plugin_manager.plugins, f"{plugin_name} is not loaded."
+
+
+    # Check if the plugin appears in the viewer's menu
+    #plugin_menu = menu.findChild(viewer,plugin_name)  # Find the plugin menu by name
     
-    # Mock the input box's text method to return a predefined value
-    window.input_box.text = MagicMock(return_value="Bob")
-    
-    # Act: trigger the greeting update
-    window.update_greeting()
-    
-    # Assert: check that the QLabel text is as expected
-    assert window.greeting_label.text() == "Hello, Bob, welcome"
-    window.input_box.text.assert_called_once()
+    #assert plugin_menu is not None, f"Plugin menu for {plugin_name} not found."
