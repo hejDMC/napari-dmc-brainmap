@@ -124,9 +124,38 @@ def get_image_list(input_path, folder_id='stitched', file_id='*.tif'):
     return image_list
 
 def chunk_list(input_list:List[str], chunk_size: int=4) -> List[List[str]]:
+    """
+    Split a list into chunks of a specified size.
+    Parameters:
+    input_list (List[str]): The list to split.
+    chunk_size (int): The size of each chunk.
+    Returns:
+    List[List[str]]: A list of chunks.
+    Example:
+    >>> input_list = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+    >>> chunk_list(input_list, 4)
+    [['a', 'b', 'c', 'd'], ['e', 'f', 'g', 'h'], ['i', 'j']]
+    >>> chunk_list(input_list, 1)
+    [['a'], ['b'], ['c'], ['d'], ['e'], ['f'], ['g'], ['h'], ['i'], ['j']]
+    >>> chunk_list(input_list, 12)
+    [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']]
+    """
     return [input_list[i:i + chunk_size] for i in range(0, len(input_list), chunk_size)]
 
-def load_params(input_path):
+def load_params(input_path: pathlib.PosixPath | pathlib.WindowsPath) -> dict:
+    """
+    Load the params.json file from the specified input path.
+    Parameters:
+    input_path (pathlib.PosixPath | pathlib.WindowsPath): Path to the directory where params.json should be located.
+    Returns:
+    dict: The loaded params.json data.
+    Raises:
+    FileNotFoundError: If the params.json file is missing.
+    Example:
+    >>> input_path = pathlib.Path('path/to/animal_id')
+    >>> load_params(input_path)
+    {'key': 'value'}
+    """
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
         with open(params_fn) as fn:
