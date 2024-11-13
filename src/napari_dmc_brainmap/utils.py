@@ -9,8 +9,26 @@ from bg_atlasapi import BrainGlobeAtlas
 import numpy as np
 import skimage.filters as filters
 from napari.utils.notifications import show_info
+import pathlib
+from typing import List
 
-def get_animal_id(input_path):
+def get_animal_id(input_path: pathlib.PosixPath | pathlib.WindowsPath) -> str:
+    """
+    Get the animal ID from the input path.
+    Parameters:
+    input_path (pathlib.PosixPath | pathlib.WindowsPath): The path to the animal data.
+    Returns:
+    str: The animal ID.
+
+    Example:
+    >>> from napari_dmc_brainmap.utils import get_animal_id
+    >>> windows_path = pathlib.PureWindowsPath('C:\\Users\\username\\histology\\animal_id')
+    >>> get_animal_id(windows_path)
+    'animal_id'
+    >>> posix_path = pathlib.PurePosixPath('/home/username/histology/animal_ID')
+    >>> get_animal_id(posix_path)
+    'animal_ID'
+    """
     animal_id = input_path.parts[-1]
     return animal_id
 
@@ -105,7 +123,7 @@ def get_image_list(input_path, folder_id='stitched', file_id='*.tif'):
 
     return image_list
 
-def chunk_list(input_list, chunk_size=4):
+def chunk_list(input_list:List[str], chunk_size: int=4) -> List[List[str]]:
     return [input_list[i:i + chunk_size] for i in range(0, len(input_list), chunk_size)]
 
 def load_params(input_path):
@@ -473,3 +491,7 @@ def get_threshold_dropdown():
 
 def find_key_by_value(d, target_value):
     return next((key for key, value in d.items() if value == target_value), None)
+
+
+if __name__ == "__main__":
+    pass
