@@ -3,10 +3,10 @@ name: Run pytest for functionality testing
 on:
   push:
     branches:
-      - main  # Run tests on commits to the main branch; change this if needed
+      - add-tests  # Run tests on commits to the main branch; change this if needed
   pull_request:
     branches:
-      - main  # Run tests on pull requests targeting the main branch
+      - add-tests  # Run tests on pull requests targeting the main branch
 
 jobs:
   test:
@@ -27,4 +27,4 @@ jobs:
     
     - name: Run tests
       run: |
-        xvfb-run pytest
+        pytest --cov=napari_dmc_brainmap test
