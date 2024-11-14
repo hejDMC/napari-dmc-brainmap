@@ -1,3 +1,6 @@
+import sys
+sys.path.append("./src")
+
 from napari_dmc_brainmap.utils import get_animal_id
 from napari_dmc_brainmap.utils import get_info
 from napari_dmc_brainmap.utils import find_common_suffix
