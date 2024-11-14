@@ -10,7 +10,7 @@ import numpy as np
 import skimage.filters as filters
 from napari.utils.notifications import show_info
 import pathlib
-from typing import List
+from typing import List, Union
 
 def get_animal_id(input_path: pathlib.PosixPath | pathlib.WindowsPath) -> str:
     """
@@ -198,7 +198,30 @@ def load_params(input_path: pathlib.PosixPath | pathlib.WindowsPath) -> dict:
 #         msg_box.exec_()
 #         return {}
 
-def clean_params_dict(params_dict, key):
+def clean_params_dict(params_dict:dict, key:str) -> dict:
+    """
+    Remove empty keys and processes that have not run from the params dictionary.
+    Parameters:
+    params_dict (dict): The params dictionary.
+    key (str): The key to clean.
+    Returns:
+    dict: The cleaned params dictionary.
+    Example:
+    >>> params_dict = {
+    ...     'processes': {
+    ...         'proc1': True,
+    ...         'proc2': False,
+    ...         'proc3': None,
+    ...         'proc4': 'value',
+    ...         'proc5': ''
+    ...     },
+    ...     'proc2_params': {'param1': 'value1'},
+    ...     'proc3_params': {'param2': 'value2'}
+    ... }
+    >>> key = 'processes'
+    >>> clean_params_dict(params_dict, key)
+    {'processes': {'proc1': True, 'proc4': 'value'}}
+    """
     # remove empty keys and processes that have not run
     del_list = []
     for k in params_dict[key]:
@@ -213,7 +236,24 @@ def clean_params_dict(params_dict, key):
     return params_dict
 
 
-def update_params_dict(input_path, params_dict, create=False):
+def update_params_dict(input_path:pathlib.Path, params_dict:dict, create:bool=False) -> dict:
+    """
+    Update the params.json file with the specified dictionary.
+    Parameters:
+    input_path (Path): Path to the directory where params.json should be located.
+    params_dict (dict): The dictionary to update the params.json file with.
+    create (bool, optional): Whether to create the params.json file if it does not exist.
+    Returns:
+    dict: The updated params dictionary.
+    Raises:
+    FileNotFoundError: If the params.json file is missing and create is False.
+    Example:
+    >>> input_path = pathlib.Path('path/to/animal_id')
+    >>> old_params_dict = {'key': 'value'}
+    >>> new_params_dict = {'new_key': 'new_value'}
+    >>> update_params_dict(input_path, params_dict)
+    {'key': 'value', 'new_key': 'new_value'}
+    """
     params_fn = input_path.joinpath('params.json')
     if params_fn.exists():
         show_info("params.json exists -- overriding existing values")
@@ -270,37 +310,68 @@ def split_strings_layers(s, atlas_name, return_str=False):
             tail = head
     return head, tail
 
-def get_parent(a, st):
-    # dummy function to get parent id for quick and dirty quantification of injection site
-    level_dict = {
-        7: ['Isocortex', 'HPF', 'TH'],
-        6: ['OLF', 'HY'],
-        5: ['CTXsp', 'CNU', 'MB', 'CB'],
-        4: ['HB']
-    }
-    a_parent = a
-    for k, v in level_dict.items():
-        for i in v:
-            if st[st['acronym'] == i]['structure_id_path'].iloc[0] in a:
-                if len(a.split('/')) > (k + 3):
-                    a_parent = st[st['structure_id_path'] == '/'.join(a.split('/')[:k + 2]) + '/']['acronym'].iloc[0]
-                break
+# def get_parent(a, st):
+#     # dummy function to get parent id for quick and dirty quantification of injection site
+#     level_dict = {
+#         7: ['Isocortex', 'HPF', 'TH'],
+#         6: ['OLF', 'HY'],
+#         5: ['CTXsp', 'CNU', 'MB', 'CB'],
+#         4: ['HB']
+#     }
+#     a_parent = a
+#     for k, v in level_dict.items():
+#         for i in v:
+#             if st[st['acronym'] == i]['structure_id_path'].iloc[0] in a:
+#                 if len(a.split('/')) > (k + 3):
+#                     a_parent = st[st['structure_id_path'] == '/'.join(a.split('/')[:k + 2]) + '/']['acronym'].iloc[0]
+#                 break
 
-    return a_parent
+#     return a_parent
 
 
-def clean_results_df(df, atlas):
+def clean_results_df(df:pd.DataFrame, atlas:BrainGlobeAtlas) -> pd.DataFrame:
+    """
+    Clean the results DataFrame by removing unwanted brain structures and thier decendants.
+    Parameters:
+    df (DataFrame): The results DataFrame.
+    atlas (BrainGlobeAtlas): The BrainGlobeAtlas object.
+    Returns:
+    DataFrame: The cleaned results DataFrame.
+    Example:
+    >>> data = {'acronym': ['root', 'other', 'cm', 'VL']}
+    >>> df = pd.DataFrame(data)
+    >>> atlas = BrainGlobeAtlas('allen_mouse_10um')
+    >>> expected_data = {'acronym': ['other']}
+    >>> clean_results_df(df, atlas) == pd.DataFrame(expected_data)
+    >>> True
+    """
     list_delete = ['root']
     for item in ['fiber tracts', 'VS']:
-        list_delete.append(atlas.get_structure_descendants(item))  # todo use extend instead
-    list_delete = [l for sublist in list_delete for l in sublist]  # flatten list
+        list_delete.extend(atlas.get_structure_descendants(item))  
     df = df.drop(df[df['acronym'].isin(list_delete)].index)
     df = df.reset_index(drop=True)
-
     return df
 
 
-def split_to_list(input_str, out_format='str'):
+def split_to_list(input_str: Union[None,str], out_format: str='str'
+                  ) -> Union[bool,str,List[str],List[float],List[int]]:
+    """
+    Split a user input string into a list of strings, floats, or integers.
+    Parameters:
+    input_str (str): The user input string.
+    out_format (str): The output format ('str', 'float', 'int').
+    Returns:
+    bool: False if the input string is empty.
+    str: 'auto' if the input string is 'auto'.
+    List[str]: A list of strings.
+    List[float]: A list of floats.
+    List[int]: A list of integers.
+    Example:
+    >>> split_to_list("a,b,c,d")
+    ['a', 'b', 'c', 'd']
+    >>> split_to_list("1.1,2.2,3.3", 'float')
+    [1.1, 2.2, 3.3]
+    """
     if not input_str:
         output_list = False
     elif input_str == 'auto':
@@ -321,7 +392,24 @@ def split_to_list(input_str, out_format='str'):
     return output_list
 
 
-def load_group_dict(input_path, animal_list, group_id='genotype'):
+def load_group_dict(input_path: pathlib.Path, 
+                    animal_list: List[str], 
+                    group_id: str='genotype'
+                    ) -> dict:
+    """
+    Collect the group_id information from the specified input path.
+    Parameters:
+    input_path (Path): The path to the input data.
+    animal_list (List[str]): The list of animal IDs.
+    group_id (str): The group ID to collect.
+    Returns:
+    dict: The group dictionary.
+    Example:
+    >>> input_path = pathlib.Path('path/to/animal_id')
+    >>> animal_list = ['animal1', 'animal2', 'animal3', 'animal4']
+    >>> load_group_dict(input_path, animal_list)
+    {'genotype_1': ['animal1', 'animal_2'], 'genotype_2': ['animal3', 'animal4']}
+    """
     dict = {}
     for animal_id in animal_list:
         data_dir = input_path.joinpath(animal_id)
@@ -347,14 +435,24 @@ def load_group_dict(input_path, animal_list, group_id='genotype'):
     return dict
 
 
-def get_bregma(atlas_id):
+def get_bregma(atlas_id: str) -> List[int]:
+    """
+    Definition of bregma coordinates for different atlases.
+    Parameters:
+    atlas_id (str): The atlas ID.
+    Returns:
+    List[int]: The bregma coordinates pre-defined for the popular atlases or estimated from the atlas dimensions.
+    Example:
+    >>> get_bregma('allen_mouse_10um')
+    [540, 0, 570]
+    """
     bregma_dict = {
         "allen_mouse_10um": [540, 0, 570],
         # Ref: https://github.com/cortex-lab/allenCCF/blob/master/Browsing%20Functions/allenCCFbregma.m
         "whs_sd_rat_39um": [371, 72, 266],
         # Ref: Papp EA. Neuroimage. 2014 Aug 15;97:374-86. doi: 10.1016/j.neuroimage.2014.04.001.
         "azba_zfish_4um": [360, 0, 335]
-        # Ref: cannot really find one, by looking at the saggital section, it seems around 350 to 400 AP voxel
+        # Ref: no bregma for zebrafish
     }
     if atlas_id in bregma_dict.keys():
         bregma = bregma_dict[atlas_id]
@@ -371,7 +469,28 @@ def get_bregma(atlas_id):
     return bregma
 
 
-def create_regi_dict(input_path, regi_chan):
+def create_regi_dict(input_path: pathlib.Path, 
+
+                     regi_chan: str) -> dict:
+    """
+    Create a registration information dictionary from the specified input path.
+    
+    Parameters:
+    -----------
+    input_path : pathlib.Path
+        The path to the input directory containing the necessary files.
+    regi_chan : str
+        The registration channel to be used for obtaining registration information.
+    Returns:
+    --------
+    dict
+        A dictionary containing the following keys:
+        - 'input_path': The input path provided.
+        - 'regi_dir': The directory containing registration information.
+        - 'atlas': The atlas information from the parameters.
+        - 'orientation': The orientation information from the parameters.
+        - 'xyz_dict': The xyz dictionary from the atlas information.
+    """
     regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
     params_dict = load_params(input_path)
 
@@ -386,7 +505,24 @@ def create_regi_dict(input_path, regi_chan):
     return regi_dict
 
 
-def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
+def xyz_atlas_transform(triplet: List[int], 
+                        regi_dict: dict, 
+                        atlas_tuple: List[str]) -> List[int]:
+    """
+    Transpose xyz triplet to match atlas orientation.
+    Parameters:
+    -----------
+    triplet : List[int]
+        The xyz triplet to transform.
+    regi_dict : dict
+        The registration information dictionary.
+    atlas_tuple : List[str]
+        The atlas orientation tuple.
+    Returns:
+    --------
+    List[int]
+        The transformed xyz triplet.
+    """
     # change indices of xyz triplet tuple to match atlas
     # list with [x,y,z] triplet
     xyz_tuple = tuple([regi_dict['xyz_dict']['x'][0], regi_dict['xyz_dict']['y'][0], regi_dict['xyz_dict']['z'][0]])
@@ -397,7 +533,18 @@ def xyz_atlas_transform(triplet, regi_dict, atlas_tuple):
     return triplet_new
 
 
-def get_decimal(res_tup):  # res_tup is a list of arbitrary number of resolution(um) values
+def get_decimal(res_tup: List[float]) -> List[float]:
+    """
+    Get decimal number for displaying accurate z-step size in registration widget.
+    Parameters:
+    -----------
+    res_tup : List[float]
+        The resolution tuple.
+    Returns:
+    --------
+    List[float]
+        The decimal list.
+    """
     decimal_list = []
     for r in res_tup:
         step_float = r / 1000
@@ -409,52 +556,57 @@ def get_decimal(res_tup):  # res_tup is a list of arbitrary number of resolution
     return decimal_list
 
 
-def consider_decimals(func):
-    def wrapper(*args, **kwargs):
-        args = list(args)
-        if len(args) == 4:
-            pass
-        else:
-            if len(kwargs) == 0:
-                args.append(False)
-            else:
-                args.append(kwargs['mm_to_coord'])
-        triplet, bregma, resolution_tuple, mm_to_coord = args  # take out arguments
 
-        ## get z_step decimals
-        decimal_list = get_decimal(resolution_tuple)
+def coord_mm_transform(triplet: Union[int,float], 
+                       bregma: List[int], 
+                       resolution_tuple: List[float], 
+                       mm_to_coord: bool=False
+                       ) -> Union[int,float]:
+    """
+    Transform coordinates from mm to pixel or vice versa.
+    Parameters:
+    -----------
+    triplet : Union[int,float]
+        The coordinate to transform.
+    bregma : List[int]
+        The bregma coordinates.
+    resolution_tuple : List[float]
+        The resolution tuple.
+    mm_to_coord : bool
+        Whether to transform from mm to pixel or vice versa.
+    Returns:
+    --------
+    Union[int,float]
+    """
+    decimal_list = get_decimal(resolution_tuple)
 
-        if mm_to_coord:
-            triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
-                           zip(triplet, bregma, resolution_tuple)]
-        else:
-            triplet_new = []
-            for coord, br_coord, res, decimal in zip(triplet, bregma, resolution_tuple, decimal_list):
-                triplet_new.append(round((br_coord - coord) * (res / 1000), decimal))
-
-        if len(triplet_new) == 1:
-            return triplet_new[0]
-        else:
-            return triplet_new
-
-    return wrapper
-
-
-@consider_decimals
-def coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord=False):
     if mm_to_coord:
         triplet_new = [round(- coord / (res / 1000)) + br_coord for coord, br_coord, res in
-                       zip(triplet, bregma, resolution_tuple)]
+                        zip(triplet, bregma, resolution_tuple)]
     else:
-        triplet_new = [round((br_coord - coord) * (res / 1000), 2) for coord, br_coord, res in
-                       zip(triplet, bregma, resolution_tuple)]
+        triplet_new = []
+        for coord, br_coord, res, decimal in zip(triplet, bregma, resolution_tuple, decimal_list):
+            triplet_new.append(round((br_coord - coord) * (res / 1000), decimal))
+
     if len(triplet_new) == 1:
         return triplet_new[0]
     else:
         return triplet_new
 
 
-def sort_ap_dv_ml(triplet, atlas_tuple):
+def sort_ap_dv_ml(triplet: List[float], atlas_tuple: List[str]) -> List[float]:
+    """
+    Reorder the input triplet to match the atlas orientation.
+    Parameters:
+    -----------
+    triplet : List[float]
+        The xyz triplet to reorder.
+    atlas_tuple : List[str]
+        The atlas orientation tuple.
+    Returns:
+    --------
+    List[float]
+    """
     # sort input triplet in respective atlas convention to new tipled in [ap, dv, ml] order
     tgt_tuple = ('ap', 'si', 'rl')  # bg naming convention
     index_match = [atlas_tuple.index(e) for e in tgt_tuple]
@@ -462,14 +614,25 @@ def sort_ap_dv_ml(triplet, atlas_tuple):
     return triplet_new
 
 
-def get_xyz(atlas, section_orient):
+def get_xyz(atlas: BrainGlobeAtlas, section_orient: str) -> dict:
+    """
+    Get the xyz dictionary from the atlas information.
+    Parameters:
+    -----------
+    atlas : BrainGlobeAtlas
+        The BrainGlobeAtlas object.
+    section_orient : str
+        The section orientation.
+    Returns:
+    --------
+    dict
+    """
     # resolution tuple (width, height)
     orient_dict = {
         'coronal': 'frontal',
         'horizontal': 'horizontal',
         'sagittal': 'sagittal'
     }
-
     orient_idx = atlas.space.sections.index(orient_dict[section_orient])
     resolution_idx = atlas.space.index_pairs[orient_idx]
     xyz_dict = {
@@ -518,7 +681,23 @@ def get_threshold_dropdown():
     func_keys = Enum("func_key", func_dict)
     return func_keys
 
-def find_key_by_value(d, target_value):
+def find_key_by_value(d: dict, 
+                      target_value: Union[str,int]
+                      ) -> Union[str,None]:
+    """
+    Get the key from a dictionary by its value.
+    Assumes that the values are unique.
+
+    Parameters:
+    -----------
+    d : dict
+        The dictionary to search.
+    target_value : Union[str,int]
+        The value to search for.
+    Returns:
+    --------
+    Union[str,None]
+    """
     return next((key for key, value in d.items() if value == target_value), None)
 
 
