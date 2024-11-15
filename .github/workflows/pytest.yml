@@ -3,10 +3,12 @@ name: Run pytest for functionality testing
 on:
   push:
     branches:
-      - add-tests  # Run tests on commits to the main branch; change this if needed
+      - main
+      - add-tests
   pull_request:
     branches:
-      - add-tests  # Run tests on pull requests targeting the main branch
+      - main
+      - add-tests
 
 jobs:
   test:
