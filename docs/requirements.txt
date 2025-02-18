@@ -1,4 +1,4 @@
 sphinx
 sphinx-rtd-theme
+napari[all]
 napari-dmc-brainmap
-PyQt5
