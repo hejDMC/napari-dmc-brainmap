@@ -3,16 +3,15 @@
 *DMC-BrainMap is an end-to-end tool for multi-feature brain mapping across species.*  
 This [napari](https://napari.org/stable/) plugin was generated with [Cookiecutter](https://github.com/cookiecutter/cookiecutter) using napari's [cookiecutter-napari-plugin](https://github.com/napari/cookiecutter-napari-plugin) template.
 
-[![License BSD-3](https://img.shields.io/pypi/l/napari-dmc-brainmap.svg?color=green)](https://github.com/FelixJng/napari-dmc-brainmap/raw/main/LICENSE)
+[![License BSD-3](https://img.shields.io/pypi/l/napari-dmc-brainmap.svg?color=green)](https://github.com/hejDMC/napari-dmc-brainmap/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-dmc-brainmap.svg?color=green)](https://pypi.org/project/napari-dmc-brainmap)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-dmc-brainmap.svg?color=green)](https://python.org)
-[![tests](https://github.com/FelixJng/napari-dmc-brainmap/workflows/tests/badge.svg)](https://github.com/FelixJng/napari-dmc-brainmap/actions)
 [![codecov](https://codecov.io/gh/FelixJng/napari-dmc-brainmap/branch/main/graph/badge.svg)](https://codecov.io/gh/FelixJng/napari-dmc-brainmap)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-dmc-brainmap)](https://napari-hub.org/plugins/napari-dmc-brainmap)
 
 
 ## Documentation
-TBA
+Documentation on DMC-BrainMap's source code can be found on the project's [Read the Docs page](https://napari-dmc-brainmap.readthedocs.io/en/latest/#).
 
 ## Installation
 
@@ -33,7 +32,7 @@ python -m pip install "napari[all]"
 
 ### Step 3: Install napari-dmc-brainmap
 
-You can install `napari-dmc-brainmap` via the napari plugin manager or via [pip](https://pypi.org/project/pip/):
+You can install `napari-dmc-brainmap` via the napari plugin manager or via [pip](https://pypi.org/project/napari-dmc-brainmap/):
 
     pip install napari-dmc-brainmap
 
