@@ -1,0 +1,10 @@
+include LICENSE.txt
+include README.md
+
+include src/napari_dmc_brainmap/utils/xkcd.json
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/empty.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/helperpage_shortcuts.png
+
+exclude src/napari_dmc_brainmap/deprecated/*
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

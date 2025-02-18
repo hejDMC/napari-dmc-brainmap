@@ -1,0 +1,74 @@
+name: napari-dmc-brainmap
+display_name: dmc_brainmap
+contributions:
+  commands:
+    - id: napari-dmc-brainmap.ParamsWidget
+      python_name: napari_dmc_brainmap.params:ParamsWidget
+      title: Create params.json file
+
+#    - id: napari-dmc-brainmap.ConfocalWidget
+#      python_name: napari_dmc_brainmap.confocal:ConfocalWidget
+#      title: Stitch confocal images
+
+    - id: napari-dmc-brainmap.StitchingWidget
+      python_name: napari_dmc_brainmap.stitching:StitchingWidget
+      title: Stitch tif images
+
+    - id: napari-dmc-brainmap.PaddingWidget
+      python_name: napari_dmc_brainmap.padding:PaddingWidget
+      title: Padding of stitched images to match atlas resolution
+
+    - id: napari-dmc-brainmap.PreprocessingWidget
+      python_name: napari_dmc_brainmap.preprocessing:PreprocessingWidget
+      title: Make widget to perform preprocessing operations
+
+    - id: napari-dmc-brainmap.RegistrationWidget
+      python_name: napari_dmc_brainmap.registration:RegistrationWidget
+      title: Make registration widget to start registration GUI
+
+    - id: napari-dmc-brainmap.SegmentWidget
+      python_name: napari_dmc_brainmap.segment:SegmentWidget
+      title: Make segmentation widget
+
+    - id: napari-dmc-brainmap.ResultsWidget
+      python_name: napari_dmc_brainmap.results:ResultsWidget
+      title: Make widget to create results file
+
+    - id: napari-dmc-brainmap.VisualizationWidget
+      python_name: napari_dmc_brainmap.visualization:VisualizationWidget
+      title: Make widget to visualize data
+
+#    - id: napari-dmc-brainmap.ProbeVisualizerWidget
+#      python_name: napari_dmc_brainmap.probe_visualizer:ProbeVisualizerWidget
+#      title: Make widget to run visualize Neuropixels probe
+
+  widgets:
+    - command: napari-dmc-brainmap.ParamsWidget
+      display_name: Create params file (general info -- ALWAYS start with this!)
+
+#    - command: napari-dmc-brainmap.ConfocalWidget
+#      display_name: Stitch czi images
+
+    - command: napari-dmc-brainmap.StitchingWidget
+      display_name: Stitch tif images
+
+    - command: napari-dmc-brainmap.PaddingWidget
+      display_name: Padding of stitched images to match atlas resolution
+
+    - command: napari-dmc-brainmap.PreprocessingWidget
+      display_name: Preprocessing
+
+    - command: napari-dmc-brainmap.RegistrationWidget
+      display_name: Registration
+
+    - command: napari-dmc-brainmap.SegmentWidget
+      display_name: Segmentation
+
+    - command: napari-dmc-brainmap.ResultsWidget
+      display_name: Create results file
+
+    - command: napari-dmc-brainmap.VisualizationWidget
+      display_name: Visualize data
+
+#    - command: napari-dmc-brainmap.ProbeVisualizerWidget
+#      display_name: Estimate and visualize neuropixels probe tract

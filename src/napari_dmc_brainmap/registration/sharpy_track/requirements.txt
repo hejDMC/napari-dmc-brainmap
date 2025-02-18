@@ -1,0 +1,6 @@
+pyqt
+opencv
+scikit-image
+natsort
+pandas
+matplotlib

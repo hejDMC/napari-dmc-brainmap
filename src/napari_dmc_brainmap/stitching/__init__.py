@@ -1,0 +1,2 @@
+from .stitching import StitchingWidget
+
