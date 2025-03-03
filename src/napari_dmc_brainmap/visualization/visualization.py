@@ -288,10 +288,13 @@ def initialize_heatmap_widget() -> FunctionGui:
                              tooltip="select item to plot"),
               group_diff=dict(widget_type='ComboBox',
                           label='difference of channel/group/genotype/animals?',
-                          choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra'],
+                          choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra',
+                                   'channel (index)', 'group (index)', 'genotype (index)', 'animal_id (index)',
+                                   'ipsi_contra (index)'],
                           value='',
                           tooltip="if you want to plot a difference heatmap between channel/group/genotype/individual animals or ipsi/contralateral to injection site, "
-                                  "select accordingly, otherwise leave empty.\nif there are >2 item per channel, enter below which one to select"),
+                                  "select accordingly, otherwise leave empty.\nif there are >2 item per channel, enter below which one to select."
+                                  "\n If choosing the option with (index), a difference index = (group1-group2)/(group1+group2) is calculated, resulting in an index from +1 to -1."),
               group_diff_items=dict(widget_type='LineEdit',
                              label='difference heatmap for items:',
                              value='item1-item2',
@@ -550,10 +553,13 @@ def initialize_brainsection_widget() -> FunctionGui:
                                 '(depends on actual density and bin_width)'),
               group_diff_cells=dict(widget_type='ComboBox',
                               label='difference of channel/group/genotype/animals (cell density)?',
-                              choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra'],
+                              choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra',
+                                       'channel (index)', 'group (index)', 'genotype (index)', 'animal_id (index)',
+                                       'ipsi_contra (index)'],
                               value='',
                               tooltip="if you want to plot a difference heatmap between channel/group/genotype/individual animals or ipsi/contralateral to injection site, "
-                                      "select accordingly, otherwise leave empty.\nif there are >2 item per channel, enter below which one to select"),
+                                      "select accordingly, otherwise leave empty.\nif there are >2 item per channel, enter below which one to select."
+                                      "\n If choosing the option with (index), a difference index = (group1-group2)/(group1+group2) is calculated, resulting in an index from +1 to -1."),
               group_diff_items_cells=dict(widget_type='LineEdit',
                                     label='difference for items (cell density):',
                                     value='item1-item2',
@@ -580,10 +586,13 @@ def initialize_brainsection_widget() -> FunctionGui:
                         '(depends on actual density and bin_width)'),
               group_diff_proj=dict(widget_type='ComboBox',
                                     label='difference of channel/group/genotype/animals (projection density)?',
-                                    choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra'],
+                                    choices=['', 'channel', 'group', 'genotype', 'animal_id', 'ipsi_contra',
+                                             'channel (index)', 'group (index)', 'genotype (index)',
+                                             'animal_id (index)', 'ipsi_contra (index)'],
                                     value='',
                                     tooltip="if you want to plot a difference heatmap between channel/group/genotype/individual animals or ipsi/contralateral to injection site, "
-                                            "select accordingly, otherwise leave empty.\nif there are >2 item per channel, enter below which one to select"),
+                                            "select accordingly, otherwise leave empty.\nif there are >2 item per channel, enter below which one to select. "
+                                            "\n If choosing the option with (index), a difference index = (group1-group2)/(group1+group2) is calculated, resulting in an index from +1 to -1."),
               group_diff_items_proj=dict(widget_type='LineEdit',
                                           label='difference for items (projection density):',
                                           value='item1-item2',

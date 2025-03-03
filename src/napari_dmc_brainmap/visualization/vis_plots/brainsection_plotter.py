@@ -499,7 +499,10 @@ class BrainsectionPlotter:
                 heatmap_sub_data, _ = self.calculate_heatmap(annot_section_plt, group_df,
                                                         orient_mapping, y_bins, x_bins, bin_size)
                 diff_data.append(heatmap_sub_data)
-            heatmap_data = diff_data[0] - diff_data[1]
+            if self.plotting_params[f'{diff_type}_idx']:
+                heatmap_data = (diff_data[0] - diff_data[1])/(diff_data[0] + diff_data[1])
+            else:
+                heatmap_data = diff_data[0] - diff_data[1]
             mask = self._get_heatmap_mask(heatmap_data, annot_section_plt)
         else:
             missing_items = [item for item in required_items if item not in group_list]

@@ -68,7 +68,8 @@ class HeatmapVisualization:
             Dict: Dictionary of heatmap parameters.
         """
         plotting_params = {
-            "group_diff": heatmap_widget.group_diff.value,
+            "group_diff_idx": self._check_diff_idx(heatmap_widget.group_diff.value)[1],
+            "group_diff": self._check_diff_idx(heatmap_widget.group_diff.value)[0],
             "group_diff_items": heatmap_widget.group_diff_items.value.split('-'),
             "gene": gene,
             "figsize": split_to_list(heatmap_widget.plot_size.value, out_format='int'),
@@ -89,6 +90,15 @@ class HeatmapVisualization:
             "absolute_numbers": heatmap_widget.absolute_numbers.value
         }
         return plotting_params
+
+    def _check_diff_idx(self, diff_str):
+        if 'index' in diff_str:
+            item_key = diff_str.split(' ')[0]
+            diff_bool = True
+        else:
+            item_key = diff_str
+            diff_bool = False
+        return [item_key, diff_bool]
 
     def _get_interval_labels(self, intervals: List[float]) -> List[str]:
         """
@@ -131,7 +141,11 @@ class HeatmapVisualization:
                     group_df = self.df[self.df[self.plotting_params['group_diff']] == i_d]
                     sub_data_to_plot = self._calculate_plot(df=group_df, progress_callback=progress_callback)
                     diff_data.append(sub_data_to_plot)
-                return diff_data[0] - diff_data[1]
+                if self.plotting_params['group_diff_idx']:
+                    return (diff_data[0] - diff_data[1])/(diff_data[0] + diff_data[1])
+                else:
+                    return diff_data[0] - diff_data[1]
+
             else:
                 show_info(f"selected items to calculate difference not found: {group_diff_items}  \n"
                       f"check if items exist, also check params file if items are stated \n"

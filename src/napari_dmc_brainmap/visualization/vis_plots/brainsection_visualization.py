@@ -125,13 +125,15 @@ class BrainsectionVisualization:
             "bin_size_cells_density": int(brainsec_widget.bin_size_cells.value),
             "vmin_cells_density": int(brainsec_widget.vmin_cells.value),
             "vmax_cells_density": int(brainsec_widget.vmax_cells.value),
-            "group_diff_cells_density": brainsec_widget.group_diff_cells.value,
+            "group_diff_cells_density_idx": self._check_diff_idx(brainsec_widget.group_diff_cells.value)[1],
+            "group_diff_cells_density": self._check_diff_idx(brainsec_widget.group_diff_cells.value)[0], # brainsec_widget.group_diff_cells.value,
             "group_diff_items_cells_density": brainsec_widget.group_diff_items_cells.value.split('-'),
             "color_projections": split_to_list(brainsec_widget.cmap_projection.value),
             "bin_size_projections": int(brainsec_widget.bin_size_proj.value),
             "vmin_projections": int(brainsec_widget.vmin_proj.value),
             "vmax_projections": int(brainsec_widget.vmax_proj.value),
-            "group_diff_projections": brainsec_widget.group_diff_proj.value,
+            "group_diff_projections_idx": self._check_diff_idx(brainsec_widget.group_diff_proj.value)[1],
+            "group_diff_projections": self._check_diff_idx(brainsec_widget.group_diff_proj.value)[0],
             "group_diff_items_projections": brainsec_widget.group_diff_items_proj.value.split('-'),
             # "smooth_proj": brainsec_widget.smooth_proj.value,
             # "smooth_thresh_proj": float(brainsec_widget.smooth_thresh_proj.value),
@@ -147,6 +149,14 @@ class BrainsectionVisualization:
         }
         return plotting_params
 
+    def _check_diff_idx(self, diff_str):
+        if 'index' in diff_str:
+            item_key = diff_str.split(' ')[0]
+            diff_bool = True
+        else:
+            item_key = diff_str
+            diff_bool = False
+        return [item_key, diff_bool]
 
     def _calculate_slice_indices(self, section: float) -> Tuple[List[int], int]:
         """
