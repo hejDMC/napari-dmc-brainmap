@@ -171,12 +171,13 @@ def make_rgb(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union[str, dic
     """
     rgb_list = ['cy3', 'green', 'dapi']  # channels for R(ed)G(reen)B(lue) images
     missing_channels = list(set(rgb_list) - set(stack_dict.keys()))
-    default_dtype = "uint16"
 
     for chan in stack_dict.keys():
         stack_dict[chan] = downsample_and_adjust_contrast(stack_dict[chan], params['rgb_params'], 'downsampling', chan)
 
     image_size = stack_dict[next(iter(stack_dict))].shape  # get the shape of the images
+    default_dtype = stack_dict[next(iter(stack_dict))].dtype  # get the default data type of the images
+    
     for missing_chan in missing_channels:
         stack_dict[missing_chan] = np.zeros(image_size, dtype=default_dtype)
 
@@ -219,10 +220,10 @@ def make_sharpy_track(stack_dict: Dict[str, np.ndarray], params: Dict[str, Union
     - resolution_tuple: Tuple indicating the resolution.
     """
     for chan in stack_dict.keys():
+        sharpy_image = cv2.resize(stack_dict[chan], resolution_tuple)
         if params['sharpy_track_params']['contrast_adjustment']:
             contrast_tuple = tuple(params['sharpy_track_params'][chan])
-            sharpy_image = rescale_intensity(stack_dict[chan], contrast_tuple)
-        sharpy_image = cv2.resize(sharpy_image, resolution_tuple)
+            sharpy_image = rescale_intensity(sharpy_image, contrast_tuple)
         sharpy_image = do_8bit(sharpy_image)
         ds_image_name = im + '_downsampled.tif'
         ds_image_path = save_dirs['sharpy_track'].joinpath(chan, ds_image_name)
