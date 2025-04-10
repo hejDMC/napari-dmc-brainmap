@@ -16,7 +16,7 @@ from natsort import natsorted
 import pandas as pd
 from pathlib import Path
 from napari_dmc_brainmap.stitching.stitching_tools import padding_for_atlas
-from napari_dmc_brainmap.utils.path_utils import get_info
+from napari_dmc_brainmap.utils.path_utils import get_info, get_image_list
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
 from napari_dmc_brainmap.utils.params_utils import load_params
 from napari_dmc_brainmap.utils.gui_utils import check_input_path
@@ -60,7 +60,8 @@ def do_padding(input_path: Path,
         try:
             if not tif_files[0].name.endswith("_stitched.tif"):
                 rename_image_files(tif_files, input_path, pad_folder, chan)
-                save_image_names_csv(tif_files, input_path)
+                get_image_list(input_path, pad_folder)
+                # save_image_names_csv(tif_files, input_path)
 
             pad_dir, pad_im_list, _ = get_info(input_path, pad_folder, channel=chan)
             for im in pad_im_list:
@@ -113,6 +114,7 @@ def rename_image_files(tif_files: List[Path], input_path: Path, pad_folder: str,
         pad_folder (str): Name of the folder containing images to be renamed.
         chan (str): Channel name for which images are being renamed.
     """
+    print(f"Renaming images in {input_path.joinpath(pad_folder, chan)}")
     for im in tif_files:
         im_old = input_path.joinpath(pad_folder, chan, im.name)
         im_new = input_path.joinpath(pad_folder, chan, f"{im.stem}_stitched.tif")
@@ -128,8 +130,10 @@ def save_image_names_csv(tif_files: List[Path], input_path: Path) -> None:
         input_path (Path): Path to the input directory.
     """
     image_names_csv = input_path.joinpath("image_names.csv")
+    print(tif_files)
     if not image_names_csv.exists():
         image_list = natsorted([tif.name.split("_stitched.tif")[0] for tif in tif_files])
+        print(image_list)
         pd.DataFrame(image_list).to_csv(image_names_csv, index=False)
 
 def initialize_widget() -> FunctionGui:
