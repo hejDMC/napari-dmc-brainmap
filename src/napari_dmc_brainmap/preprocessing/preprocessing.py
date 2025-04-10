@@ -366,7 +366,8 @@ class PreprocessingWidget(QWidget):
         preprocessing_params = self._get_preprocessing_params()
         save_dirs = create_dirs(preprocessing_params, input_path)
         channels = get_channels(preprocessing_params)
-        img_list = get_image_list(input_path)
+        for chan in channels:
+            img_list = get_image_list(input_path, chan)
         params_dict = load_params(input_path)
         resolution = params_dict['atlas_info']['resolution']
 

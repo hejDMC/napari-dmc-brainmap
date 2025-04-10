@@ -95,7 +95,10 @@ def get_path_to_im(
     ]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
     path_to_im = seg_im_dir.joinpath(im)
     if pre_seg:
-        im_list = get_image_list(input_path)  # to return im base name for loading preseg
+        if single_channel:
+            im_list = get_image_list(input_path, chan, folder_id='single_channel')  # to return im base name for loading preseg
+        else:
+            im_list = get_image_list(input_path, chan, folder_id='rgb')
         im_name_candidates = [i for i in im_list if im.startswith(i)]
         if len(im_name_candidates) == 1:
             im_name = im_name_candidates[0]

@@ -60,7 +60,7 @@ def do_padding(input_path: Path,
         try:
             if not tif_files[0].name.endswith("_stitched.tif"):
                 rename_image_files(tif_files, input_path, pad_folder, chan)
-                get_image_list(input_path, pad_folder)
+                get_image_list(input_path, chan, folder_id=pad_folder)
                 # save_image_names_csv(tif_files, input_path)
 
             pad_dir, pad_im_list, _ = get_info(input_path, pad_folder, channel=chan)
@@ -114,7 +114,6 @@ def rename_image_files(tif_files: List[Path], input_path: Path, pad_folder: str,
         pad_folder (str): Name of the folder containing images to be renamed.
         chan (str): Channel name for which images are being renamed.
     """
-    print(f"Renaming images in {input_path.joinpath(pad_folder, chan)}")
     for im in tif_files:
         im_old = input_path.joinpath(pad_folder, chan, im.name)
         im_new = input_path.joinpath(pad_folder, chan, f"{im.stem}_stitched.tif")

@@ -128,12 +128,13 @@ def find_common_suffix(file_list: List[str]) -> str:
     return file_list[0][-suffix_length + 1:]
 
 
-def get_image_list(input_path: Path, folder_id: str = 'stitched', file_id: str = '*.tif') -> List[str]:
+def get_image_list(input_path: Path, chan: str, folder_id: str = 'stitched', file_id: str = '*.tif') -> List[str]:
     """
     Fetch the image list and remove the common suffix.
 
     Parameters:
         input_path (Path): The base path.
+        chan (str): The channel name.
         folder_id (str, optional): The folder containing the images. Defaults to 'stitched'.
         file_id (str, optional): The file pattern to search for. Defaults to '`*.tif`'.
 
@@ -141,15 +142,20 @@ def get_image_list(input_path: Path, folder_id: str = 'stitched', file_id: str =
         List[str]: A list of image names with the common suffix removed.
     """
     im_list_file = input_path / 'image_names.csv'
+    existing_list = []
     if im_list_file.exists():
-        return pd.read_csv(im_list_file)['0'].tolist()
+        existing_list = pd.read_csv(im_list_file)['0'].tolist()
 
     data_dir = get_info(input_path, folder_id, only_dir=True)
-    if not data_dir.parts[-1] == 'RGB':
-        data_dir = next((f for f in data_dir.glob('**/*') if f.is_dir()), None)
+    if not data_dir.parts[-1] == 'rgb':
+        data_dir = data_dir / chan
+        # data_dir = next((f for f in data_dir.glob('**/*') if f.is_dir()), None)
     data_list = get_data_list(data_dir, file_id)
     common_suffix = find_common_suffix(data_list)
     data_list = [f[:-len(common_suffix)] for f in data_list]
-
-    pd.DataFrame(data_list).to_csv(im_list_file, index=False)
-    return data_list
+    # pd.DataFrame(data_list).to_csv(im_list_file, index=False)
+    if set(existing_list) != set(data_list):
+        merged_list = sorted(set(existing_list + data_list))
+        pd.DataFrame(merged_list).to_csv(im_list_file, index=False)
+        return merged_list
+    return existing_list or data_list
