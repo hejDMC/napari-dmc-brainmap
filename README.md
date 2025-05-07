@@ -41,7 +41,7 @@ You can install `napari-dmc-brainmap` via the napari plugin manager or via [pip]
 
 ### Usage
 
-Please refer to the the Wiki pages for detailed instructions and a short tutorial on how to use DMC-BrainMap. When working with DMC-BrainMap on your own data, please keep the following points in mind:\
+Please refer to the Wiki pages for detailed instructions and a short tutorial on how to use DMC-BrainMap. When working with DMC-BrainMap on your own data, please keep the following points in mind:
 - DMC-BrainMap requires single-channel 16-bit .tif/.tiff images to work (in principle 8-bit also work)
 - DMC-BrainMap requires that your data is organized by animals in separate folders (you can pool data later down the lane)
 - DMC-BrainMap uses 5 channel labels (`dapi`, `green`, `n3`, `cy3`, `cy5`) corresponding to blue, green, orange, red and far red channels. *However, these are only labels, you can assign them as you please. Hence, you can use DMC-BrainMap also for non-fluorescence data given you converted your images to single-channel 16-bit .tif/.tiff images*. Please contact us if you need to use more than 5 channels.
