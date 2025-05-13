@@ -688,7 +688,15 @@ class SegmentWidget(QWidget):
             pre_seg_data_dir = pre_seg_dir.joinpath(fn_to_load[0])
             df = pd.read_csv(pre_seg_data_dir)  # load dataframe
             try:
-                pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
+                if seg_type == 'injection_site':
+                    if not 'idx_shape' in df.columns:
+                        pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
+                    else:
+                        pre_seg_data = []
+                        for idx in df['idx_shape'].unique():
+                            pre_seg_data.append(df[df['idx_shape'] == idx][['Position Y', 'Position X']].to_numpy())
+                else:
+                    pre_seg_data = df[['Position Y', 'Position X']].to_numpy()
             except KeyError:
                 show_info("csv file missing columns (Position Y/X), no presegmented data loaded")
                 pre_seg_data = []
@@ -714,7 +722,12 @@ class SegmentWidget(QWidget):
             if self.load_preseg.load_bool.value:
                 for chan in channels:
                     pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
-                    self.viewer.add_shapes(pre_seg_data, name=chan, shape_type='polygon', face_color=cmap_dict[chan],
+                    if type(pre_seg_data) is list:
+                        for inj_poly in pre_seg_data:
+                            self.viewer.add_shapes(inj_poly, name=chan, shape_type='polygon', face_color=cmap_dict[chan],
+                                                   opacity=0.4)
+                    else:
+                        self.viewer.add_shapes(pre_seg_data, name=chan, shape_type='polygon', face_color=cmap_dict[chan],
                                            opacity=0.4)
             else:
                 for chan in channels:
