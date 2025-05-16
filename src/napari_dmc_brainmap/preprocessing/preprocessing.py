@@ -5,6 +5,7 @@ DMC-BrainMap widget for preprocessing of .tif files.
 """
 
 import os
+import platform
 from pathlib import Path
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox, QProgressBar
@@ -53,6 +54,9 @@ def do_preprocessing(
     if "operations" in preprocessing_params.keys():
         resolution_tuple = tuple(resolution) if 'sharpy_track' in preprocessing_params['operations'] else False
         num_cores = os.cpu_count()
+        # overwrite parallelization to 1 if detects Darwin OS
+        if platform.system() == 'Darwin':
+            num_cores = 1
         chunk_img_list = chunk_list(img_list, chunk_size=num_cores)
         progress_value = 0
         progress_step = 100 / len(chunk_img_list)

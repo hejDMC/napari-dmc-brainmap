@@ -86,12 +86,10 @@ def load_stitched_images(input_path: Union[str, Path], chan: str, image: str) ->
     im_fn = input_path.joinpath('stitched', chan, f"{image}_stitched.tif")
     if im_fn.exists():
         return cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # Load in grayscale mode
-    show_info(
-        f"WARNING: No stitched images named {image}_stitched.tif found in {im_fn}. "
+    raise FileNotFoundError(f"WARNING: No stitched images named {image}_stitched.tif found in {im_fn}. "
         "Do padding on images if _stitched.tif suffix is missing."
         "Ensure images have the '_stitched.tif' suffix and are single-channel 16-bit."
-    )
-    return False
+        "Please restart the preprocessing widget to continue.")
 
 
 def downsample_and_adjust_contrast(
