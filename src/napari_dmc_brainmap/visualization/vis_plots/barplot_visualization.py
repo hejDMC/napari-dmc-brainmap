@@ -108,10 +108,8 @@ class BarplotVisualization:
 
         if self.plotting_params["gene_list"]:
             return self._calculate_expression_data(df_adjusted)
-
         # Step 4: Calculate percentages
         df_to_plot = self._calculate_percentage_data(df_adjusted)
-        print(df_to_plot)
         return df_to_plot
 
     def _create_empty_df(self) -> pd.DataFrame:
@@ -206,7 +204,6 @@ class BarplotVisualization:
             else:
                 dummy_df = pd.DataFrame(
                     (df['ap_mm'][animal_id] / len(self.df_all[self.df_all['animal_id'] == animal_id])) * 100)
-
             if self.plotting_params["groups"] in ["channel", "ipsi_contra"]:
                 dummy_df = dummy_df.stack().reset_index()
                 dummy_df.rename(columns={self.plotting_params["groups"]: "groups", 0: 'percent'}, inplace=True)
@@ -222,6 +219,8 @@ class BarplotVisualization:
         if self.plotting_params["groups"] not in ["channel", "ipsi_contra"]:
             df_to_plot.index.name = 'tgt_name'
             df_to_plot.reset_index(inplace=True)
+        if 'level_0' in df_to_plot.columns:
+            df_to_plot.rename(columns={'level_0': 'tgt_name'}, inplace=True)
 
         return df_to_plot
 
@@ -375,6 +374,7 @@ class BarplotVisualization:
             y_var (str): Y-axis variable.
             plot_orient (str): Plot orientation ('h' for horizontal, 'v' for vertical).
         """
+        data.to_csv('/home/felix/Desktop/123456/data.csv', index=False)
         hue = 'animal_id' if self.plotting_params["groups"] == 'animal_id' else 'groups'
         cmap = self.color_manager.create_color_palette([], self.plotting_params, "bar_palette", df=data, hue_id=hue)
         scatter_palette = self._check_color_palette(self.plotting_params["scatter_palette"], bar=False)
@@ -394,7 +394,7 @@ class BarplotVisualization:
                 ax=static_ax,
                 x=x_var,
                 y=y_var,
-                hue='animal_id',
+                hue=hue,
                 data=data,
                 palette=scatter_palette,
                 size=self.plotting_params["scatter_size"],

@@ -533,7 +533,7 @@ def initialize_brainsection_widget() -> FunctionGui:
                                      tooltip='tick to show colorbar. global parameter for all plots with colorbars.'),
               cmap_cells=dict(widget_type='LineEdit',
                                    label='colormap (cell density)',
-                                   value='Greens',
+                                   value='c:Greens',
                                    tooltip='enter a colormap for visualizing cell densities (e.g. Reds, Blues etc.)'),
               bin_size_cells=dict(widget_type='SpinBox',
                              label='bin_width (cell density)',
@@ -835,7 +835,8 @@ class VisualizationWidget(QWidget):
             self.gene_expression_df = pd.DataFrame()
             self.gene_expression_fn, self.gene_list = None, None
         tgt_list = split_to_list(self.barplot.tgt_list.value)
-        df = data_loader.get_tgt_data_only(df_all, tgt_list)
+        use_na = 'NA' in tgt_list
+        df = data_loader.get_tgt_data_only(df_all, tgt_list, use_na=use_na)
 
         return BarplotVisualization(df_all, df, self.atlas, animal_list, tgt_list, save_path, self.barplot, self.gene_list)
 

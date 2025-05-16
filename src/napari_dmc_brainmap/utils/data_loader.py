@@ -94,11 +94,12 @@ class DataLoader:
         """
         ids = []
         for reg in tgt_list:
-            try:
-                ids.append(self.atlas.structures[reg]['id'])
-            except KeyError:
-                show_info(f'No region called >> {reg} <<, skipping that region.')
-                pass
+            if not reg == 'NA':
+                try:
+                    ids.append(self.atlas.structures[reg]['id'])
+                except KeyError:
+                    show_info(f'No region called >> {reg} <<, skipping that region.')
+                    pass
 
         ids_child = [child_id for tgt_id in ids for child_id in self.atlas.hierarchy.is_branch(tgt_id)]
         ids.extend(ids_child)
