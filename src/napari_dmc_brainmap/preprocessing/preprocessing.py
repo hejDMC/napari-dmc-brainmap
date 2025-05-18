@@ -13,7 +13,7 @@ from superqt import QCollapsible
 from joblib import Parallel, delayed
 from napari.qt.threading import thread_worker
 from napari.utils.notifications import show_info
-from napari_dmc_brainmap.utils.path_utils import get_image_list
+from napari_dmc_brainmap.utils.path_utils import get_image_list, get_info
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
 from napari_dmc_brainmap.utils.params_utils import load_params, clean_params_dict, update_params_dict
 from napari_dmc_brainmap.utils.dropdown_utils import get_threshold_dropdown
@@ -332,6 +332,32 @@ class PreprocessingWidget(QWidget):
                 params_dict[f"{op}_params"] = self._get_widget_info(widget, op)
         return params_dict
 
+    def _check_preprocessing_success(self) -> List[str]:
+        """
+        Check if preprocessing was successful for the given animal ID.
+
+        Returns:
+            List[str]: Return list of directories containing missing files.
+        """
+        input_path = self.header.input_path.value
+        params_dict = load_params(input_path)
+        missing_files = []
+        for op, op_bool in params_dict["operations"].items():
+            if op_bool:
+                if op == "rgb":
+                    _, op_data_list, _ = get_info(input_path, op)
+                    if not op_data_list:
+                        missing_files.append(f"{op}")
+
+                else:
+                    for chan in params_dict[f"{op}_params"]["channels"]:
+                        _, op_data_list, _ = get_info(input_path, op, chan)
+                        if not op_data_list:
+                            missing_files.append(f"{op}_{chan}")
+
+        return missing_files
+
+
     def _show_success_message(self, animal_id: str) -> None:
         """
         Display a success message after preprocessing is complete.
@@ -339,11 +365,21 @@ class PreprocessingWidget(QWidget):
         Parameters:
             animal_id (str): The Animal ID for which preprocessing was performed.
         """
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Information)
-        msg_box.setText(f"Preprocessing finished successfully for {animal_id}!")
-        msg_box.setWindowTitle("Preprocessing Complete")
-        msg_box.exec_()
+        missing_files = self._check_preprocessing_success()
+        if len(missing_files) == 0:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setText(f"Preprocessing finished successfully for {animal_id}!")
+            msg_box.setWindowTitle("Preprocessing Complete")
+            msg_box.exec_()
+        else:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setText(f"Preprocessing finished, but the following files are missing: {', '.join(missing_files)}")
+            # msg_box.setText(f"Preprocessing failed for {animal_id}:\n".join(missing_files))
+            msg_box.setWindowTitle("Preprocessing Error")
+            msg_box.exec_()
+
         self.btn.setText("Do the Preprocessing!")  # Reset button text
         self.progress_signal.emit(0)
 
