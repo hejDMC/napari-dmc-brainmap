@@ -3,6 +3,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox,QTableView,QDialog,QDialogButtonBox
 from PyQt5 import QtGui
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow import AnchorRow
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ui.AccuracyMeasurement import Ui_AccuracyMeasurement
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperModel import HelperModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.PandasModel import PandasModel
 import pandas as pd
@@ -349,16 +350,13 @@ class RegistrationHelper(QMainWindow):
             self.abort_action()
         self.regViewer.del_reghelper_instance()
 
-    
 
-
-
-
-
-
-
-    
-
-
-
-
+class AccuracyMeasurement(QMainWindow):
+    def __init__(self, regViewer) -> None:
+        super().__init__()
+        self.regViewer = regViewer
+        self.setWindowTitle("Accuracy Measurement (TRE)")
+        self.setFixedSize(int(regViewer.fullWindowSize[0]/3),regViewer.fullWindowSize[1])
+        self.ui = Ui_AccuracyMeasurement()
+        self.ui.setupUi(self)
+        

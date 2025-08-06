@@ -11,7 +11,7 @@ import numpy as np
 from natsort import natsorted
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import AtlasModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.status import StatusContainer
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import RegistrationHelper
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import RegistrationHelper, AccuracyMeasurement
 
 class RegistrationViewer(QMainWindow):
     def __init__(self, regViewerWidget, regi_dict) -> None:
@@ -165,18 +165,28 @@ class RegistrationViewer(QMainWindow):
 
     def createActions(self):
         self.helperAct = QAction("Registration H&elper", self, shortcut="Ctrl+H", triggered=self.helperPageOpen)
+        self.measurementAct = QAction("Accuracy M&easurement", self, shortcut="Ctrl+M", triggered=self.measurementPageOpen)
+        
 
 
     def createMenus(self):
-        self.helperMenu = QMenu("Tools", self)
-        self.helperMenu.addAction(self.helperAct)
+        self.toolsMenu = QMenu("Tools", self)
+        self.toolsMenu.addAction(self.helperAct)
         self.helperAct.setEnabled(True)
-        self.menuBar().addMenu(self.helperMenu)
+        self.toolsMenu.addAction(self.measurementAct)
+        self.measurementAct.setEnabled(False)
+        self.menuBar().addMenu(self.toolsMenu)
     
     def helperPageOpen(self):
         self.helperAct.setEnabled(False)
         self.helperPage = RegistrationHelper(self)
         self.helperPage.show()
+    
+    def measurementPageOpen(self):
+        self.measurementAct.setEnabled(False)
+        self.measurementPage = AccuracyMeasurement(self)
+        self.measurementPage.show()
+
     
     def del_reghelper_instance(self):
         del self.helperPage.regViewer
