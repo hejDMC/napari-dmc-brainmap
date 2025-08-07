@@ -174,7 +174,7 @@ class RegistrationViewer(QMainWindow):
         self.toolsMenu.addAction(self.helperAct)
         self.helperAct.setEnabled(True)
         self.toolsMenu.addAction(self.measurementAct)
-        self.measurementAct.setEnabled(False)
+        self.measurementAct.setEnabled(True)
         self.menuBar().addMenu(self.toolsMenu)
     
     def helperPageOpen(self):
@@ -194,6 +194,10 @@ class RegistrationViewer(QMainWindow):
         del self.helperPage.mainWidget
         del self.helperPage
         self.helperAct.setEnabled(True)
+    
+    def del_accmea_instance(self):
+        del self.measurementPage.regViewer
+        self.measurementAct.setEnabled(True)
 
 
     def closeEvent(self, event) -> None:

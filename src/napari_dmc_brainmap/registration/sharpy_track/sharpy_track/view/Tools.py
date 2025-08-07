@@ -133,6 +133,10 @@ class RegistrationHelper(QMainWindow):
         if self.regViewer.status.currentSliceNumber in self.regViewer.status.blendMode:
             self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1 # overlay
             self.regViewer.atlasModel.updateDotPosition(mode='force')
+        # check if AccuracyMeasurement window is open
+        if hasattr(self.regViewer, 'measurementPage'):
+            # connect preview button press signal to AccuracyMeasurement flip_page
+            self.regViewer.measurementPage.flip_page()
 
 
     def abort_action(self):
@@ -156,6 +160,11 @@ class RegistrationHelper(QMainWindow):
             self.regViewer.atlasModel.updateDotPosition(mode='force')
         else:
             pass
+
+        # check if AccuracyMeasurement window is open
+        if hasattr(self.regViewer, 'measurementPage'):
+            # connect preview button press signal to AccuracyMeasurement flip_page
+            self.regViewer.measurementPage.flip_page()
 
 
     
@@ -228,6 +237,11 @@ class RegistrationHelper(QMainWindow):
         select_btn_layout.addWidget(buttonbox)
         self.confirmation_dialog.setLayout(dialog_layout)
         self.confirmation_dialog.exec()
+
+        # check if AccuracyMeasurement window is open
+        if hasattr(self.regViewer, 'measurementPage'):
+            # connect preview button press signal to AccuracyMeasurement flip_page
+            self.regViewer.measurementPage.flip_page()
 
     def checkAll(self):
         for row in range(self.model.rowCount()):
@@ -359,4 +373,45 @@ class AccuracyMeasurement(QMainWindow):
         self.setFixedSize(int(regViewer.fullWindowSize[0]/3),regViewer.fullWindowSize[1])
         self.ui = Ui_AccuracyMeasurement()
         self.ui.setupUi(self)
+        # retrieve current file name
+        self.ui.currentFileNameLabel.setText(
+            self.regViewer.status.imgFileName[
+            self.regViewer.status.currentSliceNumber])
+        self.flip_page() # set initial page according to registration mode and atlas dots
+        ## connect signals
+        # connect sampleslider value changed signal to update currentFileNameLabel
+        self.regViewer.widget.sampleSlider.valueChanged.connect(self.update_name_label)
+        # flip page according to: wrong registration mode: 1, missing transformation: 2, else: 0
+        self.regViewer.widget.toggle.clicked.connect(self.flip_page)
+
+
+    def update_name_label(self):
+        self.ui.currentFileNameLabel.setText(
+            self.regViewer.status.imgFileName[
+            self.regViewer.status.currentSliceNumber])
+        self.flip_page()
+    
+
+    def flip_page(self):
+        # retrieve registration mode information
+        registration_on = True if self.regViewer.status.tMode == 1 else False
+        preview_on = False if self.regViewer.widget.toggle.isEnabled() else True
+        if registration_on or preview_on:
+            self.ui.pages.setCurrentIndex(1)
+        else:
+            if self.regViewer.status.currentSliceNumber not in self.regViewer.status.atlasDots:
+                self.ui.pages.setCurrentIndex(2)
+            else:
+                if len(self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber]) < 5:
+                    self.ui.pages.setCurrentIndex(2)
+                else:
+                    self.ui.pages.setCurrentIndex(0)
+
+        
+
+    def closeEvent(self, event) -> None:
+        # disconnect signals
+        self.regViewer.widget.sampleSlider.valueChanged.disconnect(self.update_name_label)
+        self.regViewer.widget.toggle.clicked.disconnect(self.flip_page)
+        self.regViewer.del_accmea_instance()
         
