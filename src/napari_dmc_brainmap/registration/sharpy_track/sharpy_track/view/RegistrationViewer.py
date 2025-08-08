@@ -34,10 +34,12 @@ class RegistrationViewer(QMainWindow):
 
         # create statusContainer
         self.status = StatusContainer(self)
-        self.widget.viewerLeft.view.leaveEvent = self.widget.viewerLeft.leaveLabel
-        self.widget.viewerRight.view.leaveEvent = self.widget.viewerRight.leaveLabel
-        self.widget.viewerLeft.view.enterEvent = self.widget.viewerLeft.hoverLeft
-        self.widget.viewerRight.view.enterEvent = self.widget.viewerRight.hoverRight
+        
+        # Connect signals instead of directly assigning event handlers
+        self.widget.viewerLeft.view.mouseLeft.connect(self.widget.viewerLeft.leaveLabel)
+        self.widget.viewerRight.view.mouseLeft.connect(self.widget.viewerRight.leaveLabel)
+        self.widget.viewerLeft.view.mouseEntered.connect(self.widget.viewerLeft.hoverLeft)
+        self.widget.viewerRight.view.mouseEntered.connect(self.widget.viewerRight.hoverRight)
 
         self.widget.viewerLeft.view.mouseMoved.connect(self.widget.viewerLeft.getCursorPos) # connect mouseTracking only for left viewer
         self.widget.viewerLeft.loadSlice()

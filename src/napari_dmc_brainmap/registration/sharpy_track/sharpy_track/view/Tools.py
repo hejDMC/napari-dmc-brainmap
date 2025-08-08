@@ -373,6 +373,8 @@ class AccuracyMeasurement(QMainWindow):
         self.setFixedSize(int(regViewer.fullWindowSize[0]/3),regViewer.fullWindowSize[1])
         self.ui = Ui_AccuracyMeasurement()
         self.ui.setupUi(self)
+        # widget specific state variables
+        self.measurement_state = "ready"
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
@@ -383,6 +385,9 @@ class AccuracyMeasurement(QMainWindow):
         self.regViewer.widget.sampleSlider.valueChanged.connect(self.update_name_label)
         # flip page according to: wrong registration mode: 1, missing transformation: 2, else: 0
         self.regViewer.widget.toggle.clicked.connect(self.flip_page)
+        
+        ## add measurement button signal
+        self.ui.addMeasurementBtn.clicked.connect(self.add_measurement)
 
 
     def update_name_label(self):
@@ -407,11 +412,44 @@ class AccuracyMeasurement(QMainWindow):
                 else:
                     self.ui.pages.setCurrentIndex(0)
 
+    def add_measurement(self):
+        # check status of measurement
+        if self.measurement_state == "ready":
+            self.measurement_state = "waiting_source"
+            self.ui.addMeasurementBtn.setText("Place Marker on Sample")
+            self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 222, 33);") # yellow
+            # enable pointer projection visualization
+            self.display_pointer_projection()
+
+        elif self.measurement_state == "waiting_source":
+            # abort current measure, go back to ready state
+            self.measurement_state = "ready"
+            self.ui.addMeasurementBtn.setText("Add Measurement")
+            self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
         
+        else:
+            pass
+
+    def display_pointer_projection(self):
+        # connect mouse enter right viewer signal with showing measurement pointer
+        self.regViewer.widget.viewerRight.view.mouseEntered.connect(self.show_measurement_pointer)
+
+        # connect mouse exit right viewer signal with hiding measurement pointer
+        self.regViewer.widget.viewerRight.view.mouseLeft.connect(self.hide_measurement_pointer)
+
+    def show_measurement_pointer(self):
+        # Show the measurement pointer
+        self.regViewer.widget.viewerRight.view.setCursor(Qt.CrossCursor)
+
+    def hide_measurement_pointer(self):
+        # Hide the measurement pointer
+        self.regViewer.widget.viewerRight.view.setCursor(Qt.ArrowCursor)
+
+
 
     def closeEvent(self, event) -> None:
         # disconnect signals
         self.regViewer.widget.sampleSlider.valueChanged.disconnect(self.update_name_label)
         self.regViewer.widget.toggle.clicked.disconnect(self.flip_page)
         self.regViewer.del_accmea_instance()
-        
+    

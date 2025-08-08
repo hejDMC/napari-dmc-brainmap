@@ -14,7 +14,8 @@ class ViewerGeneral():
         self.view.setSceneRect(0,0,regViewer.singleWindowSize[0],regViewer.singleWindowSize[1])
         self.view.setFrameShape(QFrame.NoFrame)
 
-    def leaveLabel(self,event):
+    def leaveLabel(self):
+        """Slot for mouse leave signal"""
         self.regViewer.status.cursor = 0
     
     def getCursorPos(self):

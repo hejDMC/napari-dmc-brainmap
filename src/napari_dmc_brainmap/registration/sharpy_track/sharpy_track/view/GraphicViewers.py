@@ -13,7 +13,8 @@ class ViewerLeft(ViewerGeneral):
         self.scene.addWidget(self.labelContour)
         
 
-    def hoverLeft(self,event):
+    def hoverLeft(self):
+        """Slot for mouse enter signal"""
         self.regViewer.status.cursor = -1 # when mouse cursor is on of left viewer
     
     def loadSlice(self):
@@ -73,7 +74,8 @@ class ViewerRight(ViewerGeneral):
     def __init__(self,regViewer) -> None:
         super().__init__(regViewer)
     
-    def hoverRight(self,event):
+    def hoverRight(self):
+        """Slot for mouse enter signal"""
         self.regViewer.status.cursor = 1 # when mouse cursor is on right viewer
     
     def loadSample(self):
