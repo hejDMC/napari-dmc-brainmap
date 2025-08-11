@@ -432,6 +432,14 @@ class AccuracyMeasurement(QMainWindow):
 
     def display_pointer_projection(self):
         # connect mouse enter right viewer signal with showing measurement pointer
+        # initialize cursor
+        pointer_image = QPixmap(str(
+            self.regViewer.atlasModel.sharpy_dir.joinpath(
+                'sharpy_track',
+                'sharpy_track',
+                'images',
+                'crosshair_yellow.png')))
+        self.cursor_y_64 = QtGui.QCursor(pointer_image, 32, 32) # set cursor hotspot to [32,32]
         self.regViewer.widget.viewerRight.view.mouseEntered.connect(self.show_measurement_pointer)
 
         # connect mouse exit right viewer signal with hiding measurement pointer
@@ -439,7 +447,7 @@ class AccuracyMeasurement(QMainWindow):
 
     def show_measurement_pointer(self):
         # Show the measurement pointer
-        self.regViewer.widget.viewerRight.view.setCursor(Qt.CrossCursor)
+        self.regViewer.widget.viewerRight.view.setCursor(self.cursor_y_64)
 
     def hide_measurement_pointer(self):
         # Hide the measurement pointer
