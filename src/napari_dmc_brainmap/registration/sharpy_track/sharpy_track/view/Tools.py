@@ -419,7 +419,7 @@ class AccuracyMeasurement(QMainWindow):
             self.ui.addMeasurementBtn.setText("Place Marker on Sample")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 222, 33);") # yellow
             # enable pointer projection visualization
-            self.display_pointer_projection()
+            self.display_target_projection()
 
         elif self.measurement_state == "waiting_source":
             # abort current measure, go back to ready state
@@ -430,16 +430,35 @@ class AccuracyMeasurement(QMainWindow):
         else:
             pass
 
-    def display_pointer_projection(self):
+    def display_target_projection(self):
         # connect mouse enter right viewer signal with showing measurement pointer
         # initialize cursor
-        pointer_image = QPixmap(str(
+        pointer_image_y = QPixmap(str(
             self.regViewer.atlasModel.sharpy_dir.joinpath(
                 'sharpy_track',
                 'sharpy_track',
                 'images',
                 'crosshair_yellow.png')))
-        self.cursor_y_64 = QtGui.QCursor(pointer_image, 32, 32) # set cursor hotspot to [32,32]
+        self.cursor_y_64 = QtGui.QCursor(pointer_image_y, 32, 32) # 64 * 64 image cursor hotspot set to [32,32]
+
+        # initialize cursor
+        pointer_image_r = QPixmap(str(
+            self.regViewer.atlasModel.sharpy_dir.joinpath(
+                'sharpy_track',
+                'sharpy_track',
+                'images',
+                'error_red.png')))
+        self.cursor_r_64 = QtGui.QCursor(pointer_image_r, 32, 32) # 64 * 64 image cursor hotspot set to [32,32]
+
+        # initialize icon pixmap
+        pointer_image_y_s = QPixmap(str(
+            self.regViewer.atlasModel.sharpy_dir.joinpath(
+                'sharpy_track',
+                'sharpy_track',
+                'images',
+                'crosshair_yellow_s.png')))
+        self.pixmap_y_32 = pointer_image_y_s
+
         self.regViewer.widget.viewerRight.view.mouseEntered.connect(self.show_measurement_pointer)
 
         # connect mouse exit right viewer signal with hiding measurement pointer
@@ -448,11 +467,15 @@ class AccuracyMeasurement(QMainWindow):
     def show_measurement_pointer(self):
         # Show the measurement pointer
         self.regViewer.widget.viewerRight.view.setCursor(self.cursor_y_64)
+        # enable position tracking
+        self.regViewer.widget.viewerRight.view.mouseMoved.connect(self.regViewer.widget.viewerRight.projectSourcePos)
 
     def hide_measurement_pointer(self):
         # Hide the measurement pointer
         self.regViewer.widget.viewerRight.view.setCursor(Qt.ArrowCursor)
-
+        # disable position tracking
+        self.regViewer.widget.viewerRight.view.mouseMoved.disconnect(self.regViewer.widget.viewerRight.projectSourcePos)
+        
 
 
     def closeEvent(self, event) -> None:
