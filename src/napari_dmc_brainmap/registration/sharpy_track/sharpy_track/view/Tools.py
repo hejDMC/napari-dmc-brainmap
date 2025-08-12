@@ -6,6 +6,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow i
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ui.AccuracyMeasurement import Ui_AccuracyMeasurement
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperModel import HelperModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.PandasModel import PandasModel
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
 import pandas as pd
 
 class RegistrationHelper(QMainWindow):
@@ -468,6 +469,11 @@ class AccuracyMeasurement(QMainWindow):
         # Show the measurement pointer
         self.regViewer.widget.viewerRight.view.setCursor(self.cursor_y_64)
         # enable position tracking
+        # project source position to target position using current transformation matrix
+        self.regViewer.widget.viewerRight.tform = fitGeoTrans(self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber], 
+                                                              self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber])
+        # add targetPointHover group to scene
+        self.regViewer.widget.viewerLeft.scene.addItem(self.regViewer.widget.viewerRight.targetPointHover)
         self.regViewer.widget.viewerRight.view.mouseMoved.connect(self.regViewer.widget.viewerRight.projectSourcePos)
 
     def hide_measurement_pointer(self):
@@ -475,8 +481,11 @@ class AccuracyMeasurement(QMainWindow):
         self.regViewer.widget.viewerRight.view.setCursor(Qt.ArrowCursor)
         # disable position tracking
         self.regViewer.widget.viewerRight.view.mouseMoved.disconnect(self.regViewer.widget.viewerRight.projectSourcePos)
-        
-
+        # clear tform and targetPointHover
+        self.regViewer.widget.viewerRight.tform = None
+        for item in self.regViewer.widget.viewerRight.targetPointHover.childItems():
+            self.regViewer.widget.viewerRight.targetPointHover.removeFromGroup(item)
+        self.regViewer.widget.viewerLeft.scene.removeItem(self.regViewer.widget.viewerRight.targetPointHover)
 
     def closeEvent(self, event) -> None:
         # disconnect signals
