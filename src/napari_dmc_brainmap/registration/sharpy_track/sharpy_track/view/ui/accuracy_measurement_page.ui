@@ -190,6 +190,9 @@
          </layout>
         </item>
         <item>
+         <layout class="QVBoxLayout" name="coordsDataVBox"/>
+        </item>
+        <item>
          <spacer name="pushUpSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>

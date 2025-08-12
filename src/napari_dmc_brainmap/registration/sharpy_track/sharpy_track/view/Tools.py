@@ -423,6 +423,10 @@ class AccuracyMeasurement(QMainWindow):
             self.display_target_projection()
             # setup abort action callback
             self.setup_abort_callback()
+            # create new data row
+            self.create_new_row()
+
+
             
 
         elif any([self.measurement_state == "abort",
@@ -512,7 +516,15 @@ class AccuracyMeasurement(QMainWindow):
     def abort_action(self):
         self.measurement_state = "abort"
         self.modify_measurement()
-
+    
+    def create_new_row(self):
+        # inside ui.coordsDataVBox
+        new_row = QHBoxLayout()
+        # add 5 labels
+        for i in range(5):
+            label = QLabel(f"Label {i+1}")
+            new_row.addWidget(label)
+        self.ui.coordsDataVBox.addLayout(new_row)
 
     def closeEvent(self, event) -> None:
         # disconnect signals
