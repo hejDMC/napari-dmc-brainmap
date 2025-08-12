@@ -388,7 +388,7 @@ class AccuracyMeasurement(QMainWindow):
         self.regViewer.widget.toggle.clicked.connect(self.flip_page)
         
         ## add measurement button signal
-        self.ui.addMeasurementBtn.clicked.connect(self.add_measurement)
+        self.ui.addMeasurementBtn.clicked.connect(self.modify_measurement)
 
 
     def update_name_label(self):
@@ -413,7 +413,7 @@ class AccuracyMeasurement(QMainWindow):
                 else:
                     self.ui.pages.setCurrentIndex(0)
 
-    def add_measurement(self):
+    def modify_measurement(self):
         # check status of measurement
         if self.measurement_state == "ready":
             self.measurement_state = "waiting_source"
@@ -421,13 +421,20 @@ class AccuracyMeasurement(QMainWindow):
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 222, 33);") # yellow
             # enable pointer projection visualization
             self.display_target_projection()
+            # setup abort action callback
+            self.setup_abort_callback()
+            
 
-        elif self.measurement_state == "waiting_source":
-            # abort current measure, go back to ready state
-            self.measurement_state = "ready"
+        elif any([self.measurement_state == "abort",
+                  self.measurement_state == "waiting_source"]):
+            self.detach_abort_callback()
+            if self.regViewer.widget.viewerRight.targetPointHover.childItems():
+                self.hide_measurement_pointer()
+            self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.show_measurement_pointer)
+            self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.hide_measurement_pointer)
             self.ui.addMeasurementBtn.setText("Add Measurement")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
-        
+            self.measurement_state = "ready"
         else:
             pass
 
@@ -486,6 +493,26 @@ class AccuracyMeasurement(QMainWindow):
         for item in self.regViewer.widget.viewerRight.targetPointHover.childItems():
             self.regViewer.widget.viewerRight.targetPointHover.removeFromGroup(item)
         self.regViewer.widget.viewerLeft.scene.removeItem(self.regViewer.widget.viewerRight.targetPointHover)
+    
+    def setup_abort_callback(self):
+        self.regViewer.widget.sampleSlider.valueChanged.connect(self.abort_action)
+        self.regViewer.widget.x_slider.valueChanged.connect(self.abort_action)
+        self.regViewer.widget.y_slider.valueChanged.connect(self.abort_action)
+        self.regViewer.widget.z_slider.valueChanged.connect(self.abort_action)
+        self.regViewer.widget.toggle.clicked.connect(self.abort_action)
+
+
+    def detach_abort_callback(self):
+        self.regViewer.widget.sampleSlider.valueChanged.disconnect(self.abort_action)
+        self.regViewer.widget.x_slider.valueChanged.disconnect(self.abort_action)
+        self.regViewer.widget.y_slider.valueChanged.disconnect(self.abort_action)
+        self.regViewer.widget.z_slider.valueChanged.disconnect(self.abort_action)
+        self.regViewer.widget.toggle.clicked.disconnect(self.abort_action)
+
+    def abort_action(self):
+        self.measurement_state = "abort"
+        self.modify_measurement()
+
 
     def closeEvent(self, event) -> None:
         # disconnect signals
