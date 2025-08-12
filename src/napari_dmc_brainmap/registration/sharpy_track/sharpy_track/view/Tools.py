@@ -8,6 +8,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperMode
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.PandasModel import PandasModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
 import pandas as pd
+import random
 
 class RegistrationHelper(QMainWindow):
     def __init__(self, regViewer) -> None:
@@ -389,6 +390,8 @@ class AccuracyMeasurement(QMainWindow):
         
         ## add measurement button signal
         self.ui.addMeasurementBtn.clicked.connect(self.modify_measurement)
+        # create list to hold TRE measurement widgets
+        self.tre_rows = []
 
 
     def update_name_label(self):
@@ -520,11 +523,35 @@ class AccuracyMeasurement(QMainWindow):
     def create_new_row(self):
         # inside ui.coordsDataVBox
         new_row = QHBoxLayout()
-        # add 5 labels
-        for i in range(5):
-            label = QLabel(f"Label {i+1}")
-            new_row.addWidget(label)
+        source_pos_label = QLabel(str(random.randint(0, 100)))
+        target_pos_label = QLabel(str(random.randint(0, 100)))
+        true_pos_label = QLabel(str(random.randint(0, 100)))
+        tre_label = QLabel(str(random.randint(0, 100)))
+        remove_btn = QPushButton("Delete")
+        # add to layout
+        new_row.addWidget(source_pos_label)
+        new_row.addWidget(target_pos_label)
+        new_row.addWidget(true_pos_label)
+        new_row.addWidget(tre_label)
+        new_row.addWidget(remove_btn)
         self.ui.coordsDataVBox.addLayout(new_row)
+        # store to list
+        self.tre_rows.append(new_row)
+        # connect remove button signal
+        remove_btn.clicked.connect(lambda: self.connect_delete_button(remove_btn))
+
+
+    def connect_delete_button(self, remove_btn):
+        # locate tre_rows item that contains this remove_btn
+        for row in self.tre_rows:
+            if remove_btn in row.children(): # TODO fix this
+                for _ in range(5):
+                    row.removeWidget(row.itemAt(0).widget())
+                self.ui.coordsDataVBox.removeItem(row)
+                row.deleteLater()
+                self.tre_rows.remove(row)
+                break
+
 
     def closeEvent(self, event) -> None:
         # disconnect signals
