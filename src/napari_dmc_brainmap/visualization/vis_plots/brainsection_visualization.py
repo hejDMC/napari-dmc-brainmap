@@ -144,6 +144,7 @@ class BrainsectionVisualization:
             "color_genes": split_to_list(brainsec_widget.color_genes.value),
             "gene": gene,
             "color_brain_genes": brainsec_widget.color_brain_genes.value,
+            "color_hcr": split_to_list(brainsec_widget.color_hcr.value),
             "save_name": brainsec_widget.save_name.value,
             "save_fig": brainsec_widget.save_fig.value,
         }
@@ -330,7 +331,8 @@ class BrainsectionVisualization:
                 'injection_site': self._plot_injection_site,
                 'optic_fiber': self._plot_optic_or_probe,
                 'neuropixels_probe': self._plot_optic_or_probe,
-                'genes': self._plot_genes
+                'genes': self._plot_genes,
+                'hcr': self._plot_hcr,
             }
 
             for item, plot_data in plot_dict.items():
@@ -411,6 +413,36 @@ class BrainsectionVisualization:
             color=self.color_dict['cells']["cmap"] if self.color_dict['cells']['single_color'] else None,
             s=self.plotting_params["dot_size"],
             legend=False
+        )
+
+    def _plot_hcr(self, ax: plt.Axes, plot_data: pd.DataFrame, item: Optional[str] = None, annot_section_plt: Optional[np.ndarray] = None) -> None:
+        """
+        Plot HCR data.
+
+        Parameters:
+            ax (plt.Axes): Matplotlib axis to plot on.
+            plot_data (pd.DataFrame): Data to plot.
+            item (Optional[str]): Plot item key.
+            annot_section_plt (Optional[np.ndarray]): Annotated section array.
+        """
+        color_atlas = self.plotting_params['color_cells_atlas']
+        palette = (
+            {s: tuple([c / 255 for c in self.atlas.structures[s]['rgb_triplet']])
+             for s in plot_data.structure_id.unique()}
+            if color_atlas else None
+        )
+
+        sns.scatterplot(
+            ax=ax,
+            x=self.orient_mapping['x_plot'],
+            y=self.orient_mapping['y_plot'],
+            data=plot_data,
+            hue='structure_id' if color_atlas else (
+                'hcr' if not self.color_dict['hcr']['single_color'] else None),
+            palette=palette if color_atlas else (
+                self.color_dict['hcr']["cmap"] if not self.color_dict['hcr']['single_color'] else None),
+            color=self.color_dict['hcr']["cmap"] if self.color_dict['hcr']['single_color'] else None,
+            s=self.plotting_params["dot_size"]
         )
 
     def _plot_cells_density(self, ax: plt.Axes, plot_data: pd.DataFrame, item: Optional[str] = None, annot_section_plt: Optional[np.ndarray] = None) -> None:

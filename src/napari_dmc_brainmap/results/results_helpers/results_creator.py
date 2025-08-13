@@ -240,6 +240,8 @@ class ResultsCreator:
         if self.seg_type == "genes":
             section_data['cluster_id'] = segment_data['cluster_id']
             section_data['spot_id'] = segment_data['spot_id']
+        elif self.seg_type == 'hcr':
+            section_data['hcr'] = segment_data['hcr']
         return section_data
 
     def _regi_points_polygon(self, x_scaled: np.ndarray, y_scaled: np.ndarray) -> np.ndarray:

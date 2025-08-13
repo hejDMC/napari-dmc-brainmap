@@ -66,9 +66,14 @@ class BarplotVisualization:
         Returns:
             Dict: A dictionary of bar plot parameters.
         """
+        if barplot_widget.plot_item.value == 'hcr':
+            groups = 'hcr'
+        else:
+            groups = barplot_widget.groups.value
+
         self.plotting_params = {
             "gene_list": gene_list,
-            "groups": barplot_widget.groups.value,
+            "groups": groups,
             "horizontal": barplot_widget.orient.value,
             "figsize": split_to_list(barplot_widget.plot_size.value, out_format='int'),
             "xlabel": [barplot_widget.xlabel.value, int(barplot_widget.xlabel_size.value)],  # 0: label, 1: fontsize
@@ -134,7 +139,7 @@ class BarplotVisualization:
         Returns:
             pd.DataFrame: Transformed dataset.
         """
-        if self.plotting_params["groups"] in ["channel", "ipsi_contra"]:
+        if self.plotting_params["groups"] in ["channel", "ipsi_contra", "hcr"]:
             return df.pivot_table(index='tgt_name', columns=['animal_id', self.plotting_params["groups"]],
                                   aggfunc='count').fillna(0)
         elif self.plotting_params["gene_list"]:
@@ -198,13 +203,13 @@ class BarplotVisualization:
                 dummy_df = pd.DataFrame(df['ap_mm'][animal_id])
             elif self.plotting_params["absolute_numbers"] == 'percentage_selection':
                 sum_value = df['ap_mm'][animal_id].sum().sum() if self.plotting_params["groups"] in ["channel",
-                                                                                                "ipsi_contra"] else \
+                                                                                                "ipsi_contra", "hcr"] else \
                     df['ap_mm'][animal_id].sum()
                 dummy_df = pd.DataFrame((df['ap_mm'][animal_id] / sum_value) * 100)
             else:
                 dummy_df = pd.DataFrame(
                     (df['ap_mm'][animal_id] / len(self.df_all[self.df_all['animal_id'] == animal_id])) * 100)
-            if self.plotting_params["groups"] in ["channel", "ipsi_contra"]:
+            if self.plotting_params["groups"] in ["channel", "ipsi_contra", "hcr"]:
                 dummy_df = dummy_df.stack().reset_index()
                 dummy_df.rename(columns={self.plotting_params["groups"]: "groups", 0: 'percent'}, inplace=True)
             else:
@@ -216,7 +221,7 @@ class BarplotVisualization:
 
             df_to_plot = pd.concat([df_to_plot, dummy_df])
 
-        if self.plotting_params["groups"] not in ["channel", "ipsi_contra"]:
+        if self.plotting_params["groups"] not in ["channel", "ipsi_contra", "hcr"]:
             df_to_plot.index.name = 'tgt_name'
             df_to_plot.reset_index(inplace=True)
         if 'level_0' in df_to_plot.columns:

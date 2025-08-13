@@ -146,6 +146,11 @@ class ColorManager:
             elif item in ['projections', 'cells_density']:
                 cmap = self.create_custom_colormap(plotting_params.get(clr_id, False))
                 single_color = True
+            elif item == 'hcr':
+                cmap = self.create_color_palette({}, plotting_params, clr_id, df=data_dict[item],
+                                                 hue_id='hcr')
+                print(cmap)
+                single_color = False
             else:
                 num_probe = len(data_dict[item]['channel'].unique())
                 try:

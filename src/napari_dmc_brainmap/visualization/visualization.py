@@ -127,7 +127,7 @@ def initialize_barplot_widget() -> FunctionGui:
                              tooltip='enter the name of the folder in which figure/data will be saved under same name'),
               plot_item=dict(widget_type='ComboBox',
                               label='item to plot',
-                              choices=['cells', 'injection_site', 'projections', 'genes'],
+                              choices=['cells', 'injection_site', 'projections', 'genes', 'hcr'],
                               value='cells',
                               tooltip="select item to plot"),
               hemisphere=dict(widget_type='ComboBox', 
@@ -451,7 +451,7 @@ def initialize_brainsection_widget() -> FunctionGui:
                              tooltip='enter the name of the folder in which figure/data will be saved under same name'),
               plot_item=dict(widget_type='Select', 
                              label='item to plot',
-                             choices=['cells', 'cells_density', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe', 'genes'],
+                             choices=['cells', 'cells_density', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe', 'genes', 'hcr'],
                              tooltip='select items to plot cells/injection site/projection density, hold ctrl/shift to select multiple'),
               section_orient=dict(widget_type='ComboBox', 
                                   label='section orientation',
@@ -632,6 +632,11 @@ def initialize_brainsection_widget() -> FunctionGui:
                                     'cluster in brain area defines color) or gene expression (filepath needs to given '
                                     'above) or to perform Voronoi tessellation (area around spot receives color '
                                     'according to gene cluster or expression level of gene).'),
+              color_hcr=dict(widget_type='LineEdit',
+                               label='colors (hcr)',
+                               value='Blue,Orange',
+                               tooltip="enter a COMMA SEPERATED list for colors to use for the individual hcr genes. "
+                                       "NOTE: if you have >148 colors to set, use hex keys for setting colors."),
               call_button=False,
               scrollable=True)
 
@@ -671,7 +676,8 @@ def initialize_brainsection_widget() -> FunctionGui:
         color_npx,
         plot_gene,
         color_genes,
-        color_brain_genes):
+        color_brain_genes,
+        color_hcr):
         pass
     return brain_section_widget
 

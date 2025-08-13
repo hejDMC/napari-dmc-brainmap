@@ -135,7 +135,7 @@ def initialize_results_widget() -> FunctionGui:
               seg_type=dict(widget_type='ComboBox', 
                             label='segmentation type',
                             choices=['cells', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe',
-                                     'genes', 'single_cell'],
+                                     'genes', 'single_cell', 'hcr'],
                             value='cells',
                             tooltip="select the segmentation type you want to create results from."),
               channels=dict(widget_type='Select', 
