@@ -9,7 +9,7 @@
 project = 'napari-dmc-brainmap'
 copyright = '2025, DMC'
 author = 'DMC'
-release = '0.1.7b4'
+release = '0.1.7b5'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
