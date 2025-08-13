@@ -111,6 +111,10 @@ class ResultsQuantifier:
             save_fn = self.results_dir.joinpath(f'quantification_{self.seg_type}.csv')
 
         quant_df_pivot.to_csv(save_fn)
+        if not self.expression:
+            quant_df_pivot_raw = quant_df_pivot.loc[:, quant_df_pivot.columns != 'animal_id'] * len(self.results_data)
+            save_fn_raw = self.results_dir.joinpath(f'quantification_raw_number_{self.seg_type}.csv')
+            quant_df_pivot_raw.to_csv(save_fn_raw)
         p_data = [quant_df_pivot, self.chan, self.seg_type, self.results_data, self.expression, self.is_merge]
         # mpl_widget = self._plot_quant_data(quant_df_pivot)
         self.results_data = None
