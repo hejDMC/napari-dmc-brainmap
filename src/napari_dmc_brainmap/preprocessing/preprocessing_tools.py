@@ -84,12 +84,20 @@ def load_stitched_images(input_path: Union[str, Path], chan: str, image: str) ->
         Union[np.ndarray, bool]: Loaded image as a NumPy array, or False if the image is not found.
     """
     im_fn = input_path.joinpath('stitched', chan, f"{image}_stitched.tif")
-    if im_fn.exists():
-        return cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # Load in grayscale mode
-    raise FileNotFoundError(f"WARNING: No stitched images named {image}_stitched.tif found in {im_fn}. "
+    if not im_fn.exists():
+        raise FileNotFoundError(f"WARNING: No stitched images named {image}_stitched.tif found in {im_fn}. "
         "Do padding on images if _stitched.tif suffix is missing."
         "Ensure images have the '_stitched.tif' suffix and are single-channel 16-bit."
         "Please restart the preprocessing widget to continue.")
+    try:
+        img = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # Load in grayscale mode
+        if img is None:
+            raise ValueError("cv2.imread returned None")
+        return img
+    except Exception as e:
+        print(f"[INFO] OpenCV failed: {e}\nFalling back to tifffile...")
+        img = tifffile.imread(str(im_fn))
+        return img
 
 
 def downsample_and_adjust_contrast(
