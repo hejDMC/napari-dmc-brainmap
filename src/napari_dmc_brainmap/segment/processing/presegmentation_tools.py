@@ -241,7 +241,7 @@ class CellsSegmenter(PreSegmenter):
 
         reader = AICSImage(str(image_path))
         img = reader.data.astype(np.float32)
-        if self.cells_params["single_channel"] == 'single_channel':
+        if self.cells_params["single_channel"]:
             img_struct = img[0, 0, 0, :, :].copy()
         else: # for RGB images
             chan_dict = {

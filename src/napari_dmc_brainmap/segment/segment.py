@@ -266,7 +266,7 @@ def initialize_loadpreseg_widget() -> FunctionGui:
                                   label='folder name with presegmented data',
                                   value='presegmentation',
                                   tooltip='folder needs to contain sub-folders with channel names. WARNING: if the channel is called '
-                                          '*segmentation*, manual curation will override existing data. '
+                                          '*segmentation* (as for loading old data), manual curation will override existing data. Copy the folder if you want to keep data. '
                                           'Presegmented data needs to be .csv file and column names specifying *Position X* and '
                                           '*Position Y* for coordinates. For loading neuropixels/optic fiber data specify the number of probes correctly.'),
               call_button=False,
@@ -472,7 +472,7 @@ class SegmentWidget(QWidget):
         self.segment.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self.save_dict = self._default_save_dict()
 
-        self._collapse_load_preseg = QCollapsible('Load presegmented data: expand for more', self)
+        self._collapse_load_preseg = QCollapsible('Load old/presegmented data: expand for more', self)
         self.load_preseg = initialize_loadpreseg_widget()
         self.load_preseg.native.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
         self._collapse_load_preseg.addWidget(self.load_preseg.root_native_widget)
@@ -624,7 +624,7 @@ class SegmentWidget(QWidget):
         else:
             path_to_im = get_path_to_im(input_path, image_idx)
             self._load_rgb(path_to_im, channels, contrast_dict)
-        self._create_seg_objects(input_path, seg_type, channels, n_probes, image_idx)
+        self._create_seg_objects(input_path, seg_type, channels, n_probes, image_idx, single_channel)
 
         show_info(f"loaded {path_to_im.parts[-1]} (cnt={str(image_idx)})")
         image_idx += 1
@@ -666,7 +666,7 @@ class SegmentWidget(QWidget):
         self.viewer.add_image(im_loaded, name=f'{chan} channel', colormap=cmap_disp[chan], opacity=0.5)
         self.viewer.layers[f'{chan} channel'].contrast_limits = contrast_dict[chan]
 
-    def _load_preseg_object(self, input_path: Path, chan: str, image_idx: int, seg_type: str) -> np.ndarray:
+    def _load_preseg_object(self, input_path: Path, chan: str, image_idx: int, seg_type: str, single_channel: bool) -> np.ndarray:
         """
         Load pre-segmented data for a specific image and channel.
 
@@ -675,6 +675,7 @@ class SegmentWidget(QWidget):
             chan (str): The channel being processed.
             image_idx (int): The index of the image being segmented.
             seg_type (str): The type of segmentation.
+            single_channel (bool): Whether to process single-channel images.
 
         Returns:
             np.ndarray: Array of pre-segmented data.
@@ -682,7 +683,10 @@ class SegmentWidget(QWidget):
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type,
                                                              channel=chan)
-        im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
+        if single_channel:
+            im_name = get_path_to_im(input_path, image_idx, single_channel=single_channel, chan=chan, pre_seg=True)
+        else:
+            im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(f'{im_name}_')]
         if len(fn_to_load) > 0:
             pre_seg_data_dir = pre_seg_dir.joinpath(fn_to_load[0])
@@ -702,11 +706,10 @@ class SegmentWidget(QWidget):
                 pre_seg_data = []
         else:
             pre_seg_data = []
-
         return pre_seg_data
 
     def _create_seg_objects(self, input_path: Path, seg_type: str, channels: List[str], n_probes: int,
-                            image_idx: int) -> None:
+                            image_idx: int, single_channel: bool) -> None:
         """
         Create segmentation objects in the viewer for the specified image and segmentation type.
 
@@ -716,12 +719,13 @@ class SegmentWidget(QWidget):
             channels (List[str]): List of channels to process.
             n_probes (int): The number of probes.
             image_idx (int): The index of the image being segmented.
+            single_channel (bool): Whether to process single-channel images.
         """
         if seg_type == 'injection_site':
             cmap_dict = get_cmap('injection')
             if self.load_preseg.load_bool.value:
                 for chan in channels:
-                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
+                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type, single_channel)
                     if type(pre_seg_data) is list:
                         for inj_poly in pre_seg_data:
                             self.viewer.add_shapes(inj_poly, name=chan, shape_type='polygon', face_color=cmap_dict[chan],
@@ -736,7 +740,7 @@ class SegmentWidget(QWidget):
             cmap_dict = get_cmap('cells')
             if self.load_preseg.load_bool.value:
                 for chan in channels:
-                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type)
+                    pre_seg_data = self._load_preseg_object(input_path, chan, image_idx, seg_type, single_channel)
                     self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=chan,
                                            face_color=cmap_dict[chan])
             else:
@@ -752,7 +756,7 @@ class SegmentWidget(QWidget):
                     p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 p_id = f'{seg_type}_{str(i)}'
                 if self.load_preseg.load_bool.value:
-                    pre_seg_data = self._load_preseg_object(input_path, p_id, image_idx, seg_type)
+                    pre_seg_data = self._load_preseg_object(input_path, p_id, image_idx, seg_type, single_channel)
                     self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=p_id,
                                            face_color=p_color)
                 else:

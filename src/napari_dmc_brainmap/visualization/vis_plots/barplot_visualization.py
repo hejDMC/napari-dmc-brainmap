@@ -379,7 +379,6 @@ class BarplotVisualization:
             y_var (str): Y-axis variable.
             plot_orient (str): Plot orientation ('h' for horizontal, 'v' for vertical).
         """
-        data.to_csv('/home/felix/Desktop/123456/data.csv', index=False)
         hue = 'animal_id' if self.plotting_params["groups"] == 'animal_id' else 'groups'
         cmap = self.color_manager.create_color_palette([], self.plotting_params, "bar_palette", df=data, hue_id=hue)
         scatter_palette = self._check_color_palette(self.plotting_params["scatter_palette"], bar=False)
