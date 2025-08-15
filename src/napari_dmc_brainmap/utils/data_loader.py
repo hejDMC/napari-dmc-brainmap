@@ -4,6 +4,7 @@ from typing import List, Union
 import pandas as pd
 from natsort import natsorted
 from napari_dmc_brainmap.utils.path_utils import get_info
+from napari_dmc_brainmap.utils.atlas_utils import get_bregma, coord_mm_transform
 from bg_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 
@@ -32,6 +33,7 @@ class DataLoader:
         self.channels = channels
         self.data_type = data_type
         self.hemisphere = hemisphere
+        self.bregma = get_bregma(atlas.atlas_name)
 
     def load_data(self) -> pd.DataFrame:
         """
@@ -50,7 +52,10 @@ class DataLoader:
             params = self._load_params(self.input_path.joinpath(animal_id, 'params.json'))
 
             for channel in self.channels:
-                results_data = self._load_channel_data(animal_id, channel)
+                if self.data_type == 'swc':
+                    results_data = self._load_swc_data(animal_id, channel)
+                else:
+                    results_data = self._load_channel_data(animal_id, channel)
                 if results_data is None:
                     continue
                 if self.data_type in ["optic_fiber", "neuropixels_probe"]:
@@ -169,6 +174,39 @@ class DataLoader:
             return None
 
         return pd.read_csv(results_file)
+
+    def _load_swc_data(self, animal_id: str, channel: str) -> Union[pd.DataFrame, None]:
+        """
+        Load swc data for a specific channel of an animal.
+
+        Parameters:
+            animal_id (str): Identifier of the animal.
+            channel (str): Identifier of the channel.
+
+        Returns:
+            pd.DataFrame or None: Loaded channel data or None if file is not found.
+        """
+        swc_merge = pd.DataFrame()
+        results_dir = get_info(self.input_path.joinpath(animal_id), 'results', seg_type=self.data_type, channel=channel,
+                               only_dir=True)
+        results_file = results_dir.joinpath(f"{animal_id}_{self.data_type}.csv")
+        if not results_file.exists():
+            show_info(f"WARNING: Data file {results_file} does not exist. Skipping...")
+            return None
+
+        results_descriptor = pd.read_csv(results_file)
+        for index, row in results_descriptor.iterrows():
+            swc_fn = results_dir.joinpath(row['swc_file'])
+            cols = ["id", "type", "ml_coords", "ap_coords", "dv_coords", "radius", "parent"]
+            swc_df = pd.read_csv(swc_fn, comment="#", delim_whitespace=True, names=cols)
+            swc_df['neuron_id'] = row['swc_file'].split('.')[0]
+            swc_df['group_id'] = row['group']
+            swc_df['animal_id'] = animal_id
+            swc_merge = pd.concat((swc_merge, swc_df), ignore_index=True)
+        coords = swc_merge[["ap_coords", "dv_coords", "ml_coords"]].to_numpy()
+        mm_coords = [coord_mm_transform(row, self.bregma, self.atlas.space.resolution) for row in coords]
+        swc_merge[["ap_mm", "dv_mm", "ml_mm"]] = pd.DataFrame(mm_coords, index=swc_merge.index)
+        return swc_merge
 
     def _get_ipsi_contra(self, df: pd.DataFrame) -> pd.DataFrame:
         """

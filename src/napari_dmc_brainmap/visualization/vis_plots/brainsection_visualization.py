@@ -145,6 +145,8 @@ class BrainsectionVisualization:
             "gene": gene,
             "color_brain_genes": brainsec_widget.color_brain_genes.value,
             "color_hcr": split_to_list(brainsec_widget.color_hcr.value),
+            "color_swc": split_to_list(brainsec_widget.color_swc.value),
+            "group_swc": brainsec_widget.group_swc.value,
             "save_name": brainsec_widget.save_name.value,
             "save_fig": brainsec_widget.save_fig.value,
         }
@@ -207,7 +209,16 @@ class BrainsectionVisualization:
         annot_data = self._generate_brain_schematic(slice_idx)
         plot_dict = {}
         for item in self.data_dict:
-            plot_dict[item] = self.data_dict[item][(self.data_dict[item][self.orient_mapping['z_plot'][0]] >= target_z[0])
+            if item == 'swc':
+                scw_filt_ids = []
+                for n_id in self.data_dict[item]['neuron_id'].unique():
+                    if self.data_dict[item][(self.data_dict[item]['type'] == 1) &
+                                            (self.data_dict[item]['neuron_id'] == n_id)][self.orient_mapping['z_plot'][0]].between(target_z[0],target_z[1]).any():
+                            scw_filt_ids.append(n_id)
+                plot_dict[item] = self.data_dict[item][self.data_dict[item]['neuron_id'].isin(scw_filt_ids)]
+
+            else:
+                plot_dict[item] = self.data_dict[item][(self.data_dict[item][self.orient_mapping['z_plot'][0]] >= target_z[0])
                                               & (self.data_dict[item][self.orient_mapping['z_plot'][0]] <= target_z[1])]
             if item == 'genes' and self.plotting_params['color_brain_genes'] == 'voronoi':
                 # calculate colors according to number of cluster_ids in brain regions
@@ -333,6 +344,7 @@ class BrainsectionVisualization:
                 'neuropixels_probe': self._plot_optic_or_probe,
                 'genes': self._plot_genes,
                 'hcr': self._plot_hcr,
+                'swc': self._plot_swc
             }
 
             for item, plot_data in plot_dict.items():
@@ -444,6 +456,83 @@ class BrainsectionVisualization:
             color=self.color_dict['hcr']["cmap"] if self.color_dict['hcr']['single_color'] else None,
             s=self.plotting_params["dot_size"]
         )
+
+    def _plot_swc(self, ax: plt.Axes, plot_data: pd.DataFrame, item: Optional[str] = None, annot_section_plt: Optional[np.ndarray] = None) -> None:
+        """
+        Plot HCR data.
+
+        Parameters:
+            ax (plt.Axes): Matplotlib axis to plot on.
+            plot_data (pd.DataFrame): Data to plot.
+            item (Optional[str]): Plot item key.
+            annot_section_plt (Optional[np.ndarray]): Annotated section array.
+        """
+        plot_group = self.plotting_params['group_swc']
+        for n_id in plot_data['neuron_id'].unique():
+            if self.color_dict['swc']['single_color']:
+                color = self.color_dict['swc']['cmap']
+            else:
+                if not plot_group:
+                    color = self.color_dict['swc']['cmap'].get(n_id, 'k')
+                else:
+                    color = self.color_dict['swc']['cmap'].get(plot_data[plot_data['neuron_id'] == n_id]['group_id'].unique()[0], 'k')
+            swc = plot_data[plot_data['neuron_id'] == n_id]
+            idx_of = {nid: i for i, nid in enumerate(swc["id"].values)}
+            for _, row in swc.iterrows():
+                pid = int(row["parent"])
+                if pid == -1 or pid not in idx_of:
+                    continue
+                parent = swc.iloc[idx_of[pid]]
+
+                x1, y1 = row[self.orient_mapping['x_plot']], row[self.orient_mapping['y_plot']]
+                x0, y0 = parent[self.orient_mapping['x_plot']], parent[self.orient_mapping['y_plot']]
+                # color = type_colors.get(int(row["type"]), "k")
+
+                ax.plot([x0, x1], [y0, y1], color=color, lw=0.5)
+        soma_df = plot_data[plot_data['type'] == 1]
+        if not soma_df.empty:
+            sns.scatterplot(
+                ax=ax,
+                x=self.orient_mapping['x_plot'],
+                y=self.orient_mapping['y_plot'],
+                data=soma_df,
+                hue='group_id' if plot_group else (
+                    'neuron_id' if not self.color_dict['swc']['single_color'] else None),
+                palette=self.color_dict['swc']["cmap"] if not self.color_dict['swc']['single_color'] else None,
+                color=self.color_dict['swc']["cmap"] if self.color_dict['swc']['single_color'] else None,
+                s=self.plotting_params["dot_size"]
+            )
+        #     soma = swc[swc["type"] == 1]
+        #     if not soma.empty:
+        #         ax.scatter(
+        #             soma[self.orient_mapping['x_plot']],
+        #             soma[self.orient_mapping['y_plot']],
+        #             s=15,
+        #             color=color,
+        #             label=n_id if not self.plotting_params['group_swc'] else
+        #             plot_data[plot_data['neuron_id'] == n_id]['group_id'].unique()[0],
+        #         )
+        # if not self.color_dict['swc']['single_color']:
+        #     ax.legend()
+        # color_atlas = self.plotting_params['color_cells_atlas']
+        # palette = (
+        #     {s: tuple([c / 255 for c in self.atlas.structures[s]['rgb_triplet']])
+        #      for s in plot_data.structure_id.unique()}
+        #     if color_atlas else None
+        # )
+        #
+        # sns.scatterplot(
+        #     ax=ax,
+        #     x=self.orient_mapping['x_plot'],
+        #     y=self.orient_mapping['y_plot'],
+        #     data=plot_data,
+        #     hue='structure_id' if color_atlas else (
+        #         'hcr' if not self.color_dict['hcr']['single_color'] else None),
+        #     palette=palette if color_atlas else (
+        #         self.color_dict['hcr']["cmap"] if not self.color_dict['hcr']['single_color'] else None),
+        #     color=self.color_dict['hcr']["cmap"] if self.color_dict['hcr']['single_color'] else None,
+        #     s=self.plotting_params["dot_size"]
+        # )
 
     def _plot_cells_density(self, ax: plt.Axes, plot_data: pd.DataFrame, item: Optional[str] = None, annot_section_plt: Optional[np.ndarray] = None) -> None:
         """

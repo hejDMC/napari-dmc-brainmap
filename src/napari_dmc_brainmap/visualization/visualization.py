@@ -451,8 +451,10 @@ def initialize_brainsection_widget() -> FunctionGui:
                              tooltip='enter the name of the folder in which figure/data will be saved under same name'),
               plot_item=dict(widget_type='Select', 
                              label='item to plot',
-                             choices=['cells', 'cells_density', 'injection_site', 'projections', 'optic_fiber', 'neuropixels_probe', 'genes', 'hcr'],
-                             tooltip='select items to plot cells/injection site/projection density, hold ctrl/shift to select multiple'),
+                             choices=['cells', 'cells_density', 'injection_site', 'projections', 'optic_fiber',
+                                      'neuropixels_probe', 'genes', 'hcr', 'swc'],
+                             tooltip='select items to plot cells/injection site/projection density, '
+                                     'hold ctrl/shift to select multiple.'),
               section_orient=dict(widget_type='ComboBox', 
                                   label='section orientation',
                                   choices=['coronal', 'sagittal', 'horizontal'], 
@@ -637,6 +639,20 @@ def initialize_brainsection_widget() -> FunctionGui:
                                value='Blue,Orange',
                                tooltip="enter a COMMA SEPERATED list for colors to use for the individual hcr genes. "
                                        "NOTE: if you have >148 colors to set, use hex keys for setting colors."),
+              color_swc=dict(widget_type='LineEdit',
+                               label='colors (swc)',
+                               value='Black,Gray',
+                               tooltip="enter a COMMA SEPERATED list for colors to use for the .swc neuron morphologies. "
+                                       "NOTE: if you have >148 colors to set, use hex keys for setting colors.\n"
+                                       "If you want to color all neurons differently, type 'random' here. Otherwise all "
+                                       "are in the same color. For using the same color to all neurons add '*' to "
+                                       "color name, e.g. 'black*'."
+                                       "Consult the Github Wiki page for details on data formatting."),
+              group_swc=dict(widget_type='CheckBox',
+                            label='Use grouping variable for swc data?',
+                            value=True,
+                            tooltip='Tick to select grouping variable for swc data. '
+                                    'Consult the Github Wiki page for details on data formatting.'),
               call_button=False,
               scrollable=True)
 
@@ -677,7 +693,9 @@ def initialize_brainsection_widget() -> FunctionGui:
         plot_gene,
         color_genes,
         color_brain_genes,
-        color_hcr):
+        color_hcr,
+        color_swc,
+        group_swc):
         pass
     return brain_section_widget
 
@@ -974,7 +992,7 @@ class VisualizationWidget(QWidget):
             results (List): Data and annotations for the brain section plots.
         """
         if not self.brainsection_vis:
-            show_info("Error: HeatmapVisualization object does not exist.")
+            show_info("Error: BrainsectionVisualization object does not exist.")
             return
         # self.btn_brainsection.setText("Creating plots...")
         mpl_widget = self.brainsection_vis.do_plot(results)
@@ -1023,7 +1041,6 @@ class VisualizationWidget(QWidget):
             ).load_data()
             for item in plot_item
         }
-
         if self.brainsection.plot_gene.value == 'expression':
             if self.gene_expression_df.empty:
                 self.btn_brainsection.setText("Loading gene expression data...")

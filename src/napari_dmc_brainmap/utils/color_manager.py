@@ -149,8 +149,28 @@ class ColorManager:
             elif item == 'hcr':
                 cmap = self.create_color_palette({}, plotting_params, clr_id, df=data_dict[item],
                                                  hue_id='hcr')
-                print(cmap)
                 single_color = False
+            elif item == 'swc':
+                if plotting_params["group_swc"]:
+                    cmap = self.create_color_palette({}, plotting_params, clr_id, df=data_dict[item],
+                                                     hue_id='group_id')
+                    single_color = False
+                else:
+                    if plotting_params.get("color_swc", 'black') == 'random':
+                        cmap = self.create_color_palette({}, plotting_params, [], df=data_dict[item],
+                                                         hue_id='neuron_id')
+                        single_color = False
+                    elif '*' in plotting_params['color_swc'][0]:
+                        try:
+                            cmap = plotting_params.get(clr_id, [random.choice(self.default_colors)])[0].strip('*')
+                        except TypeError:
+                            cmap = random.choice(self.default_colors)
+                        cmap = self.check_color_name(cmap)
+                        single_color = True
+                    else:
+                        cmap = self.create_color_palette({}, plotting_params, clr_id, df=data_dict[item],
+                                                         hue_id='neuron_id')
+                        single_color = False
             else:
                 num_probe = len(data_dict[item]['channel'].unique())
                 try:
