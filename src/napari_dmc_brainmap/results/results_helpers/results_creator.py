@@ -159,7 +159,11 @@ class ResultsCreator:
                     section_data = self._transform_points_to_regi(im, segment_dir, segment_suffix, seg_im_dir,
                                                                 seg_im_suffix, regi_dir, regi_suffix)
                     if not self.include_all:
-                        section_data = section_data[section_data['structure_id'] != 0].reset_index(drop=True)
+                        if section_data is None:
+                            print(f"Skipping empty section data for image: {im}")
+                        else:
+                            print(f"Processing section data for image: {im}")
+                            section_data = section_data[section_data['structure_id'] != 0].reset_index(drop=True)
                     if section_data is not None:
                         data = pd.concat((data, section_data))
                 except KeyError:
@@ -238,6 +242,7 @@ class ResultsCreator:
         self.s.setSlice(curr_im + regi_suffix)
         section_data = self.s.getBrainArea(coords, (curr_im + regi_suffix))
         if self.seg_type == "genes":
+            assert section_data is not None
             section_data['cluster_id'] = segment_data['cluster_id']
             section_data['spot_id'] = segment_data['spot_id']
         elif self.seg_type == 'hcr':
