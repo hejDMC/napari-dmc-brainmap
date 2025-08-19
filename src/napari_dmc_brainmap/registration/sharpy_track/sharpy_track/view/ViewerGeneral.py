@@ -1,4 +1,6 @@
-from PyQt5.QtWidgets import QLabel,QGraphicsScene,QFrame, QGraphicsItemGroup, QGraphicsPixmapItem
+from PyQt5.QtWidgets import QLabel,QGraphicsScene,QFrame, QGraphicsItemGroup, QGraphicsPixmapItem, QGraphicsEllipseItem
+from PyQt5.QtGui import QColor, QPen
+from PyQt5.QtCore import Qt
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.QGraphicsViewerMT import QGraphicsViewMT
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import mapPointTransform
 import numpy as np
@@ -83,4 +85,35 @@ class ViewerGeneral():
 
     def clearTargetPointHover(self):
         self.regViewer.widget.viewerLeft.scene.removeItem(self.targetPointHover.childItems()[0])
+
+
+    # click handler to finalize source point when target projection is valid
+    def handleSourceClick(self):
+        # require a valid projected target marker present
+        if not self.targetPointHover.childItems():
+            return
+        # source click position on right viewer
+        x_src = np.round(self.view.clickPos[0]).astype(int)
+        y_src = np.round(self.view.clickPos[1]).astype(int)
+        # compute target and validate bounds
+        x_target, y_target = mapPointTransform(x_src, y_src, self.tform)
+        x_target = np.round(x_target).astype(int)
+        y_target = np.round(y_target).astype(int)
+        if any([
+                x_target < 0,
+                x_target >= self.regViewer.singleWindowSize[0],
+                y_target < 0,
+                y_target >= self.regViewer.singleWindowSize[1]
+                ]):
+            return
+        # add source dot on right viewer
+        self.addSourceDot(x_src, y_src)
+
+
+    def addSourceDot(self, x: int, y: int, diameter: int = 8) -> None:
+        ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)
+        ellipse.setBrush(QColor(255, 140, 0))  # solid dark orange
+        ellipse.setPen(QPen(Qt.NoPen))
+        ellipse.setPos(x - diameter // 2, y - diameter // 2)
+        self.scene.addItem(ellipse) # TODO: keep track of created ellipse object
 

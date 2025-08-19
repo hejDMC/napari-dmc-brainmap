@@ -496,12 +496,14 @@ class AccuracyMeasurement(QMainWindow):
         # add targetPointHover group to scene
         self.regViewer.widget.viewerLeft.scene.addItem(self.regViewer.widget.viewerRight.targetPointHover)
         self.regViewer.widget.viewerRight.view.mouseMoved.connect(self.regViewer.widget.viewerRight.projectSourcePos)
+        self.regViewer.widget.viewerRight.view.mouseClicked.connect(self.regViewer.widget.viewerRight.handleSourceClick)
 
     def hide_measurement_pointer(self):
         # Hide the measurement pointer
         self.regViewer.widget.viewerRight.view.viewport().setCursor(Qt.ArrowCursor)
         # disable position tracking
         self.regViewer.widget.viewerRight.view.mouseMoved.disconnect(self.regViewer.widget.viewerRight.projectSourcePos)
+        self.regViewer.widget.viewerRight.view.mouseClicked.disconnect(self.regViewer.widget.viewerRight.handleSourceClick)
         # clear tform and targetPointHover
         self.regViewer.widget.viewerRight.tform = None
         for item in self.regViewer.widget.viewerRight.targetPointHover.childItems():

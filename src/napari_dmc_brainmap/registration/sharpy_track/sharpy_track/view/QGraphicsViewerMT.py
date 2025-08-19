@@ -5,6 +5,7 @@ class QGraphicsViewMT(QGraphicsView):
     mouseMoved = QtCore.pyqtSignal()
     mouseEntered = QtCore.pyqtSignal()
     mouseLeft = QtCore.pyqtSignal()
+    mouseClicked = QtCore.pyqtSignal()
     """
     Custom QGraphicsView with mouse tracking and enter/leave signals
     """
@@ -15,6 +16,12 @@ class QGraphicsViewMT(QGraphicsView):
         self.cursorPos = [event.pos().x(),event.pos().y()]
         self.mouseMoved.emit()
         super(QGraphicsViewMT, self).mouseMoveEvent(event)
+    
+    def mousePressEvent(self, event):
+        # store click position and emit click signal
+        self.clickPos = [event.pos().x(), event.pos().y()]
+        self.mouseClicked.emit()
+        super(QGraphicsViewMT, self).mousePressEvent(event)
     
     def enterEvent(self, event):
         """Override enterEvent to emit custom signal"""
