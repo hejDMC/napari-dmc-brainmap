@@ -41,9 +41,10 @@ class ViewerGeneral():
     
     # to be connected with mouseMoved signal on the right viewer
     def projectSourcePos(self):
-        x_target, y_target = mapPointTransform(self.view.cursorPos[0], self.view.cursorPos[1], self.tform)
+        x_src, y_src = np.round(self.view.cursorPos[0]).astype(int), np.round(self.view.cursorPos[1]).astype(int)
+        x_target, y_target = mapPointTransform(x_src, y_src, self.tform)
         # round
-        x_target, y_target = np.round(x_target), np.round(y_target)
+        x_target, y_target = np.round(x_target).astype(int), np.round(y_target).astype(int)
         # within boundary check
         if any([
                 x_target < 0,
@@ -69,6 +70,15 @@ class ViewerGeneral():
                 item = QGraphicsPixmapItem(self.regViewer.measurementPage.pixmap_y_32)
                 self.targetPointHover.addToGroup(item)
                 self.targetPointHover.childItems()[0].setPos(x_target - 16, y_target - 16)
+
+        # Update live labels if a row is active
+        row = getattr(self.regViewer.measurementPage, 'unset_tre_row', None)
+        if row is not None:
+            row.source_pos_label.setText(f"({x_src}, {y_src})")
+            if self.targetPointHover.childItems():
+                row.target_pos_label.setText(f"({x_target}, {y_target})")
+            else:
+                row.target_pos_label.setText("[Out of Bounds]")
 
 
     def clearTargetPointHover(self):

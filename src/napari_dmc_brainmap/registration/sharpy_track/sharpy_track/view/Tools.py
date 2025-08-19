@@ -378,6 +378,7 @@ class AccuracyMeasurement(QMainWindow):
         self.ui.setupUi(self)
         # widget specific state variables
         self.measurement_state = "ready"
+        self.unset_tre_row = None
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
@@ -425,8 +426,6 @@ class AccuracyMeasurement(QMainWindow):
             self.display_target_projection()
             # setup abort action callback
             self.setup_abort_callback()
-            # create new data row
-            self.create_new_row()
 
 
         elif any([self.measurement_state == "abort",
@@ -439,6 +438,10 @@ class AccuracyMeasurement(QMainWindow):
                 self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.hide_measurement_pointer)
             except TypeError:
                 pass
+            # remove any unset row reference in case of sudden exit
+            if self.unset_tre_row is not None:
+                self.unset_tre_row.remove_row()
+                self.unset_tre_row = None
             self.ui.addMeasurementBtn.setText("Add Measurement")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
             self.measurement_state = "ready"
@@ -482,6 +485,10 @@ class AccuracyMeasurement(QMainWindow):
     def show_measurement_pointer(self):
         # Show the measurement pointer
         self.regViewer.widget.viewerRight.view.viewport().setCursor(self.cursor_y_64)
+        # create TreRow upon entering viewerRight in measurement mode
+        assert self.measurement_state == "waiting_source" and self.unset_tre_row is None
+        self.unset_tre_row = self.create_new_row()
+
         # enable position tracking
         # project source position to target position using current transformation matrix
         self.regViewer.widget.viewerRight.tform = fitGeoTrans(self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber], 
@@ -500,6 +507,10 @@ class AccuracyMeasurement(QMainWindow):
         for item in self.regViewer.widget.viewerRight.targetPointHover.childItems():
             self.regViewer.widget.viewerRight.targetPointHover.removeFromGroup(item)
         self.regViewer.widget.viewerLeft.scene.removeItem(self.regViewer.widget.viewerRight.targetPointHover)
+        # remove TreRow when mouse leaves viewerRight
+        if self.unset_tre_row is not None:
+            self.unset_tre_row.remove_row()
+            self.unset_tre_row = None
     
     def setup_abort_callback(self):
         self.regViewer.widget.sampleSlider.valueChanged.connect(self.abort_action)
@@ -527,7 +538,7 @@ class AccuracyMeasurement(QMainWindow):
         self.modify_measurement()
     
     def create_new_row(self):
-        TreRow(self)
+        return TreRow(self)
         
 
     def closeEvent(self, event) -> None:
