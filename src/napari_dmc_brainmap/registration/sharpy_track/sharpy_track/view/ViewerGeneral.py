@@ -52,14 +52,14 @@ class ViewerGeneral():
                 y_target >= self.regViewer.singleWindowSize[1]
                 ]):
             # target point out of boundary, indicate with red cursor on the right viewer
-            self.regViewer.widget.viewerRight.view.setCursor(self.regViewer.measurementPage.cursor_r_64)
+            self.regViewer.widget.viewerRight.view.viewport().setCursor(self.regViewer.measurementPage.cursor_r_64)
             # clear target point marker
             if self.targetPointHover.childItems():
                 self.clearTargetPointHover()
             # PREVENT THE CREATION OF SOURCE DOT
         else:
             # switch cursor to yellow pointer
-            self.regViewer.widget.viewerRight.view.setCursor(self.regViewer.measurementPage.cursor_y_64)
+            self.regViewer.widget.viewerRight.view.viewport().setCursor(self.regViewer.measurementPage.cursor_y_64)
             # check if there is already a pixmap item in the list
             if self.targetPointHover.childItems():
                 # update the position of the existing item

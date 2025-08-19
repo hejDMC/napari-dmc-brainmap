@@ -481,7 +481,7 @@ class AccuracyMeasurement(QMainWindow):
 
     def show_measurement_pointer(self):
         # Show the measurement pointer
-        self.regViewer.widget.viewerRight.view.setCursor(self.cursor_y_64)
+        self.regViewer.widget.viewerRight.view.viewport().setCursor(self.cursor_y_64)
         # enable position tracking
         # project source position to target position using current transformation matrix
         self.regViewer.widget.viewerRight.tform = fitGeoTrans(self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber], 
@@ -492,7 +492,7 @@ class AccuracyMeasurement(QMainWindow):
 
     def hide_measurement_pointer(self):
         # Hide the measurement pointer
-        self.regViewer.widget.viewerRight.view.setCursor(Qt.ArrowCursor)
+        self.regViewer.widget.viewerRight.view.viewport().setCursor(Qt.ArrowCursor)
         # disable position tracking
         self.regViewer.widget.viewerRight.view.mouseMoved.disconnect(self.regViewer.widget.viewerRight.projectSourcePos)
         # clear tform and targetPointHover
