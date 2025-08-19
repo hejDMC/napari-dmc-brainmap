@@ -434,8 +434,11 @@ class AccuracyMeasurement(QMainWindow):
             self.detach_abort_callback()
             if self.regViewer.widget.viewerRight.targetPointHover.childItems():
                 self.hide_measurement_pointer()
-            self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.show_measurement_pointer)
-            self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.hide_measurement_pointer)
+            try:
+                self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.show_measurement_pointer)
+                self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.hide_measurement_pointer)
+            except TypeError:
+                pass
             self.ui.addMeasurementBtn.setText("Add Measurement")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
             self.measurement_state = "ready"
@@ -507,11 +510,17 @@ class AccuracyMeasurement(QMainWindow):
 
 
     def detach_abort_callback(self):
-        self.regViewer.widget.sampleSlider.valueChanged.disconnect(self.abort_action)
-        self.regViewer.widget.x_slider.valueChanged.disconnect(self.abort_action)
-        self.regViewer.widget.y_slider.valueChanged.disconnect(self.abort_action)
-        self.regViewer.widget.z_slider.valueChanged.disconnect(self.abort_action)
-        self.regViewer.widget.toggle.clicked.disconnect(self.abort_action)
+        for sig in [
+            self.regViewer.widget.sampleSlider.valueChanged,
+            self.regViewer.widget.x_slider.valueChanged,
+            self.regViewer.widget.y_slider.valueChanged,
+            self.regViewer.widget.z_slider.valueChanged,
+            self.regViewer.widget.toggle.clicked
+        ]:
+            try:
+                sig.disconnect(self.abort_action)
+            except TypeError:
+                pass
 
     def abort_action(self):
         self.measurement_state = "abort"
@@ -525,5 +534,7 @@ class AccuracyMeasurement(QMainWindow):
         # disconnect signals
         self.regViewer.widget.sampleSlider.valueChanged.disconnect(self.update_name_label)
         self.regViewer.widget.toggle.clicked.disconnect(self.flip_page)
+        if self.measurement_state == "waiting_source":
+            self.abort_action()
         self.regViewer.del_accmea_instance()
     
