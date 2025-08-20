@@ -164,7 +164,10 @@ class ViewerGeneral():
         self.regViewer.measurementPage.active_rows["row_obj"][-1].connect_delete_btn()
         
         self.regViewer.measurementPage.active_rows["row_obj"][-1].remove_btn.setEnabled(True)
-        # implement row selection highlight
+        
+        for row in self.regViewer.measurementPage.active_rows["row_obj"]:
+            row.setMouseTracking(True)
+        
 
 
     

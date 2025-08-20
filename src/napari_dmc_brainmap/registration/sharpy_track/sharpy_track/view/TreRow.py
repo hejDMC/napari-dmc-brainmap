@@ -1,4 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PyQt5.QtGui import QColor
+from PyQt5.QtCore import Qt
 
 class TreRow(QWidget):
     def __init__(self, measurementPage):
@@ -22,6 +24,50 @@ class TreRow(QWidget):
         # disabled for now
         self.remove_btn.setEnabled(False)
         self.row_hbox.addWidget(self.remove_btn)
+        
+        # Enable mouse tracking for hover events
+        self.setMouseTracking(True)
+        self.is_hovered = False
+
+    def enterEvent(self, event):
+        """Handle mouse enter event for hover selection"""
+        if self.measurementPage.measurement_state == "ready":
+            self.is_hovered = True
+            self.apply_hover_style()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        """Handle mouse leave event for hover selection"""
+        if self.measurementPage.measurement_state == "ready":
+            self.is_hovered = False
+            self.apply_normal_style()
+        super().leaveEvent(event)
+
+    def apply_hover_style(self):
+        """Apply hover style - light orange background and red dots"""
+        # Set light orange background for the row
+        self.setStyleSheet("background-color: rgb(255, 200, 150);")
+        
+        # Find the index of this row in the active_rows
+        if self in self.measurementPage.active_rows["row_obj"]:
+            idx = self.measurementPage.active_rows["row_obj"].index(self)
+            # Change source dot color to red
+            self.measurementPage.active_rows["source_obj"][idx].setBrush(QColor(255, 0, 0))
+            # Change truth dot color to red
+            self.measurementPage.active_rows["truth_obj"][idx].setBrush(QColor(255, 0, 0))
+
+    def apply_normal_style(self):
+        """Apply normal style - default background and orange dots"""
+        # Reset background to default
+        self.setStyleSheet("")
+        
+        # Find the index of this row in the active_rows
+        if self in self.measurementPage.active_rows["row_obj"]:
+            idx = self.measurementPage.active_rows["row_obj"].index(self)
+            # Change source dot color back to orange
+            self.measurementPage.active_rows["source_obj"][idx].setBrush(QColor(255, 140, 0))
+            # Change truth dot color back to orange
+            self.measurementPage.active_rows["truth_obj"][idx].setBrush(QColor(255, 140, 0))
 
     def remove_unset_row(self):
         self.measurementPage.ui.coordsDataVBox.removeWidget(self)

@@ -428,6 +428,14 @@ class AccuracyMeasurement(QMainWindow):
     def modify_measurement(self):
         # check status of measurement
         if self.measurement_state == "ready":
+            # Disable hover selection for all existing rows when starting new measurement
+            for row in self.active_rows["row_obj"]:
+                row.setMouseTracking(False)
+                # Reset any hover styles to normal
+                if row.is_hovered:
+                    row.apply_normal_style()
+                    row.is_hovered = False
+                    
             self.ui.addMeasurementBtn.setText("Place Marker on Sample")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 222, 33);") # yellow
             # enable pointer projection visualization
@@ -453,6 +461,10 @@ class AccuracyMeasurement(QMainWindow):
             self.ui.addMeasurementBtn.setText("Add Measurement")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
             self.measurement_state = "ready"
+            
+            # Enable hover selection for all existing rows when returning to ready state
+            for row in self.active_rows["row_obj"]:
+                row.setMouseTracking(True)
         else:
             raise ValueError("Unknown measurement state: "+self.measurement_state)
             
