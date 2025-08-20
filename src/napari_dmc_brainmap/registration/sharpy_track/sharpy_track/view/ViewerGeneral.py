@@ -140,7 +140,7 @@ class ViewerGeneral():
         self.regViewer.widget.viewerLeft.view.mouseClicked.disconnect(self.regViewer.widget.viewerLeft.handleTruthClick)
         self.regViewer.widget.viewerLeft.view.mouseEntered.disconnect(self.regViewer.measurementPage.show_truth_pointer)
         self.regViewer.widget.viewerLeft.view.mouseLeft.disconnect(self.regViewer.measurementPage.hide_truth_pointer)
-        
+
         self.regViewer.measurementPage.active_rows["source_obj"][-1].setBrush(QColor(255, 140, 0))
         self.regViewer.widget.viewerLeft.view.viewport().setCursor(Qt.ArrowCursor)
         
@@ -148,19 +148,21 @@ class ViewerGeneral():
         self.addTruthDot(x_truth, y_truth)
         # save to active_rows dictionary
         self.regViewer.measurementPage.active_rows["truth_coords"].append((x_truth, y_truth))
-        
 
-
-
-
-        
         # update button text and style
         self.regViewer.measurementPage.ui.addMeasurementBtn.setText("Add Measurement")
         self.regViewer.measurementPage.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") 
         self.regViewer.measurementPage.measurement_state = "ready"
         # calculate TRE, save TRE to measurementPage.active_rows
+        # TRE = sqrt((x_truth - x_target)**2 + (y_truth - y_target)**2)
+        x_target, y_target = self.regViewer.measurementPage.active_rows["target_coords"][-1]
+        TRE = np.sqrt((x_truth - x_target)**2 + (y_truth - y_target)**2)
+        self.regViewer.measurementPage.active_rows["row_obj"][-1].tre_label.setText(f"{TRE:.2f}")
         # update TRE label
-        # 
+        self.regViewer.measurementPage.active_rows["tre_score"].append(TRE)
+        # enable delete button for current row object
+        self.regViewer.measurementPage.active_rows["row_obj"][-1].remove_btn.setEnabled(True)
+        # implement row selection highlight
 
 
     

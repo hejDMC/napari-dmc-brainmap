@@ -386,7 +386,8 @@ class AccuracyMeasurement(QMainWindow):
                                 source_obj=[],
                                 row_obj=[],
                                 truth_obj=[],
-                                truth_coords=[])
+                                truth_coords=[],
+                                tre_score=[])
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
