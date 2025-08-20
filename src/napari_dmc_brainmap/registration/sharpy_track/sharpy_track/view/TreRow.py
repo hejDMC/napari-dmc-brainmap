@@ -19,9 +19,18 @@ class TreRow(QWidget):
         self.row_hbox.addWidget(self.tre_label)
         # add delete button
         self.remove_btn = QPushButton("Delete")
-        self.remove_btn.clicked.connect(self.remove_row)
+        # disabled for now
+        # self.remove_btn.setEnabled(False)
         self.row_hbox.addWidget(self.remove_btn)
 
-    def remove_row(self):
+    def remove_unset_row(self):
         self.measurementPage.ui.coordsDataVBox.removeWidget(self)
         self.deleteLater()
+    
+    def remove_registered_row(self):
+        self.measurementPage.ui.coordsDataVBox.removeWidget(self)
+        self.measurementPage.active_rows.remove(self)
+        self.deleteLater()
+
+    def connect_delete_btn(self):
+        self.remove_btn.clicked.connect(self.remove_registered_row)

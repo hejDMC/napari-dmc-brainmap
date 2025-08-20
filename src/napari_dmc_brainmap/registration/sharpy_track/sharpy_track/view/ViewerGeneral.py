@@ -106,9 +106,11 @@ class ViewerGeneral():
         self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.regViewer.measurementPage.show_measurement_pointer)
         self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.regViewer.measurementPage.hide_measurement_pointer)
         # hide measurement pointer
-        self.regViewer.measurementPage.hide_measurement_pointer()
+        self.regViewer.measurementPage.hide_measurement_pointer(discard_row=False)
         # update measurement state
         self.regViewer.measurementPage.measurement_state = "waiting_truth"
+        # change left cursor etc.
+        
 
     def addSourceDot(self, x: int, y: int, diameter: int = 8) -> None:
         ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)

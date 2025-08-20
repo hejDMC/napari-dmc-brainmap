@@ -381,6 +381,7 @@ class AccuracyMeasurement(QMainWindow):
         self.unset_tre_row = None
         self.unset_source_pos = None
         self.unset_target_pos = None
+        self.active_rows = []
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
@@ -441,7 +442,7 @@ class AccuracyMeasurement(QMainWindow):
                 pass
             # remove any unset row reference in case of sudden exit
             if self.unset_tre_row is not None:
-                self.unset_tre_row.remove_row()
+                self.unset_tre_row.remove_unset_row()
                 self.unset_tre_row = None
             self.ui.addMeasurementBtn.setText("Add Measurement")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
@@ -499,7 +500,7 @@ class AccuracyMeasurement(QMainWindow):
         self.regViewer.widget.viewerRight.view.mouseMoved.connect(self.regViewer.widget.viewerRight.projectSourcePos)
         self.regViewer.widget.viewerRight.view.mouseClicked.connect(self.regViewer.widget.viewerRight.handleSourceClick)
 
-    def hide_measurement_pointer(self):
+    def hide_measurement_pointer(self, discard_row=True):
         # Hide the measurement pointer
         self.regViewer.widget.viewerRight.view.viewport().setCursor(Qt.ArrowCursor)
         # disable position tracking
@@ -510,10 +511,16 @@ class AccuracyMeasurement(QMainWindow):
         for item in self.regViewer.widget.viewerRight.targetPointHover.childItems():
             self.regViewer.widget.viewerRight.targetPointHover.removeFromGroup(item)
         self.regViewer.widget.viewerLeft.scene.removeItem(self.regViewer.widget.viewerRight.targetPointHover)
-        # remove TreRow when mouse leaves viewerRight
-        if self.unset_tre_row is not None:
-            self.unset_tre_row.remove_row()
+        # remove TreRow
+        if discard_row: 
+            if self.unset_tre_row is not None:
+                self.unset_tre_row.remove_unset_row()
+                self.unset_tre_row = None
+        # register TreRow
+        else:
+            self.active_rows.append(self.unset_tre_row)
             self.unset_tre_row = None
+            self.active_rows[-1].connect_delete_btn()
     
     def setup_abort_callback(self):
         self.regViewer.widget.sampleSlider.valueChanged.connect(self.abort_action)
