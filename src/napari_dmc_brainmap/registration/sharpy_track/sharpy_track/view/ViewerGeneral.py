@@ -99,6 +99,9 @@ class ViewerGeneral():
         x_src, y_src = self.regViewer.measurementPage.unset_source_pos
         # add source dot on right viewer
         self.addSourceDot(x_src, y_src)
+        # update measurement state to waiting_truth and refresh UI
+        self.regViewer.measurementPage.measurement_state = "waiting_truth"
+        self.regViewer.measurementPage.modify_measurement()
 
 
     def addSourceDot(self, x: int, y: int, diameter: int = 8) -> None:

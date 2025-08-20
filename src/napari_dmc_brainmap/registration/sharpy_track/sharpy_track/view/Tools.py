@@ -429,6 +429,16 @@ class AccuracyMeasurement(QMainWindow):
             # setup abort action callback
             self.setup_abort_callback()
 
+        elif self.measurement_state == "waiting_truth":
+            # update UI to prompt atlas placement
+            self.ui.addMeasurementBtn.setText("Place Marker on Atlas")
+            self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 140, 0);") # dark orange
+            # disconnect mouse enter and left signal
+            self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.show_measurement_pointer)
+            self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.hide_measurement_pointer)
+            # hide measurement pointer
+            self.hide_measurement_pointer()
+
 
         elif any([self.measurement_state == "abort",
                   self.measurement_state == "waiting_source"]):
