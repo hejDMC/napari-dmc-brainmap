@@ -129,6 +129,48 @@ class ViewerGeneral():
     
     def update_true_pos(self):
         x_truth, y_truth = np.round(self.view.cursorPos[0]).astype(int), np.round(self.view.cursorPos[1]).astype(int)
+        # save to measurementPage.unset_truth_pos
+        self.regViewer.measurementPage.unset_truth_pos = (x_truth, y_truth)
         # update true_pos field in TreRow
         self.regViewer.measurementPage.active_rows["row_obj"][-1].true_pos_label.setText(f"({x_truth}, {y_truth})")
+    
+    def handleTruthClick(self):
+        # disconnect signals
+        self.regViewer.widget.viewerLeft.view.mouseMoved.disconnect(self.regViewer.widget.viewerLeft.update_true_pos)
+        self.regViewer.widget.viewerLeft.view.mouseClicked.disconnect(self.regViewer.widget.viewerLeft.handleTruthClick)
+        self.regViewer.widget.viewerLeft.view.mouseEntered.disconnect(self.regViewer.measurementPage.show_truth_pointer)
+        self.regViewer.widget.viewerLeft.view.mouseLeft.disconnect(self.regViewer.measurementPage.hide_truth_pointer)
+        
+        self.regViewer.measurementPage.active_rows["source_obj"][-1].setBrush(QColor(255, 140, 0))
+        self.regViewer.widget.viewerLeft.view.viewport().setCursor(Qt.ArrowCursor)
+        
+        x_truth, y_truth = self.regViewer.measurementPage.unset_truth_pos
+        self.addTruthDot(x_truth, y_truth)
+        # save to active_rows dictionary
+        self.regViewer.measurementPage.active_rows["truth_coords"].append((x_truth, y_truth))
+        
+
+
+
+
+        
+        # update button text and style
+        self.regViewer.measurementPage.ui.addMeasurementBtn.setText("Add Measurement")
+        self.regViewer.measurementPage.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") 
+        self.regViewer.measurementPage.measurement_state = "ready"
+        # calculate TRE, save TRE to measurementPage.active_rows
+        # update TRE label
+        # 
+
+
+    
+    def addTruthDot(self, x: int, y: int, diameter: int = 8) -> None:
+        ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)
+        ellipse.setBrush(QColor(255, 140, 0))  # solid red
+        ellipse.setPen(QPen(Qt.NoPen))
+        ellipse.setPos(x - diameter // 2, y - diameter // 2)
+        # save to active_rows dictionary
+        self.regViewer.measurementPage.active_rows["truth_obj"].append(ellipse)
+        # add to scene
+        self.scene.addItem(self.regViewer.measurementPage.active_rows["truth_obj"][-1])
 

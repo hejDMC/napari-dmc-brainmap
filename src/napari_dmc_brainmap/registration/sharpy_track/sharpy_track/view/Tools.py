@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap,QColor
 from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox,QTableView,QDialog,QDialogButtonBox
 from PyQt5 import QtGui
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow import AnchorRow
@@ -380,6 +380,7 @@ class AccuracyMeasurement(QMainWindow):
         self.unset_tre_row = None
         self.unset_source_pos = None
         self.unset_target_pos = None
+        self.unset_truth_pos = None
         self.active_rows = dict(source_coords=[],
                                 target_coords=[],
                                 source_obj=[],
@@ -465,6 +466,14 @@ class AccuracyMeasurement(QMainWindow):
                 'crosshair_yellow.png')))
         self.cursor_y_64 = QtGui.QCursor(pointer_image_y, 32, 32) # 64 * 64 image cursor hotspot set to [32,32]
 
+        pointer_image_truth = QPixmap(str(
+            self.regViewer.atlasModel.sharpy_dir.joinpath(
+                'sharpy_track',
+                'sharpy_track',
+                'images',
+                'crosshair_red.png')))
+        self.cursor_truth_64 = QtGui.QCursor(pointer_image_truth, 32, 32) # 64 * 64 image cursor hotspot set to [32,32]
+
         # initialize cursor
         pointer_image_r = QPixmap(str(
             self.regViewer.atlasModel.sharpy_dir.joinpath(
@@ -530,15 +539,21 @@ class AccuracyMeasurement(QMainWindow):
     def display_truth_pointer(self):
         self.regViewer.widget.viewerLeft.view.mouseEntered.connect(self.show_truth_pointer)
         self.regViewer.widget.viewerLeft.view.mouseLeft.connect(self.hide_truth_pointer)
+        self.regViewer.widget.viewerLeft.view.mouseClicked.connect(self.regViewer.widget.viewerLeft.handleTruthClick)
 
     def show_truth_pointer(self):
-        self.regViewer.widget.viewerLeft.view.viewport().setCursor(self.cursor_y_64)
+        self.regViewer.widget.viewerLeft.view.viewport().setCursor(self.cursor_truth_64)
+        # color source dot to red
+        self.active_rows["source_obj"][-1].setBrush(QColor(255, 0, 0))
         # connect mousemoved signal to update true_pos in row object
         self.regViewer.widget.viewerLeft.view.mouseMoved.connect(self.regViewer.widget.viewerLeft.update_true_pos)
 
     def hide_truth_pointer(self):
-        # self.regViewer.widget.viewerLeft.view.mouseEntered.disconnect(self.show_truth_pointer)
         self.regViewer.widget.viewerLeft.view.mouseMoved.disconnect(self.regViewer.widget.viewerLeft.update_true_pos)
+        # restore source dot color
+        self.active_rows["source_obj"][-1].setBrush(QColor(255, 140, 0))
+        # restore true_pos field to [?]
+        self.active_rows["row_obj"][-1].true_pos_label.setText("[?]")
         # restore cursor
         self.regViewer.widget.viewerLeft.view.viewport().setCursor(Qt.ArrowCursor)
         # clear true_pos field in TreRow
