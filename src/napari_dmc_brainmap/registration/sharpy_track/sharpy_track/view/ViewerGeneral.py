@@ -99,6 +99,10 @@ class ViewerGeneral():
         x_src, y_src = self.regViewer.measurementPage.unset_source_pos
         # add source dot on right viewer
         self.addSourceDot(x_src, y_src)
+        # save to active_rows dictionary
+        x_target, y_target = self.regViewer.measurementPage.unset_target_pos
+        self.regViewer.measurementPage.active_rows["source_coords"].append((x_src, y_src))
+        self.regViewer.measurementPage.active_rows["target_coords"].append((x_target, y_target))
         # update button text and style
         self.regViewer.measurementPage.ui.addMeasurementBtn.setText("Place Marker on Atlas")
         self.regViewer.measurementPage.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 140, 0);") # dark orange
@@ -109,13 +113,22 @@ class ViewerGeneral():
         self.regViewer.measurementPage.hide_measurement_pointer(discard_row=False)
         # update measurement state
         self.regViewer.measurementPage.measurement_state = "waiting_truth"
-        # change left cursor etc.
-        
+        # continue at measurementPage.display_truth_pointer
+        self.regViewer.measurementPage.display_truth_pointer()
+
 
     def addSourceDot(self, x: int, y: int, diameter: int = 8) -> None:
         ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)
         ellipse.setBrush(QColor(255, 140, 0))  # solid dark orange
         ellipse.setPen(QPen(Qt.NoPen))
         ellipse.setPos(x - diameter // 2, y - diameter // 2)
-        self.scene.addItem(ellipse)
+        # save to active_rows dictionary
+        self.regViewer.measurementPage.active_rows["source_obj"].append(ellipse)
+        # add to scene
+        self.scene.addItem(self.regViewer.measurementPage.active_rows["source_obj"][-1])
+    
+    def update_true_pos(self):
+        x_truth, y_truth = np.round(self.view.cursorPos[0]).astype(int), np.round(self.view.cursorPos[1]).astype(int)
+        # update true_pos field in TreRow
+        self.regViewer.measurementPage.active_rows["row_obj"][-1].true_pos_label.setText(f"({x_truth}, {y_truth})")
 

@@ -9,7 +9,6 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperMode
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.PandasModel import PandasModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
 import pandas as pd
-import random
 
 class RegistrationHelper(QMainWindow):
     def __init__(self, regViewer) -> None:
@@ -381,7 +380,12 @@ class AccuracyMeasurement(QMainWindow):
         self.unset_tre_row = None
         self.unset_source_pos = None
         self.unset_target_pos = None
-        self.active_rows = []
+        self.active_rows = dict(source_coords=[],
+                                target_coords=[],
+                                source_obj=[],
+                                row_obj=[],
+                                truth_obj=[],
+                                truth_coords=[])
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
@@ -518,9 +522,26 @@ class AccuracyMeasurement(QMainWindow):
                 self.unset_tre_row = None
         # register TreRow
         else:
-            self.active_rows.append(self.unset_tre_row)
+            self.active_rows["row_obj"].append(self.unset_tre_row)
             self.unset_tre_row = None
-            self.active_rows[-1].connect_delete_btn()
+            self.active_rows["row_obj"][-1].connect_delete_btn()
+            # pprint.pprint(self.active_rows)
+    
+    def display_truth_pointer(self):
+        self.regViewer.widget.viewerLeft.view.mouseEntered.connect(self.show_truth_pointer)
+        self.regViewer.widget.viewerLeft.view.mouseLeft.connect(self.hide_truth_pointer)
+
+    def show_truth_pointer(self):
+        self.regViewer.widget.viewerLeft.view.viewport().setCursor(self.cursor_y_64)
+        # connect mousemoved signal to update true_pos in row object
+        self.regViewer.widget.viewerLeft.view.mouseMoved.connect(self.regViewer.widget.viewerLeft.update_true_pos)
+
+    def hide_truth_pointer(self):
+        # self.regViewer.widget.viewerLeft.view.mouseEntered.disconnect(self.show_truth_pointer)
+        self.regViewer.widget.viewerLeft.view.mouseMoved.disconnect(self.regViewer.widget.viewerLeft.update_true_pos)
+        # restore cursor
+        self.regViewer.widget.viewerLeft.view.viewport().setCursor(Qt.ArrowCursor)
+        # clear true_pos field in TreRow
     
     def setup_abort_callback(self):
         self.regViewer.widget.sampleSlider.valueChanged.connect(self.abort_action)
