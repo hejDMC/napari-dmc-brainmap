@@ -421,7 +421,6 @@ class AccuracyMeasurement(QMainWindow):
     def modify_measurement(self):
         # check status of measurement
         if self.measurement_state == "ready":
-            self.measurement_state = "waiting_source"
             self.ui.addMeasurementBtn.setText("Place Marker on Sample")
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 222, 33);") # yellow
             # enable pointer projection visualization
@@ -429,19 +428,9 @@ class AccuracyMeasurement(QMainWindow):
             # setup abort action callback
             self.setup_abort_callback()
 
-        elif self.measurement_state == "waiting_truth":
-            # update UI to prompt atlas placement
-            self.ui.addMeasurementBtn.setText("Place Marker on Atlas")
-            self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 140, 0);") # dark orange
-            # disconnect mouse enter and left signal
-            self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.show_measurement_pointer)
-            self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.hide_measurement_pointer)
-            # hide measurement pointer
-            self.hide_measurement_pointer()
-
-
         elif any([self.measurement_state == "abort",
-                  self.measurement_state == "waiting_source"]):
+                  self.measurement_state == "waiting_source",
+                  self.measurement_state == "waiting_truth"]):
             self.detach_abort_callback()
             if self.regViewer.widget.viewerRight.targetPointHover.childItems():
                 self.hide_measurement_pointer()
@@ -458,10 +447,10 @@ class AccuracyMeasurement(QMainWindow):
             self.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(0, 255, 0);") # green
             self.measurement_state = "ready"
         else:
-            pass
+            raise ValueError("Unknown measurement state: "+self.measurement_state)
+            
 
     def display_target_projection(self):
-        # connect mouse enter right viewer signal with showing measurement pointer
         # initialize cursor
         pointer_image_y = QPixmap(str(
             self.regViewer.atlasModel.sharpy_dir.joinpath(
@@ -490,9 +479,9 @@ class AccuracyMeasurement(QMainWindow):
         self.pixmap_y_32 = pointer_image_y_s
 
         self.regViewer.widget.viewerRight.view.mouseEntered.connect(self.show_measurement_pointer)
-
-        # connect mouse exit right viewer signal with hiding measurement pointer
         self.regViewer.widget.viewerRight.view.mouseLeft.connect(self.hide_measurement_pointer)
+        # update measurement state
+        self.measurement_state = "waiting_source"
 
     def show_measurement_pointer(self):
         # Show the measurement pointer

@@ -99,10 +99,16 @@ class ViewerGeneral():
         x_src, y_src = self.regViewer.measurementPage.unset_source_pos
         # add source dot on right viewer
         self.addSourceDot(x_src, y_src)
-        # update measurement state to waiting_truth and refresh UI
+        # update button text and style
+        self.regViewer.measurementPage.ui.addMeasurementBtn.setText("Place Marker on Atlas")
+        self.regViewer.measurementPage.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 140, 0);") # dark orange
+        # disconnect mouse enter and left signal
+        self.regViewer.widget.viewerRight.view.mouseEntered.disconnect(self.regViewer.measurementPage.show_measurement_pointer)
+        self.regViewer.widget.viewerRight.view.mouseLeft.disconnect(self.regViewer.measurementPage.hide_measurement_pointer)
+        # hide measurement pointer
+        self.regViewer.measurementPage.hide_measurement_pointer()
+        # update measurement state
         self.regViewer.measurementPage.measurement_state = "waiting_truth"
-        self.regViewer.measurementPage.modify_measurement()
-
 
     def addSourceDot(self, x: int, y: int, diameter: int = 8) -> None:
         ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)
