@@ -534,8 +534,6 @@ class AccuracyMeasurement(QMainWindow):
         else:
             self.active_rows["row_obj"].append(self.unset_tre_row)
             self.unset_tre_row = None
-            self.active_rows["row_obj"][-1].connect_delete_btn()
-            # pprint.pprint(self.active_rows)
     
     def display_truth_pointer(self):
         self.regViewer.widget.viewerLeft.view.mouseEntered.connect(self.show_truth_pointer)

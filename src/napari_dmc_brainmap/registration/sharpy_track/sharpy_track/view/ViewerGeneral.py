@@ -160,7 +160,9 @@ class ViewerGeneral():
         self.regViewer.measurementPage.active_rows["row_obj"][-1].tre_label.setText(f"{TRE:.2f}")
         # update TRE label
         self.regViewer.measurementPage.active_rows["tre_score"].append(TRE)
-        # enable delete button for current row object
+        # configure and enable delete button for current row object
+        self.regViewer.measurementPage.active_rows["row_obj"][-1].connect_delete_btn()
+        
         self.regViewer.measurementPage.active_rows["row_obj"][-1].remove_btn.setEnabled(True)
         # implement row selection highlight
 

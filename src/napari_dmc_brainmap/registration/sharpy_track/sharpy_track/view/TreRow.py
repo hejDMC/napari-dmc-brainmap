@@ -29,8 +29,18 @@ class TreRow(QWidget):
     
     def remove_registered_row(self):
         self.measurementPage.ui.coordsDataVBox.removeWidget(self)
-        self.measurementPage.active_rows["row_obj"].remove(self)
-        #TODO: also remove other objects at the same index
+        idx_del = self.measurementPage.active_rows["row_obj"].index(self)
+        self.measurementPage.active_rows["source_coords"].pop(idx_del)
+        self.measurementPage.active_rows["target_coords"].pop(idx_del)
+        self.measurementPage.active_rows["row_obj"].pop(idx_del)
+        self.measurementPage.active_rows["truth_coords"].pop(idx_del)
+        self.measurementPage.active_rows["tre_score"].pop(idx_del)
+        # remove dot objects from scene
+        self.measurementPage.regViewer.widget.viewerRight.scene.removeItem(self.measurementPage.active_rows["source_obj"][idx_del])
+        self.measurementPage.regViewer.widget.viewerLeft.scene.removeItem(self.measurementPage.active_rows["truth_obj"][idx_del])
+        # remove dot objects from list
+        self.measurementPage.active_rows["source_obj"].pop(idx_del)
+        self.measurementPage.active_rows["truth_obj"].pop(idx_del)
         self.deleteLater()
 
     def connect_delete_btn(self):
