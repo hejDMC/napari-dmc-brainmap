@@ -79,6 +79,9 @@ class ViewerGeneral():
             row.source_pos_label.setText(f"({x_src}, {y_src})")
             if self.targetPointHover.childItems():
                 row.target_pos_label.setText(f"({x_target}, {y_target})")
+                # store XY coordinates of both source and target to regViewer.measurementPage
+                self.regViewer.measurementPage.unset_source_pos = (x_src, y_src)
+                self.regViewer.measurementPage.unset_target_pos = (x_target, y_target)
             else:
                 row.target_pos_label.setText("[Out of Bounds]")
 
@@ -92,20 +95,8 @@ class ViewerGeneral():
         # require a valid projected target marker present
         if not self.targetPointHover.childItems():
             return
-        # source click position on right viewer
-        x_src = np.round(self.view.clickPos[0]).astype(int)
-        y_src = np.round(self.view.clickPos[1]).astype(int)
-        # compute target and validate bounds
-        x_target, y_target = mapPointTransform(x_src, y_src, self.tform)
-        x_target = np.round(x_target).astype(int)
-        y_target = np.round(y_target).astype(int)
-        if any([
-                x_target < 0,
-                x_target >= self.regViewer.singleWindowSize[0],
-                y_target < 0,
-                y_target >= self.regViewer.singleWindowSize[1]
-                ]):
-            return
+        # retrieve source and target position from regViewer.measurementPage
+        x_src, y_src = self.regViewer.measurementPage.unset_source_pos
         # add source dot on right viewer
         self.addSourceDot(x_src, y_src)
 
@@ -115,5 +106,5 @@ class ViewerGeneral():
         ellipse.setBrush(QColor(255, 140, 0))  # solid dark orange
         ellipse.setPen(QPen(Qt.NoPen))
         ellipse.setPos(x - diameter // 2, y - diameter // 2)
-        self.scene.addItem(ellipse) # TODO: keep track of created ellipse object
+        self.scene.addItem(ellipse)
 

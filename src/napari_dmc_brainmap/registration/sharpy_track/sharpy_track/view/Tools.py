@@ -379,6 +379,8 @@ class AccuracyMeasurement(QMainWindow):
         # widget specific state variables
         self.measurement_state = "ready"
         self.unset_tre_row = None
+        self.unset_source_pos = None
+        self.unset_target_pos = None
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
