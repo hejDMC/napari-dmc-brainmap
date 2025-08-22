@@ -98,8 +98,9 @@ class ViewerGeneral():
         self.addSourceDot(self.regViewer.res_down[x_src], self.regViewer.res_down[y_src])
         # save to active_rows dictionary
         x_target, y_target = self.regViewer.measurementPage.unset_target_pos
-        self.regViewer.measurementPage.active_rows["source_coords"].append((x_src, y_src))
-        self.regViewer.measurementPage.active_rows["target_coords"].append((x_target, y_target))
+        self.regViewer.measurementPage.active_rows["source_coords"].append([int(x_src), int(y_src)])
+        self.regViewer.measurementPage.active_rows["target_coords"].append([int(x_target), int(y_target)])
+        self.regViewer.measurementPage.active_rows["tform_matrix"] = self.tform.tolist()
         # update button text and style
         self.regViewer.measurementPage.ui.addMeasurementBtn.setText("Place Marker on Atlas")
         self.regViewer.measurementPage.ui.addMeasurementBtn.setStyleSheet("background-color: rgb(255, 140, 0);") # dark orange
@@ -144,7 +145,7 @@ class ViewerGeneral():
         x_truth, y_truth = self.regViewer.measurementPage.unset_truth_pos
         self.addTruthDot(self.regViewer.res_down[x_truth], self.regViewer.res_down[y_truth])
         # save to active_rows dictionary
-        self.regViewer.measurementPage.active_rows["truth_coords"].append((x_truth, y_truth))
+        self.regViewer.measurementPage.active_rows["truth_coords"].append([int(x_truth), int(y_truth)])
 
         # update button text and style
         self.regViewer.measurementPage.ui.addMeasurementBtn.setText("Add Measurement")
@@ -156,7 +157,7 @@ class ViewerGeneral():
         TRE = np.sqrt((x_truth - x_target)**2 + (y_truth - y_target)**2)
         self.regViewer.measurementPage.active_rows["row_obj"][-1].tre_label.setText(f"{TRE:.2f}")
         # update TRE label
-        self.regViewer.measurementPage.active_rows["tre_score"].append(TRE)
+        self.regViewer.measurementPage.active_rows["tre_score"].append(np.round(TRE, 4).astype(str))
         # configure and enable delete button for current row object
         self.regViewer.measurementPage.active_rows["row_obj"][-1].connect_delete_btn()
         

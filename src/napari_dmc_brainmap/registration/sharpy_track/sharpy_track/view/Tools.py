@@ -7,6 +7,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.TreRow impo
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ui.AccuracyMeasurement import Ui_AccuracyMeasurement
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.HelperModel import HelperModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.PandasModel import PandasModel
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.MeasurementHandler import MeasurementHandler
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
 import pandas as pd
 
@@ -387,18 +388,15 @@ class AccuracyMeasurement(QMainWindow):
                                 row_obj=[],
                                 truth_obj=[],
                                 truth_coords=[],
-                                tre_score=[])
+                                tre_score=[],
+                                tform_matrix=None,
+                                imgIndex=None)
+        self.measurement_handler = MeasurementHandler(self)
         # retrieve current file name
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
             self.regViewer.status.currentSliceNumber])
-        self.flip_page() # set initial page according to registration mode and atlas dots
         ## connect signals
-        # connect sampleslider value changed signal to update currentFileNameLabel
-        self.regViewer.widget.sampleSlider.valueChanged.connect(self.update_name_label)
-        # flip page according to: wrong registration mode: 1, missing transformation: 2, else: 0
-        self.regViewer.widget.toggle.clicked.connect(self.flip_page)
-        
         ## add measurement button signal
         self.ui.addMeasurementBtn.clicked.connect(self.modify_measurement)
 
@@ -407,6 +405,7 @@ class AccuracyMeasurement(QMainWindow):
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
             self.regViewer.status.currentSliceNumber])
+        self.active_rows["imgIndex"] = self.regViewer.status.currentSliceNumber # index before sample changes
         self.flip_page()
     
 
@@ -424,6 +423,8 @@ class AccuracyMeasurement(QMainWindow):
                     self.ui.pages.setCurrentIndex(2)
                 else:
                     self.ui.pages.setCurrentIndex(0)
+                    self.measurement_handler.save_measurement_record()
+                    self.measurement_handler.load_measurement_record()
 
     def modify_measurement(self):
         # check status of measurement
