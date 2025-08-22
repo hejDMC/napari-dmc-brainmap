@@ -41,18 +41,18 @@ class ViewerGeneral():
         else:
             pass
     
-    # to be connected with mouseMoved signal on the right viewer
+
     def projectSourcePos(self):
-        x_src, y_src = np.round(self.view.cursorPos[0]).astype(int), np.round(self.view.cursorPos[1]).astype(int)
+        x_src, y_src = self.regViewer.res_up[int(self.view.cursorPos[0])], self.regViewer.res_up[int(self.view.cursorPos[1])]
         x_target, y_target = mapPointTransform(x_src, y_src, self.tform)
         # round
         x_target, y_target = np.round(x_target).astype(int), np.round(y_target).astype(int)
         # within boundary check
         if any([
                 x_target < 0,
-                x_target >= self.regViewer.singleWindowSize[0],
+                x_target >= self.regViewer.atlas_resolution[0],
                 y_target < 0,
-                y_target >= self.regViewer.singleWindowSize[1]
+                y_target >= self.regViewer.atlas_resolution[1]
                 ]):
             # target point out of boundary, indicate with red cursor on the right viewer
             self.regViewer.widget.viewerRight.view.viewport().setCursor(self.regViewer.measurementPage.cursor_r_64)
@@ -64,14 +64,11 @@ class ViewerGeneral():
             # switch cursor to yellow pointer
             self.regViewer.widget.viewerRight.view.viewport().setCursor(self.regViewer.measurementPage.cursor_y_64)
             # check if there is already a pixmap item in the list
-            if self.targetPointHover.childItems():
-                # update the position of the existing item
-                self.targetPointHover.childItems()[0].setPos(x_target - 16, y_target - 16)  # update position of existing items
-            else:
-                # overlay small yellow pointer(32pix by 32pix) with [16,16] as center
+            if not self.targetPointHover.childItems():
+                # create new pixmap item
                 item = QGraphicsPixmapItem(self.regViewer.measurementPage.pixmap_y_32)
                 self.targetPointHover.addToGroup(item)
-                self.targetPointHover.childItems()[0].setPos(x_target - 16, y_target - 16)
+            self.targetPointHover.childItems()[0].setPos(self.regViewer.res_down[x_target] - 16, self.regViewer.res_down[y_target] - 16)
 
         # Update live labels if a row is active
         row = getattr(self.regViewer.measurementPage, 'unset_tre_row', None)
@@ -98,7 +95,7 @@ class ViewerGeneral():
         # retrieve source and target position from regViewer.measurementPage
         x_src, y_src = self.regViewer.measurementPage.unset_source_pos
         # add source dot on right viewer
-        self.addSourceDot(x_src, y_src)
+        self.addSourceDot(self.regViewer.res_down[x_src], self.regViewer.res_down[y_src])
         # save to active_rows dictionary
         x_target, y_target = self.regViewer.measurementPage.unset_target_pos
         self.regViewer.measurementPage.active_rows["source_coords"].append((x_src, y_src))
@@ -128,7 +125,7 @@ class ViewerGeneral():
         self.scene.addItem(self.regViewer.measurementPage.active_rows["source_obj"][-1])
     
     def update_true_pos(self):
-        x_truth, y_truth = np.round(self.view.cursorPos[0]).astype(int), np.round(self.view.cursorPos[1]).astype(int)
+        x_truth, y_truth = self.regViewer.res_up[int(self.view.cursorPos[0])], self.regViewer.res_up[int(self.view.cursorPos[1])]
         # save to measurementPage.unset_truth_pos
         self.regViewer.measurementPage.unset_truth_pos = (x_truth, y_truth)
         # update true_pos field in TreRow
@@ -145,7 +142,7 @@ class ViewerGeneral():
         self.regViewer.widget.viewerLeft.view.viewport().setCursor(Qt.ArrowCursor)
         
         x_truth, y_truth = self.regViewer.measurementPage.unset_truth_pos
-        self.addTruthDot(x_truth, y_truth)
+        self.addTruthDot(self.regViewer.res_down[x_truth], self.regViewer.res_down[y_truth])
         # save to active_rows dictionary
         self.regViewer.measurementPage.active_rows["truth_coords"].append((x_truth, y_truth))
 
