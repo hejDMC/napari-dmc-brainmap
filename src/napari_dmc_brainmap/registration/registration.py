@@ -340,6 +340,9 @@ class RegistrationWidget(QWidget):
 
         if not self.reg_viewer.helperAct.isEnabled():
             self.reg_viewer.helperPage.close()
+        
+        if not self.reg_viewer.measurementAct.isEnabled():
+            self.reg_viewer.measurementPage.close()
 
         del self.reg_viewer.regViewerWidget
         del self.reg_viewer.app

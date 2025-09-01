@@ -604,5 +604,7 @@ class AccuracyMeasurement(QMainWindow):
         self.regViewer.widget.toggle.clicked.disconnect(self.flip_page)
         if self.measurement_state == "waiting_source":
             self.abort_action()
+        if self.ui.pages.currentIndex() == 0:
+            self.measurement_handler.save_measurement_record()
         self.regViewer.del_accmea_instance()
     

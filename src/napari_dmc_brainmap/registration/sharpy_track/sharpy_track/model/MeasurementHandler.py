@@ -92,7 +92,20 @@ class MeasurementHandler:
     def save_measurement_record(self):
         # check if current sample has measurement record
         if len(self.regViewer.measurementPage.active_rows["source_coords"]) == 0:
-            return
+            # check if user deleted all data for current sample
+            if str(self.regViewer.measurementPage.active_rows["imgIndex"]) in self.json_data["imgName"]:
+                # delete dictionary entry for current sample index
+                del self.json_data["sourceDots"][str(self.regViewer.measurementPage.active_rows["imgIndex"])]
+                del self.json_data["useTransformation"][str(self.regViewer.measurementPage.active_rows["imgIndex"])]
+                del self.json_data["targetDots"][str(self.regViewer.measurementPage.active_rows["imgIndex"])]
+                del self.json_data["truthDots"][str(self.regViewer.measurementPage.active_rows["imgIndex"])]
+                del self.json_data["treScore"][str(self.regViewer.measurementPage.active_rows["imgIndex"])]
+                del self.json_data["imgName"][str(self.regViewer.measurementPage.active_rows["imgIndex"])]
+                # update measurement.json
+                with open(self.regViewer.status.folderPath.joinpath('measurement.json'), 'w') as json_file:
+                    json.dump(self.json_data, json_file)
+            else:
+                pass
         else: # save record and clear page
             self.json_data["sourceDots"][str(self.regViewer.measurementPage.active_rows["imgIndex"])] = deepcopy(self.regViewer.measurementPage.active_rows["source_coords"])
             self.json_data["useTransformation"][str(self.regViewer.measurementPage.active_rows["imgIndex"])] = deepcopy(self.regViewer.measurementPage.active_rows["tform_matrix"])
