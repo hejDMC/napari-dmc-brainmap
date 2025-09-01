@@ -190,7 +190,7 @@ class RegistrationViewer(QMainWindow):
         # connect sampleslider value changed signal to update currentFileNameLabel
         self.widget.sampleSlider.valueChanged.connect(self.measurementPage.update_name_label)
         self.widget.toggle.clicked.connect(self.measurementPage.flip_page)
-        self.measurementPage.flip_page()
+        self.measurementPage.update_name_label()
         self.measurementPage.show()
 
     

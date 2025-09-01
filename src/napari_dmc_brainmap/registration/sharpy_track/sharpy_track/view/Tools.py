@@ -405,7 +405,6 @@ class AccuracyMeasurement(QMainWindow):
         self.ui.currentFileNameLabel.setText(
             self.regViewer.status.imgFileName[
             self.regViewer.status.currentSliceNumber])
-        self.active_rows["imgIndex"] = self.regViewer.status.currentSliceNumber # index before sample changes
         self.flip_page()
     
 
