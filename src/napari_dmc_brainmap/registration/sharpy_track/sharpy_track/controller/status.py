@@ -258,5 +258,23 @@ class StatusContainer():
                     pass
             else:
                 print("To remove all dots, turn on registration mode (T) first!")
+        
+                
+        # press M to add a new measurement to measurement page
+        elif event.key() == Qt.Key_M:
+            if self.regViewer.measurementAct.isEnabled():
+                pass 
+            else:
+                assert hasattr(self.regViewer, 'measurementPage')
+                if (self.regViewer.measurementPage.ui.pages.currentIndex() == 0
+                ) & (self.regViewer.measurementPage.measurement_state == "ready"):
+                    self.regViewer.measurementPage.ui.addMeasurementBtn.click()
+                    # if cursor already in viewerRight, trigger enterEvent
+                    if self.regViewer.status.cursor == 1:
+                        self.regViewer.measurementPage.show_measurement_pointer()
+                else:
+                    pass
+
+
 
 

@@ -596,7 +596,11 @@ class AccuracyMeasurement(QMainWindow):
     
     def create_new_row(self):
         return TreRow(self)
-        
+
+    # forward all keyPressEvent to regViewer
+    def keyPressEvent(self, event):
+        # Forward all key press events to the main registration viewer
+        self.regViewer.keyPressEvent(event)
 
     def closeEvent(self, event) -> None:
         # disconnect signals
