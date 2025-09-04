@@ -11,40 +11,52 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.Measuremen
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
 import pandas as pd
 
-class RegistrationHelper(QMainWindow):
+class ShortcutsInfo(QMainWindow):
+    def __init__(self, regViewer) -> None:
+        super().__init__()
+        self.regViewer = regViewer
+        self.setWindowTitle("Keyboard Shortcuts")
+        self.setFixedSize(int(regViewer.fullWindowSize[0]/1.5),regViewer.fullWindowSize[1])
+        self.mainWidget = QWidget()
+        self.mainLayout = QVBoxLayout()
+        self.mainWidget.setLayout(self.mainLayout)
+        self.setCentralWidget(self.mainWidget)
+        
+        # Create shortcuts label
+        self.shortcuts_label = QLabel()
+        self.shortcuts_label.setPixmap(QPixmap(str(
+            self.regViewer.atlasModel.sharpy_dir.joinpath(
+                'sharpy_track',
+                'sharpy_track',
+                'images',
+                'keyboard_shortcuts.png'))))
+        
+        # Optional: Adjust the QLabel size to fit the image
+        self.shortcuts_label.setScaledContents(True)
+        self.shortcuts_label.resize(self.shortcuts_label.pixmap().size())
+        
+        self.mainLayout.addWidget(self.shortcuts_label)
+    
+    def closeEvent(self, event) -> None:
+        self.regViewer.del_shortcuts_instance()
+
+
+class InterpolatePosition(QMainWindow):
     def __init__(self, regViewer) -> None:
         super().__init__()
         self.regViewer = regViewer
         self.helperModel = HelperModel(regViewer)
-        self.setWindowTitle("Registration Helper")
+        self.setWindowTitle("Interpolate Position")
         self.setFixedSize(int(regViewer.fullWindowSize[0]/1.5),regViewer.fullWindowSize[1])
         self.mainWidget = QWidget()
         # setup layout
         self.mainLayout = QVBoxLayout()
         self.mainWidget.setLayout(self.mainLayout)
         self.setCentralWidget(self.mainWidget)
-        self.buttonlayout = QHBoxLayout()
-        self.stacklayout = QStackedLayout()
-        self.mainLayout.addLayout(self.buttonlayout)
-        self.mainLayout.addLayout(self.stacklayout)
-        # buttons
-        self.btn_ip = QPushButton("Interpolate Position")
-        self.btn_re = QPushButton("Keyboard shortcuts")
-
-        self.btn_ip.clicked.connect(self.activate_ipPage)
-        self.btn_re.clicked.connect(self.activate_rePage)
-
-        self.buttonlayout.addWidget(self.btn_ip)
-        self.buttonlayout.addWidget(self.btn_re)
-        # tab structure: Interpolate Position
-        self.ip_widget = QWidget()
-        self.ip_vbox = QVBoxLayout()
-        # self.ip_vbox.addStretch() # align to the top
-        self.ip_widget.setLayout(self.ip_vbox)
-        self.stacklayout.addWidget(self.ip_widget) # only addChildLayout under stacklayout
+        
         # location plot hbox
         self.locplot_hbox = QHBoxLayout()
-        self.ip_vbox.addLayout(self.locplot_hbox)
+        self.mainLayout.addLayout(self.locplot_hbox)
         # preview button and add button vbox
         self.previewadd_vbox = QVBoxLayout()
         self.locplot_hbox.addLayout(self.previewadd_vbox)
@@ -84,34 +96,10 @@ class RegistrationHelper(QMainWindow):
         self.anchor_widget = QWidget()
         self.anchor_vbox = QVBoxLayout()
         self.anchor_widget.setLayout(self.anchor_vbox)
-        self.ip_vbox.addWidget(self.anchor_widget)
+        self.mainLayout.addWidget(self.anchor_widget)
 
-
-
-        # tab structure: Registration Editor
-        self.label_re = QLabel()
-        self.label_re.setPixmap(QPixmap(str(
-            self.regViewer.atlasModel.sharpy_dir.joinpath(
-                'sharpy_track',
-                'sharpy_track',
-                'images',
-                'helperpage_shortcuts.png'))))
-
-        # Optional: Adjust the QLabel size to fit the image
-        self.label_re.setScaledContents(True)
-        self.label_re.resize(self.label_re.pixmap().size())
-        
-
-        self.stacklayout.addWidget(self.label_re)
-        # set default display Interpolate Position tab
-        self.stacklayout.setCurrentIndex(0)
         self.preview_mode = 0
 
-    def activate_ipPage(self):
-        self.stacklayout.setCurrentIndex(0)
-    
-    def activate_rePage(self):
-        self.stacklayout.setCurrentIndex(1)
     
     def add_action(self):
         # create anchor object
@@ -365,7 +353,7 @@ class RegistrationHelper(QMainWindow):
     def closeEvent(self, event) -> None:
         if self.preview_mode == 1:
             self.abort_action()
-        self.regViewer.del_reghelper_instance()
+        self.regViewer.del_interpolatePosition_instance()
 
 
 class AccuracyMeasurement(QMainWindow):
@@ -610,5 +598,5 @@ class AccuracyMeasurement(QMainWindow):
             self.abort_action()
         if self.ui.pages.currentIndex() == 0:
             self.measurement_handler.save_measurement_record()
-        self.regViewer.del_accmea_instance()
+        self.regViewer.del_measurement_instance()
     

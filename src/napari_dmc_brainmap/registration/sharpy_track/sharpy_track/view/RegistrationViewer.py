@@ -11,7 +11,7 @@ import numpy as np
 from natsort import natsorted
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import AtlasModel
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.status import StatusContainer
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import RegistrationHelper, AccuracyMeasurement
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import InterpolatePosition, AccuracyMeasurement, ShortcutsInfo
 
 class RegistrationViewer(QMainWindow):
     def __init__(self, regViewerWidget, regi_dict) -> None:
@@ -166,23 +166,27 @@ class RegistrationViewer(QMainWindow):
             
 
     def createActions(self):
-        self.helperAct = QAction("Registration H&elper", self, shortcut="Ctrl+H", triggered=self.helperPageOpen)
+        self.interpolatePositionAct = QAction("Interpolate Position", self, shortcut="Ctrl+I", triggered=self.interpolatePositionPageOpen)
         self.measurementAct = QAction("Accuracy M&easurement", self, shortcut="Ctrl+M", triggered=self.measurementPageOpen)
-        
-
+        self.shortcutsAct = QAction("Shortcuts", self, shortcut="Ctrl+S", triggered=self.shortcutsPageOpen)
 
     def createMenus(self):
         self.toolsMenu = QMenu("Tools", self)
-        self.toolsMenu.addAction(self.helperAct)
-        self.helperAct.setEnabled(True)
+        self.toolsMenu.addAction(self.interpolatePositionAct)
+        self.interpolatePositionAct.setEnabled(True)
         self.toolsMenu.addAction(self.measurementAct)
         self.measurementAct.setEnabled(True)
         self.menuBar().addMenu(self.toolsMenu)
+        
+        self.helpMenu = QMenu("Help", self)
+        self.helpMenu.addAction(self.shortcutsAct)
+        self.shortcutsAct.setEnabled(True)
+        self.menuBar().addMenu(self.helpMenu)
     
-    def helperPageOpen(self):
-        self.helperAct.setEnabled(False)
-        self.helperPage = RegistrationHelper(self)
-        self.helperPage.show()
+    def interpolatePositionPageOpen(self):
+        self.interpolatePositionAct.setEnabled(False)
+        self.interpolatePositionPage = InterpolatePosition(self)
+        self.interpolatePositionPage.show()
     
     def measurementPageOpen(self):
         self.measurementAct.setEnabled(False)
@@ -192,19 +196,28 @@ class RegistrationViewer(QMainWindow):
         self.widget.toggle.clicked.connect(self.measurementPage.flip_page)
         self.measurementPage.update_name_label()
         self.measurementPage.show()
+    
+    def shortcutsPageOpen(self):
+        self.shortcutsAct.setEnabled(False)
+        self.shortcutsPage = ShortcutsInfo(self)
+        self.shortcutsPage.show()
 
+    def del_interpolatePosition_instance(self):
+        del self.interpolatePositionPage.regViewer
+        del self.interpolatePositionPage.helperModel
+        del self.interpolatePositionPage.mainWidget
+        del self.interpolatePositionPage
+        self.interpolatePositionAct.setEnabled(True)
     
-    def del_reghelper_instance(self):
-        del self.helperPage.regViewer
-        del self.helperPage.helperModel
-        del self.helperPage.mainWidget
-        del self.helperPage
-        self.helperAct.setEnabled(True)
-    
-    def del_accmea_instance(self):
+    def del_measurement_instance(self):
         del self.measurementPage.regViewer
+        del self.measurementPage
         self.measurementAct.setEnabled(True)
-
+    
+    def del_shortcuts_instance(self):
+        del self.shortcutsPage.regViewer
+        del self.shortcutsPage
+        self.shortcutsAct.setEnabled(True)
 
     def closeEvent(self, event) -> None:
         self.regViewerWidget.del_regviewer_instance()

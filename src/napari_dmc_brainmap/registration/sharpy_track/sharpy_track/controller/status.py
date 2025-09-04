@@ -90,8 +90,8 @@ class StatusContainer():
             self.regViewer.widget.viewerLeft.view.setInteractive(False)
             self.regViewer.widget.viewerRight.view.setInteractive(False)
         # inform registration helper
-        if hasattr(self.regViewer,"helperPage"):
-            self.regViewer.helperPage.update_button_availability(status_code=1)
+        if hasattr(self.regViewer,"interpolatePositionPage"):
+            self.regViewer.interpolatePositionPage.update_button_availability(status_code=1)
         else:
             pass
 
@@ -164,8 +164,8 @@ class StatusContainer():
     def saveRegistration(self):
         # if preview mode is on, will not save registration
         save_exec = 1
-        if hasattr(self.regViewer,"helperPage"):
-            if self.regViewer.helperPage.preview_mode == 1:
+        if hasattr(self.regViewer,"interpolatePositionPage"):
+            if self.regViewer.interpolatePositionPage.preview_mode == 1:
                 save_exec = 0
             else:
                 pass
