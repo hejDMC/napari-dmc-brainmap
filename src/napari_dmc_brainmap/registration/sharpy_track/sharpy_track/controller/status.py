@@ -89,11 +89,6 @@ class StatusContainer():
             self.regViewer.widget.sampleSlider.setDisabled(False)
             self.regViewer.widget.viewerLeft.view.setInteractive(False)
             self.regViewer.widget.viewerRight.view.setInteractive(False)
-        # inform registration helper
-        if hasattr(self.regViewer,"interpolatePositionPage"):
-            self.regViewer.interpolatePositionPage.update_button_availability(status_code=1)
-        else:
-            pass
 
 
     def wheelEventHandle(self, event):

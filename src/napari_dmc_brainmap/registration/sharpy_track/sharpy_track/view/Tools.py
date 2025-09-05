@@ -68,6 +68,10 @@ class InterpolatePosition(QMainWindow):
             # add button
         self.add_btn = QPushButton("Add")
         self.add_btn.clicked.connect(self.add_action)
+            # connect tranformation toggle changed signal to update button availability
+        self.regViewer.widget.toggle.clicked.connect(self.toggle_changed_callback)
+        self.toggle_changed_callback()
+
         self.previewadd_vbox.addWidget(self.add_btn)
             # section location illustration
         self.preview_label = QLabel()
@@ -100,7 +104,9 @@ class InterpolatePosition(QMainWindow):
 
         self.preview_mode = 0
 
-    
+    def toggle_changed_callback(self):
+        self.update_button_availability(status_code=5)
+
     def add_action(self):
         # create anchor object
         AnchorRow(self) # HelperModel takes care of update button availability
@@ -327,10 +333,25 @@ class InterpolatePosition(QMainWindow):
         elif status_code == 4:
             self.abort_btn.setDisabled(True)
             self.apply_btn.setDisabled(True)
-        
+
+        # status 5: tranformation toggle turned, disable/ enable add button
+        elif status_code == 5:
+            if self.regViewer.widget.toggle.isChecked(): # off ==> on
+                self.add_btn.setDisabled(True)
+                self.preview_btn.setDisabled(True)
+            else: # on ==> off
+                if self.helperModel.active_anchor:
+                    if self.helperModel.active_anchor[0].trash_btn.isEnabled():
+                        self.add_btn.setEnabled(True)
+                        self.update_button_availability(status_code=1)
+                    else:
+                        pass
+                else:
+                    self.add_btn.setEnabled(True)
+                    self.preview_btn.setDisabled(True)
+
         else:
-            print("Warning: button availability updated without specified status code! "+
-                  "Check and fix this!")
+            print("Warning: button availability updated without specified status code!")
     
     def activate_preview_mode(self):
         self.preview_mode = 1
@@ -338,8 +359,6 @@ class InterpolatePosition(QMainWindow):
         self.regViewer.widget.y_slider.setDisabled(True)
         self.regViewer.widget.z_slider.setDisabled(True)
         self.regViewer.widget.toggle.setDisabled(True)
-        self.regViewer.widget.viewerLeft.view.setInteractive(False)
-        self.regViewer.widget.viewerRight.view.setInteractive(False)
     
     def deactivate_preview_mode(self):
         self.preview_mode = 0
@@ -347,12 +366,11 @@ class InterpolatePosition(QMainWindow):
         self.regViewer.widget.y_slider.setEnabled(True)
         self.regViewer.widget.z_slider.setEnabled(True)
         self.regViewer.widget.toggle.setEnabled(True)
-        self.regViewer.widget.viewerLeft.view.setInteractive(True)
-        self.regViewer.widget.viewerRight.view.setInteractive(True)
     
     def closeEvent(self, event) -> None:
         if self.preview_mode == 1:
             self.abort_action()
+        self.regViewer.widget.toggle.clicked.disconnect(self.toggle_changed_callback)
         self.regViewer.del_interpolatePosition_instance()
 
 
