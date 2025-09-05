@@ -423,9 +423,11 @@ class AccuracyMeasurement(QMainWindow):
         else:
             if self.regViewer.status.currentSliceNumber not in self.regViewer.status.atlasDots:
                 self.ui.pages.setCurrentIndex(2)
+                self.measurement_handler.save_measurement_record()
             else:
                 if len(self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber]) < 5:
                     self.ui.pages.setCurrentIndex(2)
+                    self.measurement_handler.save_measurement_record()
                 else:
                     self.ui.pages.setCurrentIndex(0)
                     self.measurement_handler.save_measurement_record()
