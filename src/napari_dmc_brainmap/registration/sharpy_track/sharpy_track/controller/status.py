@@ -89,11 +89,6 @@ class StatusContainer():
             self.regViewer.widget.sampleSlider.setDisabled(False)
             self.regViewer.widget.viewerLeft.view.setInteractive(False)
             self.regViewer.widget.viewerRight.view.setInteractive(False)
-        # inform registration helper
-        if hasattr(self.regViewer,"helperPage"):
-            self.regViewer.helperPage.update_button_availability(status_code=1)
-        else:
-            pass
 
 
     def wheelEventHandle(self, event):
@@ -164,8 +159,8 @@ class StatusContainer():
     def saveRegistration(self):
         # if preview mode is on, will not save registration
         save_exec = 1
-        if hasattr(self.regViewer,"helperPage"):
-            if self.regViewer.helperPage.preview_mode == 1:
+        if hasattr(self.regViewer,"interpolatePositionPage"):
+            if self.regViewer.interpolatePositionPage.preview_mode == 1:
                 save_exec = 0
             else:
                 pass
@@ -258,5 +253,23 @@ class StatusContainer():
                     pass
             else:
                 print("To remove all dots, turn on registration mode (T) first!")
+        
+                
+        # press M to add a new measurement to measurement page
+        elif event.key() == Qt.Key_M:
+            if self.regViewer.measurementAct.isEnabled():
+                pass 
+            else:
+                assert hasattr(self.regViewer, 'measurementPage')
+                if (self.regViewer.measurementPage.ui.pages.currentIndex() == 0
+                ) & (self.regViewer.measurementPage.measurement_state == "ready"):
+                    self.regViewer.measurementPage.ui.addMeasurementBtn.click()
+                    # if cursor already in viewerRight, trigger enterEvent
+                    if self.regViewer.status.cursor == 1:
+                        self.regViewer.measurementPage.show_measurement_pointer()
+                else:
+                    pass
+
+
 
 

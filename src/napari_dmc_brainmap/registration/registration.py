@@ -338,8 +338,14 @@ class RegistrationWidget(QWidget):
         self.reg_viewer.widget.viewerLeft.scene.changed.disconnect()
         self.reg_viewer.widget.viewerRight.scene.changed.disconnect()
 
-        if not self.reg_viewer.helperAct.isEnabled():
-            self.reg_viewer.helperPage.close()
+        if not self.reg_viewer.interpolatePositionAct.isEnabled():
+            self.reg_viewer.interpolatePositionPage.close()
+        
+        if not self.reg_viewer.measurementAct.isEnabled():
+            self.reg_viewer.measurementPage.close()
+
+        if not self.reg_viewer.shortcutsAct.isEnabled():
+            self.reg_viewer.shortcutsPage.close()
 
         del self.reg_viewer.regViewerWidget
         del self.reg_viewer.app
