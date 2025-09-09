@@ -4,6 +4,12 @@ include README.md
 include src/napari_dmc_brainmap/utils/xkcd.json
 include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/empty.png
 include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/keyboard_shortcuts.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/error_red.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/crosshair_yellow_s.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/crosshair_yellow_0.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/crosshair_yellow.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/crosshair_red.png
+include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/view/ui/accuracy_measurement_page.ui
 
 exclude src/napari_dmc_brainmap/deprecated/*
 recursive-exclude * __pycache__
