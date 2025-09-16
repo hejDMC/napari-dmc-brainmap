@@ -195,7 +195,7 @@ class InterpolatePosition(QMainWindow):
         change_tracking = pd.DataFrame(change_tracking)
         registration_status = []
         for id in change_tracking["slice_id"]:
-            if len(self.regViewer.status.atlasDots[id]) > 0:
+            if id in self.regViewer.status.atlasDots and len(self.regViewer.status.atlasDots[id]) > 0:
                 registration_status.append("YES")
             else:
                 registration_status.append("NO")
