@@ -236,7 +236,7 @@ class AtlasModel():
 
         else: # 3 channel RGB/BGR or 4 channel RGBA
             self.regViewer.status.imageRGB = True
-            self.imgStack = np.full((self.regViewer.status.sliceNum,800,1140,3),-1,dtype=np.uint8) # for RGBA also just keep RGB channels in stack
+            self.imgStack = np.full((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1],3),-1,dtype=np.uint8) # for RGBA also just keep RGB channels in stack
             # copy slices to stack
             for i in range(self.regViewer.status.sliceNum):
                 full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])
