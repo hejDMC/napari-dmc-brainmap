@@ -151,12 +151,13 @@ class ResultsCreator:
             seg_im_dir, seg_im_list, seg_im_suffix = get_info(self.input_path, self.seg_folder, channel=chan)
         segment_dir, segment_list, segment_suffix = get_info(self.input_path, 'segmentation', channel=chan, seg_type=self.seg_type)
         data = pd.DataFrame()
+        plane_data = {}
         if len(segment_list) > 0:
             self.results_dir = get_info(self.input_path, 'results', channel=chan, seg_type=self.seg_type,
                                         create_dir=True, only_dir=True)
             for im_idx, im in enumerate(segment_list):
                 try:
-                    section_data = self._transform_points_to_regi(im, segment_dir, segment_suffix, seg_im_dir,
+                    section_data, atlas_plane_data = self._transform_points_to_regi(im, segment_dir, segment_suffix, seg_im_dir,
                                                                 seg_im_suffix, regi_dir, regi_suffix)
                     if not self.include_all:
                         if section_data is None:
@@ -166,10 +167,12 @@ class ResultsCreator:
                             section_data = section_data[section_data['structure_id'] != 0].reset_index(drop=True)
                     if section_data is not None:
                         data = pd.concat((data, section_data))
+                        plane_data[im[:-len(segment_suffix)]] = atlas_plane_data
                 except KeyError:
                     show_info(f"Registration data for channel {chan} is incomplete, skipping.")
                 yield im_idx
-            self._save_results(data, chan)
+            self._save_results(data, plane_data, chan)
+
         else:
             show_info(f"No segmentation images found in {str(segment_dir)}")
 
@@ -199,6 +202,7 @@ class ResultsCreator:
 
         Returns:
             pd.DataFrame: Transformed segmentation data.
+            np.array: Atlas plane data
         """
         curr_im = im[:-len(segment_suffix)]
         img = cv2.imread(str(seg_im_dir.joinpath(curr_im + seg_im_suffix)))
@@ -241,13 +245,15 @@ class ResultsCreator:
         # set which slice in there
         self.s.setSlice(curr_im + regi_suffix)
         section_data = self.s.getBrainArea(coords, (curr_im + regi_suffix))
+        atlas_plane_data = self.s.getAtlasPlane()
+
         if self.seg_type == "genes":
             assert section_data is not None
             section_data['cluster_id'] = segment_data['cluster_id']
             section_data['spot_id'] = segment_data['spot_id']
         elif self.seg_type == 'hcr':
             section_data['hcr'] = segment_data['hcr']
-        return section_data
+        return section_data, atlas_plane_data
 
     def _regi_points_polygon(self, x_scaled: np.ndarray, y_scaled: np.ndarray) -> np.ndarray:
         """
@@ -277,16 +283,20 @@ class ResultsCreator:
         return coords
 
 
-    def _save_results(self, data: pd.DataFrame, chan: str) -> None:
+    def _save_results(self, data: pd.DataFrame, plane_data, chan: str) -> None:
         """
         Save segmentation results to a CSV file.
 
         Parameters:
             data (pd.DataFrame): Segmentation data.
+            plane_data: Dictionary of atlas plane data
             chan (str): Channel name.
         """
         fn = self.results_dir.joinpath(f'{get_animal_id(self.input_path)}_{self.seg_type}.csv')
         data.to_csv(fn)
+
+        fn_plane = self.results_dir.joinpath(f'{get_animal_id(self.input_path)}_{self.seg_type}_plane_data.npz')
+        np.savez_compressed(fn_plane, **plane_data)
 
         if self.export and self.seg_type == 'cells':
             self._export_data_to_brainrender(data, chan)

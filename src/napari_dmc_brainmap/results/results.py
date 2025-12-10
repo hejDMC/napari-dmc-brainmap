@@ -185,6 +185,11 @@ def initialize_quant_widget() -> FunctionGui:
                             value=False,
                             tooltip='tick when using data from merged animals '
                                     '(created with Create merged dataset widget below)'),
+              cov_bool=dict(widget_type='CheckBox',
+                            label='estimate coverage (injection sites)?',
+                            value=False,
+                            tooltip='tick to calculate coverage of individual brain regions by injection site(s)'
+                                    '\n see Wiki for details, not compatatible with merged data'),
               save_fig=dict(widget_type='CheckBox', 
                             label='save figure?', 
                             value=False,
@@ -221,6 +226,7 @@ def initialize_quant_widget() -> FunctionGui:
     
     def quant_widget(
             is_merge,
+            cov_bool,
             save_fig,
             expression,
             gene_expression_file,
@@ -391,6 +397,7 @@ class ResultsWidget(QWidget):
         channels = self.results.channels.value
         seg_type = self.results.seg_type.value
         is_merge = self.quant.is_merge.value
+        cov_bool = self.quant.cov_bool.value
         if self.quant.expression.value:
             try:
                 gene_expression_fn = self.quant.gene_expression_file.value
@@ -410,7 +417,8 @@ class ResultsWidget(QWidget):
             "plt_axis": self.quant.kde_axis.value.split('/'),
             "save_fig": self.quant.save_fig.value
         }
-        results_quantifier = ResultsQuantifier(input_path, self.atlas, channels, plotting_params, seg_type=seg_type, expression=expression, is_merge=is_merge)
+        results_quantifier = ResultsQuantifier(input_path, self.atlas, channels, plotting_params, seg_type=seg_type,
+                                               expression=expression, is_merge=is_merge, cov_bool=cov_bool)
         worker_quantification = quantify_results(results_quantifier, self.progress_quant_results)
         worker_quantification.started.connect(
             lambda: self.btn_quant.setText("Quantifying data..."))

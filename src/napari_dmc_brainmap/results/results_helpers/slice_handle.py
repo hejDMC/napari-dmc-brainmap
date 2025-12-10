@@ -237,3 +237,21 @@ class SliceHandle():
                                         columns=col_names)
             section_data['section_name'] = [section_name] * len(section_data)
             return section_data
+
+    def getAtlasPlane(self):
+        """
+        Function to get atlas plane data for respective registered image
+        :return: np.array: containing atlas plane data
+        """
+        z_plane = self.get_z_plane(str(self.currentSlice))
+        z_flat = z_plane.astype(int).ravel()
+        x_max = self.regi_dict['xyz_dict']['x'][1]
+        y_max = self.regi_dict['xyz_dict']['y'][1]
+        y = np.arange(y_max)
+        x = np.arange(x_max)
+        grid_x, grid_y = np.meshgrid(x, y)
+        r_grid_x = grid_x.ravel()
+        r_grid_y = grid_y.ravel()
+        sliceAnnot = self.annot[z_flat, r_grid_y, r_grid_x].reshape(self.regi_dict['xyz_dict']['y'][1],
+                                                                         self.regi_dict['xyz_dict']['x'][1]).astype(np.int32)
+        return sliceAnnot

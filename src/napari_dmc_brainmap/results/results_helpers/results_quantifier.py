@@ -1,5 +1,6 @@
 
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from typing import List, Dict, Union, Tuple
 from bg_atlasapi import BrainGlobeAtlas
@@ -7,6 +8,7 @@ from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import split_strings_layers, get_animal_id
 from napari_dmc_brainmap.utils.data_loader import DataLoader
+from napari_dmc_brainmap.utils.atlas_utils import get_bregma
 
 class ResultsQuantifier:
     """
@@ -21,7 +23,8 @@ class ResultsQuantifier:
         plotting_params: Dict,
         seg_type: str = "injection_site",
         expression: Union[bool, Tuple[Path, str]] = False,
-        is_merge: bool = False
+        is_merge: bool = False,
+        cov_bool: bool = False
     ) -> None:
         """
         Initialize the ResultsQuantifier.
@@ -34,6 +37,7 @@ class ResultsQuantifier:
             seg_type (str, optional): Type of segmentation ('injection_site' by default).
             expression (Union[bool, Tuple[Path, str]], optional): Gene expression data file and gene name.
             is_merge (bool, optional): Flag to indicate if results are from merged datasets.
+            cov_bool (bool, optional): Flag to indicate if calculating injection site coverage estimate
         """
         self.input_path = input_path
         self.atlas = atlas
@@ -43,6 +47,7 @@ class ResultsQuantifier:
         self.seg_type = seg_type
         self.expression = expression
         self.is_merge = is_merge
+        self.cov_bool = cov_bool
         self.animal_id = get_animal_id(input_path)
         self.results_data = None
 
@@ -111,10 +116,29 @@ class ResultsQuantifier:
             save_fn = self.results_dir.joinpath(f'quantification_{self.seg_type}.csv')
 
         quant_df_pivot.to_csv(save_fn)
+
         if not self.expression:
-            quant_df_pivot_raw = quant_df_pivot.loc[:, quant_df_pivot.columns != 'animal_id'] * len(self.results_data)
+            if self.is_merge:
+                quant_df_pivot_raw = quant_df_pivot.copy()
+                for animal_id, row in quant_df_pivot_raw.iterrows():
+                    quant_df_pivot_raw.loc[animal_id, :] = (row * len(self.results_data[self.results_data[animal_key] == animal_id])).astype(int)
+            else:
+                quant_df_pivot_raw = (quant_df_pivot.loc[:, quant_df_pivot.columns != 'animal_id'] *
+                                      len(self.results_data)).astype(int)
+
+            if self.cov_bool and self.seg_type == 'injection_site':
+                if self.is_merge:
+                    show_info(
+                        "Warning: Using merged data - this is currently not compatible with injection site coverage "
+                        "analysis. Untick using merged data option and re-run.")
+                else:
+                    quant_df_inj_coverage = self._calculate_injection_site_coverage(quant_df_pivot_raw)
+                    save_fn_inj = self.results_dir.joinpath(f'quantification_{self.seg_type}_coverage.csv')
+                    quant_df_inj_coverage.to_csv(save_fn_inj)
+
             save_fn_raw = self.results_dir.joinpath(f'quantification_raw_number_{self.seg_type}.csv')
             quant_df_pivot_raw.to_csv(save_fn_raw)
+
         p_data = [quant_df_pivot, self.chan, self.seg_type, self.results_data, self.expression, self.is_merge]
         # mpl_widget = self._plot_quant_data(quant_df_pivot)
         self.results_data = None
@@ -180,6 +204,50 @@ class ResultsQuantifier:
 
         return animal_data
 
+    def _calculate_injection_site_coverage(self, quant_df_pivot_raw):
+        # todo hemispheres
+        fn_plane_data = self.results_dir.joinpath(f'{get_animal_id(self.input_path)}_{self.seg_type}_plane_data.npz')
+        plane_data = np.load(fn_plane_data)
+        section_list = self.results_data['section_name'].unique().tolist()
+        ds_suffix = '_downsampled.tif'  # todo: change this
+        id_to_parent_map = (
+            self.results_data[['structure_id', 'acronym_parent']]
+                .drop_duplicates()
+                .set_index('structure_id')['acronym_parent']
+                .to_dict()
+        )
+        region_count = {v: 0 for v in id_to_parent_map.values()}
+
+        # todo work in progress - injection sites need to be on one hemisphere alone
+        bregma = get_bregma(self.atlas.atlas_name)
+        if len(self.results_data[self.results_data['ml_coords'] >= bregma[2]]) >= \
+                len(self.results_data[self.results_data['ml_coords'] < bregma[2]]):
+            larger_bregma = True
+        else:
+            larger_bregma = False
+
+        for section in section_list:
+            try:
+                p_d = plane_data[section[:-len(ds_suffix)]]
+                if larger_bregma:
+                    p_d = p_d[:,570:]
+                else:
+                    p_d = p_d[:,:570]
+
+                for k, v in id_to_parent_map.items():
+                    region_count[v] += int(np.sum(p_d == k))
+
+            except KeyError:
+                show_info(f'Warning: no plane data for {section}!')
+
+        quant_df_inj_coverage = quant_df_pivot_raw.copy()
+        try:
+            for brain_region, region_size in region_count.items():
+                quant_df_inj_coverage[brain_region] /= region_size
+        except KeyError:
+                show_info(f'Error for calculating 2D estimate!')
+
+        return quant_df_inj_coverage
     # def _plot_quant_data(self, df):
     #
     #     clrs = sns.color_palette(self.plotting_params["cmap"])
