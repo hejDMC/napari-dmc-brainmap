@@ -298,7 +298,7 @@ class ResultsCreator:
         fn_plane = self.results_dir.joinpath(f'{get_animal_id(self.input_path)}_{self.seg_type}_plane_data.npz')
         np.savez_compressed(fn_plane, **plane_data)
 
-        if self.export and self.seg_type == 'cells':
+        if self.export: # and self.seg_type == 'cells':
             self._export_data_to_brainrender(data, chan)
 
     def _export_data_to_brainrender(self, data: pd.DataFrame, chan: str) -> None:
