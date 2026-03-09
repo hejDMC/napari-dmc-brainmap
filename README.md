@@ -81,20 +81,21 @@ Distributed under the terms of the [BSD-3](https://github.com/teamdigitale/licen
 
 If you use DMC-BrainMap in your scientific work, please cite:
 ```
-Jung, F., Cao, X., Heymans, L., Carlén, M. (2025) "DMC-BrainMap - an open-source, end-to-end tool for multi-feature brain mapping across species", bioRxiv, https://doi.org/10.1101/2025.02.19.639009
+Jung, F., Cao, X., Heymans, L., Carlén, M. (2026) "DMC-BrainMap is an open-source, end-to-end tool for multi-feature brain mapping across species", Cell Reports Methods, https://doi.org/10.1016/j.crmeth.2026.101302
 ```
 
-BibTeX:
-
+BibTeX:  
 ``` bibtex
-@article{Jung2025x,
-   author = {Felix Jung and Xiao Cao and Loran Heymans and Marie Carlen},
-   doi = {10.1101/2025.02.19.639009},
-   journal = {bioRxiv},
-   month = {2},
-   title = {DMC-BrainMap - an open-source, end-to-end tool for multi-feature brain mapping across species},
-   url = {http://biorxiv.org/lookup/doi/10.1101/2025.02.19.639009},
-   year = {2025},
+@article{Jung2026a,
+title = {DMC-BrainMap is an open-source, end-to-end tool for multi-feature brain mapping in different species},
+journal = {Cell Reports Methods},
+volume = {6},
+number = {2},
+pages = {101302},
+year = {2026},
+issn = {2667-2375},
+doi = {https://doi.org/10.1016/j.crmeth.2026.101302},
+url = {https://www.sciencedirect.com/science/article/pii/S2667237526000020},
+author = {Felix Jung and Xiao Cao and Loran Heymans and Marie Carlén}
 }
 ```
-
