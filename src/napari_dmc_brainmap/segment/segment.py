@@ -666,16 +666,20 @@ class SegmentWidget(QWidget):
         self.viewer.add_image(im_loaded, name=f'{chan} channel', colormap=cmap_disp[chan], opacity=0.5)
         self.viewer.layers[f'{chan} channel'].contrast_limits = contrast_dict[chan]
 
-    def _load_preseg_object(self, input_path: Path, chan: str, image_idx: int, seg_type: str, single_channel: bool) -> np.ndarray:
+    def _load_preseg_object(self, input_path: Path, chan: str, image_idx: int, seg_type: str, single_channel: bool,
+                            image_chan: str = None) -> np.ndarray:
         """
         Load pre-segmented data for a specific image and channel.
 
         Parameters:
             input_path (Path): Path to the input directory.
-            chan (str): The channel being processed.
+            chan (str): The channel or segment ID being processed (e.g., 'cy3' for cells, 'npx_0' for probes).
             image_idx (int): The index of the image being segmented.
             seg_type (str): The type of segmentation.
             single_channel (bool): Whether to process single-channel images.
+            image_chan (str, optional): The actual image channel name for locating the source image.
+                When None, defaults to chan. Used for probe segmentation where chan is a probe ID
+                (e.g., 'npx_0') but the image is stored under the actual channel name.
 
         Returns:
             np.ndarray: Array of pre-segmented data.
@@ -683,8 +687,9 @@ class SegmentWidget(QWidget):
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
         pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type,
                                                              channel=chan)
+        im_chan = image_chan if image_chan else chan
         if single_channel:
-            im_name = get_path_to_im(input_path, image_idx, single_channel=single_channel, chan=chan, pre_seg=True)
+            im_name = get_path_to_im(input_path, image_idx, single_channel=single_channel, chan=im_chan, pre_seg=True)
         else:
             im_name = get_path_to_im(input_path, image_idx, pre_seg=True)  # name of image that will be loaded
         fn_to_load = [d for d in pre_seg_list if d.startswith(f'{im_name}_')]
@@ -756,7 +761,8 @@ class SegmentWidget(QWidget):
                     p_color = random.choice(list(mcolors.CSS4_COLORS.keys()))
                 p_id = f'{seg_type}_{str(i)}'
                 if self.load_preseg.load_bool.value:
-                    pre_seg_data = self._load_preseg_object(input_path, p_id, image_idx, seg_type, single_channel)
+                    pre_seg_data = self._load_preseg_object(input_path, p_id, image_idx, seg_type, single_channel,
+                                                            image_chan=channels[0] if single_channel else None)
                     self.viewer.add_points(pre_seg_data, size=int(self.segment.point_size.value), name=p_id,
                                            face_color=p_color)
                 else:
