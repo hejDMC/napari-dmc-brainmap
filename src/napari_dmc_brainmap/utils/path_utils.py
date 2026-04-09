@@ -64,7 +64,7 @@ def get_data_list(data_dir: Path, pattern: str) -> List[str]:
         List[str]: A sorted list of file names.
     """
     if data_dir.exists():
-        return natsorted([f.name for f in data_dir.glob(pattern)])
+        return natsorted([f.name for f in data_dir.glob(pattern) if not f.name.startswith('._')])
     return []
 
 

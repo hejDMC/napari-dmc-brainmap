@@ -90,7 +90,7 @@ def get_path_to_im(
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'single_channel', channel=chan)
     else:
         seg_im_dir, seg_im_list, seg_im_suffix = get_info(input_path, 'rgb')
-    im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif')])[
+    im = natsorted([f.parts[-1] for f in seg_im_dir.glob('*.tif') if not f.name.startswith('._')])[
         image_idx
     ]  # this detour due to some weird bug, list of paths was only sorted, not natsorted
     path_to_im = seg_im_dir.joinpath(im)

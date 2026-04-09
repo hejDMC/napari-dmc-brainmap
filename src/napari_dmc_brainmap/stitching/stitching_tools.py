@@ -18,7 +18,7 @@ def load_meta(section_dir: Path) -> Dict:
     Returns:
         Dict: Metadata as a dictionary.
     """
-    path_to_tiff = section_dir.joinpath([f.parts[-1] for f in section_dir.glob('*.tif')][0])
+    path_to_tiff = section_dir.joinpath([f.parts[-1] for f in section_dir.glob('*.tif') if not f.name.startswith('._')][0])
     with tifffile.TiffFile(path_to_tiff) as tif:
         meta_data = json.loads(tif.imagej_metadata['Info'])
     return meta_data
