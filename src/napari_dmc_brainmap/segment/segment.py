@@ -15,7 +15,7 @@ import matplotlib.colors as mcolors
 import time
 from napari.utils.notifications import show_info
 from typing import Dict, Union, List
-from napari_dmc_brainmap.utils.path_utils import get_image_list, get_info
+from napari_dmc_brainmap.utils.path_utils import get_image_list, get_info, get_data_list
 from napari_dmc_brainmap.utils.general_utils import split_to_list
 from napari_dmc_brainmap.utils.params_utils import load_params
 from napari_dmc_brainmap.utils.gui_utils import ProgressBar, check_input_path
@@ -685,8 +685,8 @@ class SegmentWidget(QWidget):
             np.ndarray: Array of pre-segmented data.
         """
         pre_seg_folder = self.load_preseg.pre_seg_folder.value
-        pre_seg_dir, pre_seg_list, pre_seg_suffix = get_info(input_path, pre_seg_folder, seg_type=seg_type,
-                                                             channel=chan)
+        pre_seg_dir = get_info(input_path, pre_seg_folder, seg_type=seg_type, channel=chan, only_dir=True)
+        pre_seg_list = get_data_list(pre_seg_dir, '*.csv')
         im_chan = image_chan if image_chan else chan
         if single_channel:
             im_name = get_path_to_im(input_path, image_idx, single_channel=single_channel, chan=im_chan, pre_seg=True)
