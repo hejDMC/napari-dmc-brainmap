@@ -62,6 +62,7 @@ class ResultsCreator:
         """
         self.s = self._initialize_registration()
         if self.seg_type in ["optic_fiber", "neuropixels_probe"]:
+            self.image_channels = self.channels  # preserve original image channels for folder lookup
             self.channels = self._get_segmentation_channels()
         elif self.seg_type == "single_cell":
             self.channels = self._get_segmentation_channels()
@@ -147,6 +148,9 @@ class ResultsCreator:
         regi_dir, regi_im_list, regi_suffix = get_info(self.input_path, 'sharpy_track', channel=self.regi_chan)
         if self.seg_folder == 'rgb':
             seg_im_dir, seg_im_list, seg_im_suffix = get_info(self.input_path, self.seg_folder)
+        elif self.seg_type in ["optic_fiber", "neuropixels_probe"]:
+            seg_im_dir, seg_im_list, seg_im_suffix = get_info(self.input_path, self.seg_folder,
+                                                               channel=self.image_channels[0])
         else:
             seg_im_dir, seg_im_list, seg_im_suffix = get_info(self.input_path, self.seg_folder, channel=chan)
         segment_dir, segment_list, segment_suffix = get_info(self.input_path, 'segmentation', channel=chan, seg_type=self.seg_type)
