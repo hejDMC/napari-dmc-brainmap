@@ -106,7 +106,12 @@ def get_info(input_path: Path,
 
 def find_common_suffix(file_list: List[str]) -> str:
     """
-    Find the common suffix across multiple file names.
+    Find the common suffix across multiple file names using '_'-delimited tokens.
+
+    DMC-BrainMap filenames follow the convention: {base_name}{suffix}, where the
+    suffix starts at a '_' boundary (e.g., '_stitched.tif', '_single_cells.csv').
+    This function splits filenames by '_' and finds the longest common token suffix,
+    avoiding partial matches within tokens (e.g., 's1' vs 's11').
 
     Parameters:
         file_list (List[str]): A list of file names.
@@ -122,10 +127,21 @@ def find_common_suffix(file_list: List[str]) -> str:
         )
         return input("Please, manually enter suffix: ") if file_list else ''
 
-    suffix_length = 1
-    while all(f[-suffix_length:] == file_list[0][-suffix_length:] for f in file_list):
-        suffix_length += 1
-    return file_list[0][-suffix_length + 1:]
+    split_names = [f.split('_') for f in file_list]
+    min_tokens = min(len(t) for t in split_names)
+
+    common_count = 0
+    for i in range(1, min_tokens):  # never consume ALL tokens — at least one must remain as base name
+        tokens_at_pos = {t[-i] for t in split_names}
+        if len(tokens_at_pos) == 1:
+            common_count = i
+        else:
+            break
+
+    if common_count == 0:
+        return Path(file_list[0]).suffix
+
+    return '_' + '_'.join(split_names[0][-common_count:])
 
 
 def get_image_list(input_path: Path, chan: str, folder_id: str = 'stitched', file_id: str = '*.tif') -> List[str]:
