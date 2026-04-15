@@ -608,7 +608,7 @@ class ResultsWidget(QWidget):
         if not check_input_path(input_path):
             return
         if self.merge.animal_list.value == ':':
-            animal_list = [f.parts[-1] for f in input_path.iterdir() if f.is_dir()]
+            animal_list = [f.parts[-1] for f in input_path.iterdir() if f.is_dir() and not f.name.startswith('._')]
         else:
             animal_list = split_to_list(self.merge.animal_list.value)
         channels = self.merge.channels.value

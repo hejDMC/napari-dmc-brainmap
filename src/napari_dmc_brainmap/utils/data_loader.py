@@ -47,7 +47,7 @@ class DataLoader:
         for animal_id in self.animal_list:
             if self.data_type in ["optic_fiber", "neuropixels_probe"]:
                 seg_super_dir = get_info(self.input_path.joinpath(animal_id), 'results', seg_type=self.data_type, only_dir=True)
-                self.channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
+                self.channels = natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir() and not f.name.startswith('._')])
 
             params = self._load_params(self.input_path.joinpath(animal_id, 'params.json'))
 

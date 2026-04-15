@@ -108,7 +108,7 @@ class RegistrationViewer(QMainWindow):
         if (self.status.folderPath is None) | (self.status.folderPath == ''):
             pass
         else:
-            self.status.imgFileName = natsorted([f.parts[-1] for f in self.status.folderPath.glob('*.tif')])
+            self.status.imgFileName = natsorted([f.parts[-1] for f in self.status.folderPath.glob('*.tif') if not f.name.startswith('._')])
             self.status.sliceNum = len(self.status.imgFileName)
             if self.status.sliceNum == 0:
                 pass

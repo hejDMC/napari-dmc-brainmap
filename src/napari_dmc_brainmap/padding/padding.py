@@ -56,7 +56,7 @@ def do_padding(input_path: Path,
     progress_step = 100 / image_count
 
     for chan in channels:
-        tif_files = list(input_path.joinpath(pad_folder, chan).glob("*.tif"))
+        tif_files = [f for f in input_path.joinpath(pad_folder, chan).glob("*.tif") if not f.name.startswith('._')]
         try:
             if not tif_files[0].name.endswith("_stitched.tif"):
                 rename_image_files(tif_files, input_path, pad_folder, chan)
@@ -100,7 +100,7 @@ def count_images(input_path: Path, pad_folder: str, channels: List[str]) -> int:
     Returns:
         int: The total count of images in the specified channels.
     """
-    image_count = sum(len(list(input_path.joinpath(pad_folder, chan).glob("*.tif"))) for chan in channels)
+    image_count = sum(len([f for f in input_path.joinpath(pad_folder, chan).glob("*.tif") if not f.name.startswith('._')]) for chan in channels)
     return max(image_count, 1)
 
 
