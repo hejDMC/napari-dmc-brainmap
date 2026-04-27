@@ -14,6 +14,11 @@ from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, coord_mm_transform
+from napari_dmc_brainmap.results.probe_vis.probe_confidence import (
+    estimate_confidence_from_coords,
+    get_atlas_structure_color_map,
+)
+from napari_dmc_brainmap.results.probe_vis.probe_region_profile import save_probe_region_confidence_profile
 from napari_dmc_brainmap.results.results_helpers.slice_handle import SliceHandle
 
 class TractCalculator:
@@ -38,6 +43,7 @@ class TractCalculator:
         self.seg_type = seg_type
         self.probe_insert = probe_insert
         self.results_dir = get_info(self.input_path, 'results', seg_type=self.seg_type, only_dir=True)
+        self.atlas_color_map = get_atlas_structure_color_map(self.atlas)
 
     def calculate_probe_tract(self) -> None:
         """
@@ -197,28 +203,12 @@ class TractCalculator:
         Returns:
             np.ndarray: Array of confidence values.
         """
-        # calculate r<=10 sphere
-        cube_10 = np.array(np.meshgrid(np.arange(-10, 11, 1),
-                                       np.arange(-10, 11, 1),
-                                       np.arange(-10, 11, 1))).T.reshape(9261, 3)
-        d = np.sqrt((cube_10 ** 2).sum(axis=1))
-        sphere_10 = cube_10[d <= 10]  # filter with r<=10, 4169 voxels
-
-        confidence_list = []
-        for _, row in v_coords.iterrows():
-            c1, c2, c3 = row.values
-            current_id = self.annot[c1, c2, c3]  # electrode structure_id
-            # restrict view to r=10 voxels sphere space
-            within_sphere = np.tile(np.array([c1, c2, c3]), (4169, 1)) + sphere_10
-            sphere_struct = self.annot[within_sphere.T[0], within_sphere.T[1], within_sphere.T[2]]
-            struct_else = (sphere_struct != current_id)
-            if np.sum(struct_else) == 0:
-                confidence_list.append(10 * atlas_resolution_um)
-            else:
-                confidence_list.append(np.sqrt((((within_sphere[struct_else] - np.tile(np.array([c1, c2, c3]), (
-                np.sum(struct_else), 1)))) ** 2).sum(axis=1)).min() * atlas_resolution_um)
-        confidence_list = np.array(confidence_list, dtype=np.uint8)
-        return confidence_list
+        return estimate_confidence_from_coords(
+            coords=v_coords,
+            annotation=self.annot,
+            radius_voxels=10,
+            voxel_size_um=atlas_resolution_um,
+        )
 
     def _check_probe_insert(
         self, probe_df: pd.DataFrame, probe_insert: int, linefit: pd.DataFrame, surface_vox: np.ndarray, primary_axis_idx: int
@@ -380,10 +370,25 @@ class TractCalculator:
                                                                                      atlas_resolution_um=self.atlas.resolution[primary_axis_idx])
         if self.seg_type == "neuropixels_probe":
             self._save_probe_tract_fig(probe, probe_tract, bank)
+            self._save_probe_region_confidence_profile(probe, probe_tract)
         else:
             probe_tract['depth(um)'] += probe_tract['distance_to_tip(um)']
             probe_tract = probe_tract.drop(columns=['channel_l', 'channel_r', 'distance_to_tip(um)'])
         return probe_tract, col_names
+
+    def _save_probe_region_confidence_profile(self, probe: str, probe_tract: pd.DataFrame) -> None:
+        """
+        Save the compact atlas-colored probe region confidence profile.
+        """
+        animal_id = get_animal_id(self.input_path)
+        output_dir = self.results_dir.joinpath(probe)
+        save_probe_region_confidence_profile(
+            probe_tract=probe_tract,
+            atlas_color_map=self.atlas_color_map,
+            animal_id=animal_id,
+            probe_name=probe,
+            output_dir=output_dir,
+        )
 
     def _save_probe_tract_fig(self, probe: str, probe_tract: pd.DataFrame, bank: int = 0) -> None:
         """
