@@ -1909,7 +1909,7 @@ wheels = [
 
 [[package]]
 name = "napari-dmc-brainmap"
-version = "0.1.7b15"
+version = "0.1.7b16"
 source = { editable = "." }
 dependencies = [
     { name = "aicsimageio" },

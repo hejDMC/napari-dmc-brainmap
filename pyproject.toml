@@ -1,6 +1,6 @@
 [project]
 name = "napari-dmc-brainmap"
-version = "0.1.7b15"
+version = "0.1.7b16"
 description = "DMC-BrainMap is an end-to-end tool for multi-feature brain mapping across species"
 readme = "README.md"
 requires-python = "==3.10.*"

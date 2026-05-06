@@ -1,1 +1,7 @@
-__version__ = "0.1.7b15"
+from importlib.metadata import PackageNotFoundError, version
+
+
+try:
+    __version__ = version("napari-dmc-brainmap")
+except PackageNotFoundError:
+    __version__ = "0+unknown"
