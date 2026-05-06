@@ -4,6 +4,22 @@ version = "0.1.7b15"
 description = "DMC-BrainMap is an end-to-end tool for multi-feature brain mapping across species"
 readme = "README.md"
 requires-python = "==3.10.*"
+license = "BSD-3-Clause"
+license-files = ["LICENSE.txt"]
+authors = [
+    { name = "Felix Jung", email = "jung.neurosc@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: napari",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
 dependencies = [
     "aicsimageio==4.14.0",
     "aicspylibczi==3.1.2",
@@ -27,6 +43,10 @@ dependencies = [
     "shapely==2.0.1",
     "tifffile==2023.2.28",
 ]
+
+
+[project.entry-points."napari.manifest"]
+napari-dmc-brainmap = "napari_dmc_brainmap:napari.yaml"
 
 
 [build-system]
