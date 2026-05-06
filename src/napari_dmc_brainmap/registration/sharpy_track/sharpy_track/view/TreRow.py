@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from qtpy.QtGui import QColor
+from qtpy.QtCore import Qt
 
 class TreRow(QWidget):
     def __init__(self, measurementPage):

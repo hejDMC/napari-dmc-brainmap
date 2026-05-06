@@ -1,7 +1,7 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap,QColor
-from PyQt5.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox,QTableView,QDialog,QDialogButtonBox
-from PyQt5 import QtGui
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QPixmap,QColor
+from qtpy.QtWidgets import QWidget,QStackedLayout,QPushButton,QVBoxLayout,QHBoxLayout,QLabel,QMainWindow,QMessageBox,QTableView,QDialog,QDialogButtonBox
+from qtpy import QtGui
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.AnchorRow import AnchorRow
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.TreRow import TreRow
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ui.AccuracyMeasurement import Ui_AccuracyMeasurement
@@ -255,7 +255,7 @@ class InterpolatePosition(QMainWindow):
         msg.setText("Are you sure you want to overwrite selected slice(s) location?")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
-        feedback = msg.exec_()
+        feedback = msg.exec()
         if feedback == QMessageBox.Yes:
             self.update_button_availability(status_code=4)
             self.deactivate_preview_mode()

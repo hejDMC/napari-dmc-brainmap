@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt, QPointF
-from PyQt5.QtWidgets import QGraphicsEllipseItem
+from qtpy.QtCore import Qt, QPointF
+from qtpy.QtWidgets import QGraphicsEllipseItem
 
 class DotObject(QGraphicsEllipseItem):
     def __init__(self, x, y, r):

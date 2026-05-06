@@ -1,8 +1,8 @@
 import numpy as np
 from napari_dmc_brainmap.utils.atlas_utils import coord_mm_transform, get_decimal
-from PyQt5.QtCore import Qt
+from qtpy.QtCore import Qt
 import json
-from PyQt5.QtWidgets import QMessageBox
+from qtpy.QtWidgets import QMessageBox
 
 class StatusContainer():
     def __init__(self, regViewer) -> None:
@@ -233,7 +233,7 @@ class StatusContainer():
                 msg.setText("Do you want to delete all paired dots at current slice? \n* Choose 'YES' will delete all dots at current slice.")
                 msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                 msg.setDefaultButton(QMessageBox.No)
-                feedback = msg.exec_()
+                feedback = msg.exec()
                 if feedback == msg.Yes:
                     while len(self.regViewer.widget.viewerLeft.itemGroup) > 0:
                         # remove dots from scene

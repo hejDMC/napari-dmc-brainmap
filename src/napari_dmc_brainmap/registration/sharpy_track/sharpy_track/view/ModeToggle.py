@@ -1,5 +1,5 @@
-from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtCore import Qt, QRect
+from qtpy import QtGui, QtWidgets
+from qtpy.QtCore import Qt, QRect
 
 
 class ModeToggle(QtWidgets.QPushButton):

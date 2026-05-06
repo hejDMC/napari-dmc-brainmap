@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# from PyQt5.QtPrintSupport import QPrintDialog
-from PyQt5.QtWidgets import QMessageBox, QMainWindow, QMenu, QAction, QFileDialog, QApplication
+# from qtpy.QtPrintSupport import QPrintDialog
+from qtpy.QtGui import QAction
+from qtpy.QtWidgets import QMessageBox, QMainWindow, QMenu, QFileDialog, QApplication
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle import ModeToggle
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.MainWidget import MainWidget
@@ -135,7 +136,7 @@ class RegistrationViewer(QMainWindow):
                     msg.setText("There is previous registration record. \nDo want to load them? \n* Choose 'No' will overwrite previous record.")
                     msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                     msg.setDefaultButton(QMessageBox.Yes)
-                    feedback = msg.exec_()
+                    feedback = msg.exec()
                     if feedback == msg.Yes:
                         self.status.jsonPath = self.status.folderPath.joinpath('registration.json')
                         with open (self.status.jsonPath,'r') as jsonData:
