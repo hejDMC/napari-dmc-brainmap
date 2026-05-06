@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import QLabel
-from PyQt5 import QtCore
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QLabel
 
 class QLabelMT(QLabel):
-    mouseMoved = QtCore.pyqtSignal()
+    mouseMoved = Signal()
     """
     """
     

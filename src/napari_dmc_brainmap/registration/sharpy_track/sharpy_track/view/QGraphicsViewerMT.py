@@ -1,11 +1,11 @@
-from PyQt5.QtWidgets import QGraphicsView
-from PyQt5 import QtCore
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import QGraphicsView
 
 class QGraphicsViewMT(QGraphicsView):
-    mouseMoved = QtCore.pyqtSignal()
-    mouseEntered = QtCore.pyqtSignal()
-    mouseLeft = QtCore.pyqtSignal()
-    mouseClicked = QtCore.pyqtSignal()
+    mouseMoved = Signal()
+    mouseEntered = Signal()
+    mouseLeft = Signal()
+    mouseClicked = Signal()
     """
     Custom QGraphicsView with mouse tracking and enter/leave signals
     """

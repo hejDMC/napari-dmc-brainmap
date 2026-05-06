@@ -3,9 +3,9 @@ import numpy as np
 import functools
 import distinctipy as dc
 
-from PyQt5.QtWidgets import QSlider,QWidget,QGridLayout,QHBoxLayout,QVBoxLayout,QLabel,QCheckBox,QRadioButton,QSizePolicy
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap,QImage
+from qtpy.QtWidgets import QSlider,QWidget,QGridLayout,QHBoxLayout,QVBoxLayout,QLabel,QCheckBox,QRadioButton,QSizePolicy
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QPixmap,QImage
 from napari.utils.notifications import show_info
 
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.QLabelMT import QLabelMT

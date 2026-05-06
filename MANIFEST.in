@@ -11,6 +11,6 @@ include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/cr
 include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/crosshair_red.png
 include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/view/ui/accuracy_measurement_page.ui
 
-exclude src/napari_dmc_brainmap/deprecated/*
+recursive-exclude src/napari_dmc_brainmap/deprecated *
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]

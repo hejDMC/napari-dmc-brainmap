@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSpinBox,QLabel,QPushButton,QDoubleSpinBox
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QSpinBox,QLabel,QPushButton,QDoubleSpinBox
 import numpy as np
 
 class AnchorRow(QWidget):

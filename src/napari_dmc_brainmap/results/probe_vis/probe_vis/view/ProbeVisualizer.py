@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QFileDialog, QApplication
+from qtpy.QtGui import QAction
+from qtpy.QtWidgets import QMainWindow, QMenu, QFileDialog, QApplication
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.MainWidget import MainWidget
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma
@@ -6,8 +7,8 @@ from napari_dmc_brainmap.utils.atlas_utils import get_bregma
 import numpy as np
 import cv2
 import json
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap,QImage
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QPixmap,QImage
 from pathlib import Path
 
 from napari.utils.notifications import show_info

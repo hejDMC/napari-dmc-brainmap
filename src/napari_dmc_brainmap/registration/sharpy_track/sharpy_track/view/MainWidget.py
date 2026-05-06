@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QSlider,QWidget,QGridLayout,QLabel,QGraphicsItemGroup
-from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QSlider,QWidget,QGridLayout,QLabel,QGraphicsItemGroup
+from qtpy.QtCore import Qt
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.GraphicViewers import ViewerLeft,ViewerRight
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle import ModeToggle
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject

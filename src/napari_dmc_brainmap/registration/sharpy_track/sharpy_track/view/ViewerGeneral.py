@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QLabel,QGraphicsScene,QFrame, QGraphicsItemGroup, QGraphicsPixmapItem, QGraphicsEllipseItem
-from PyQt5.QtGui import QColor, QPen
-from PyQt5.QtCore import Qt
+from qtpy.QtWidgets import QLabel,QGraphicsScene,QFrame, QGraphicsItemGroup, QGraphicsPixmapItem, QGraphicsEllipseItem
+from qtpy.QtGui import QColor, QPen
+from qtpy.QtCore import Qt
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.QGraphicsViewerMT import QGraphicsViewMT
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import mapPointTransform
 import numpy as np

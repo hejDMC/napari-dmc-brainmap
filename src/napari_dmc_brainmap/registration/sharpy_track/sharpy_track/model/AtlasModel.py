@@ -1,13 +1,13 @@
 import cv2, os, glob
 import numpy as np
-from PyQt5.QtGui import QImage, QPixmap
+from qtpy.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
 
+from importlib.resources import files
 from pathlib import Path
-from pkg_resources import resource_filename
 from bg_atlasapi import BrainGlobeAtlas
 
 
@@ -15,7 +15,7 @@ class AtlasModel():
     def __init__(self, regViewer) -> None:
         self.regViewer = regViewer
         self.regi_dict = regViewer.regi_dict
-        self.sharpy_dir = Path(resource_filename("napari_dmc_brainmap", 'registration'))
+        self.sharpy_dir = Path(files("napari_dmc_brainmap").joinpath("registration"))
         self.imgStack = None
         print("loading reference atlas...")
         self.atlas = BrainGlobeAtlas(self.regi_dict['atlas'])

@@ -1,6 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt 
-from PyQt5.QtGui import QPixmap,QImage
+from qtpy.QtGui import QPixmap,QImage
 
 
 class HelperModel():
