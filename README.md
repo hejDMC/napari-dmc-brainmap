@@ -14,26 +14,62 @@ A detailed guide and tutorial can be found on the [Wiki pages of this repo](http
 
 ### Installation
 
-DMC-BrainMap is a plugin for [napari](https://napari.org/stable/). Hence, you first need to install napari and subsequently the DMC-BrainMap plugin via the plugin manager. To install napari, we recommend to install napari into a clean virtual environment using *conda* or *venv*. Please refer to the [napari installation guide](https://napari.org/stable/tutorials/fundamentals/installation.html#napari-installation) for more information and [for information on installing napari as a bundled app](https://napari.org/stable/tutorials/fundamentals/installation.html#napari-installation).  
+DMC-BrainMap is a plugin for [napari](https://napari.org/stable/). There are two recommended installation paths, depending on whether you want to use the released plugin or develop the code.
 
-#### Step 1: Setup the virtual environment (Python 3.10)
+#### Users
 
-```
-conda create -y -n napari-env -c conda-forge python=3.10
-conda activate napari-env
-```
+For reproducible regular use, first install napari by following the [napari installation guide](https://napari.org/dev/getting_started/installation.html). Then install DMC-BrainMap from napari's graphical plugin manager:
 
-#### Step 2: Install napari
-
-```
-python -m pip install "napari[all]"
+```text
+Plugins > Install/Uninstall Plugins...
 ```
 
-#### Step 3: Install napari-dmc-brainmap
+Search for `napari-dmc-brainmap`, then install it from the plugin manager. Napari handles the plugin installation graphically.
 
-You can install `napari-dmc-brainmap` via the napari plugin manager or via [pip](https://pypi.org/project/napari-dmc-brainmap/):
+You can also install the released plugin with pip:
 
-    pip install napari-dmc-brainmap
+```bash
+pip install napari-dmc-brainmap
+```
+
+After installation, open DMC-BrainMap from the napari plugin menu:
+
+```text
+Plugins > dmc_brainmap
+```
+
+#### Developers
+
+For troubleshooting and contributing to repo development, install the repository as an editable project with [uv](https://docs.astral.sh/uv/). In editable mode, code changes in this repository are picked up the next time napari is started with `uv run napari`.
+
+First install uv if needed, following the [uv installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+
+Clone the repository:
+
+```bash
+git clone https://github.com/hejDMC/napari-dmc-brainmap.git
+cd napari-dmc-brainmap
+```
+
+Sync the environment:
+
+```bash
+uv sync
+```
+
+This creates the project environment, installs Python 3.10 as required by the project, installs napari and all dependencies, and installs `napari-dmc-brainmap` from the local checkout.
+
+Start napari:
+
+```bash
+uv run napari
+```
+
+Then find DMC-BrainMap from the napari plugin menu:
+
+```text
+Plugins > dmc_brainmap
+```
 
 ### Usage
 
