@@ -43,7 +43,7 @@ class TractCalculator:
         """
         Calculate and save probe tracts based on segmentation and atlas data.
         """
-        probes_list = natsorted([p.parts[-1] for p in self.results_dir.iterdir() if p.is_dir()])
+        probes_list = natsorted([p.parts[-1] for p in self.results_dir.iterdir() if p.is_dir() and not p.name.startswith('._')])
         probes_dict = {}
         ax_map = {'ap': 'AP', 'si': 'DV', 'rl': 'ML'}
         show_info("calculating probe tract for...")
@@ -81,7 +81,7 @@ class TractCalculator:
             pd.DataFrame: Dataframe containing probe data.
         """
         data_dir = self.results_dir.joinpath(probe)
-        data_fn = list(data_dir.glob('*csv'))[0]
+        data_fn = [f for f in data_dir.glob('*csv') if not f.name.startswith('._')][0]
         probe_df = pd.read_csv(data_fn)
         name_dict = {'ap': 'ap_coords', 'si': 'dv_coords', 'rl': 'ml_coords'}
         for atlas_ax, abc_name in zip(self.atlas.space.axes_description, self.ABC_LIST):

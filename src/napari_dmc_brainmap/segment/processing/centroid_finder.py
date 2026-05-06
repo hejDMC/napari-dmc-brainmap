@@ -77,7 +77,7 @@ class CentroidFinder:
         total_images = 0
         for chan in self.channels:
             mask_dir = get_info(self.input_path, self.mask_folder, seg_type=self.mask_type, channel=chan, only_dir=True)
-            total_images += len([im for im in mask_dir.glob('*.tiff')])
+            total_images += len([im for im in mask_dir.glob('*.tiff') if not im.name.startswith('._')])
 
         processed_images = 0
         for chan in self.channels:
@@ -86,7 +86,7 @@ class CentroidFinder:
             output_dir = get_info(self.input_path, self.output_folder, seg_type=self.mask_type, channel=chan, create_dir=True,
                                   only_dir=True)
 
-            mask_images = natsorted([im for im in mask_dir.glob('*.tiff')])
+            mask_images = natsorted([im for im in mask_dir.glob('*.tiff') if not im.name.startswith('._')])
             for mask_image_path in mask_images:
                 print(f"Processing mask image: {mask_image_path}")
                 save_path = output_dir.joinpath(f"{mask_image_path.stem}_{self.mask_type}.csv")
@@ -113,7 +113,7 @@ class CentroidFinder:
                 mask_dir = get_info(self.input_path, self.mask_folder, seg_type=self.mask_type, channel=chan, only_dir=True)
                 output_dir = get_info(self.input_path, self.output_folder, seg_type=self.mask_type, channel=chan, create_dir=True, only_dir=True)
 
-                mask_images = natsorted([im for im in mask_dir.glob('*.tiff')])
+                mask_images = natsorted([im for im in mask_dir.glob('*.tiff') if not im.name.startswith('._')])
                 for mask_image_path in mask_images:
                     save_path = output_dir.joinpath(f"{mask_image_path.stem}_{self.mask_type}.csv")
                     # Submit each image processing task to the executor

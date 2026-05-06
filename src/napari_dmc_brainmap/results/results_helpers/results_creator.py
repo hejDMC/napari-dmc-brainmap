@@ -118,7 +118,7 @@ class ResultsCreator:
             List[str]: List of segmentation channels.
         """
         seg_super_dir = get_info(self.input_path, 'segmentation', seg_type=self.seg_type, only_dir=True)
-        return natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir()])
+        return natsorted([f.parts[-1] for f in seg_super_dir.iterdir() if f.is_dir() and not f.name.startswith('._')])
 
     def _get_segment_list(self, chan: str) -> List[str]:
         """

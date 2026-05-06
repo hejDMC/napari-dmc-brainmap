@@ -50,7 +50,7 @@ def do_stitching(input_path: Path,
     animal_id = get_animal_id(input_path)
     resolution = tuple(params_dict['atlas_info']['resolution'])
     data_dir = input_path.joinpath('raw')
-    objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir()])
+    objs = natsorted([o.parts[-1] for o in data_dir.iterdir() if o.is_dir() and not o.name.startswith('._')])
 
     if not objs:
         show_info('No object slides under raw-data folder!')
@@ -100,10 +100,10 @@ def process_stitch_folder(input_path: Path,
         overlap (int, optional): Overlap for stitching tiles. Defaults to 205.
     """
     in_chan = in_obj.joinpath(f)
-    section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir()])
+    section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir() and not s.name.startswith('._')])
     section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in enumerate(section_list)]
     [in_chan.joinpath(old).rename(in_chan.joinpath(new)) for old, new in zip(section_list, section_list_new)]
-    section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir()])
+    section_dirs = natsorted([s for s in in_chan.iterdir() if s.is_dir() and not s.name.startswith('._')])
 
     for section in section_dirs:
         stitched_path = stitch_dir.joinpath(f'{section.parts[-1]}_stitched.tif')
@@ -145,7 +145,7 @@ def process_stitch_stack(input_path: Path,
         overlap (int, optional): Overlap for stitching tiles. Defaults to 205.
     """
     in_chan = in_obj.joinpath(f'{obj}_{f}_1')
-    stack = natsorted([im.parts[-1] for im in in_chan.glob('*.tif')])
+    stack = natsorted([im.parts[-1] for im in in_chan.glob('*.tif') if not im.name.startswith('._')])
     whole_stack = load_tile_stack(in_chan, stack)
 
     meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
