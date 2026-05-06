@@ -45,6 +45,13 @@ dependencies = [
 ]
 
 
+[dependency-groups]
+test = [
+    "pytest",
+    "pytest-cov",
+]
+
+
 [project.entry-points."napari.manifest"]
 napari-dmc-brainmap = "napari_dmc_brainmap:napari.yaml"
 
