@@ -3,6 +3,7 @@ import numpy as np
 from qtpy.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import RegistrationTransformPredictor
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
 
@@ -30,6 +31,9 @@ class AtlasModel():
         self.loadStructureTree()
         self.atlas_pts = []
         self.sample_pts = []
+        self.predictor = None
+        self.predictedSliceNumber = None
+        self.predictedTransform = None
 
 
     def loadTemplate(self):
@@ -357,17 +361,10 @@ class AtlasModel():
                 self.regViewer.widget.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
 
     def updateTransform(self,atlas_pts,sample_pts):
+        self.clearPredictedPreview()
         transform = fitGeoTrans(sample_pts,atlas_pts) # save transform for prediction
         self.rtransform = fitGeoTrans(atlas_pts,sample_pts)
-        self.sampleWarp = cv2.warpPerspective(self.sample,transform,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
-        self.sampleBlend = cv2.addWeighted(self.slice, 0.5, self.sampleWarp, 0.5, 0)
-
-        if self.regViewer.status.imageRGB is False:
-            self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_Grayscale8)
-            self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_Grayscale8)
-        else:
-            self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_BGR888)
-            self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_BGR888)
+        self.sampleWarp,self.sampleBlend,self.qWarp,self.qBlend = self._render_transform(transform)
 
         if not(self.regViewer.status.currentSliceNumber in self.regViewer.status.blendMode):
             self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1 # overlay
@@ -380,4 +377,113 @@ class AtlasModel():
         else:
             self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qWarp)) # all sample
 
-    
+    def applyPredictedTransform(self):
+        if self.predictor is None:
+            self.predictor = RegistrationTransformPredictor(
+                self.regViewer.regi_dict["model_path"]
+            )
+        transform = self.predictor.predict_transform(self.sample, self.slice)
+        self.clearPredictedPreview()
+        self.predictedTransform = transform
+        self.predictedSliceNumber = self.regViewer.status.currentSliceNumber
+        (
+            self.predictedWarp,
+            self.predictedBlend,
+            self.qPredictedWarp,
+            self.qPredictedBlend,
+        ) = self._render_transform(transform)
+        self.regViewer.status.blendMode[self.predictedSliceNumber] = 1
+        self.showPredictedPreview()
+
+    def clearPredictedPreview(self, reset_view=False):
+        active_preview = (
+            self.predictedSliceNumber == self.regViewer.status.currentSliceNumber
+        )
+        self.predictedSliceNumber = None
+        self.predictedTransform = None
+        for attr in [
+            "predictedWarp",
+            "predictedBlend",
+            "qPredictedWarp",
+            "qPredictedBlend",
+        ]:
+            if hasattr(self, attr):
+                delattr(self, attr)
+        if reset_view and active_preview:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.sliceQimg)
+            )
+
+    def hasPredictedPreview(self):
+        return (
+            self.predictedSliceNumber == self.regViewer.status.currentSliceNumber
+            and hasattr(self, "qPredictedBlend")
+            and hasattr(self, "qPredictedWarp")
+        )
+
+    def showPredictedPreview(self):
+        if not self.hasPredictedPreview():
+            return False
+
+        blend_mode = self.regViewer.status.blendMode.get(
+            self.regViewer.status.currentSliceNumber,
+            1,
+        )
+        if blend_mode == 0:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.sliceQimg)
+            )
+        elif blend_mode == 1:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.qPredictedBlend)
+            )
+        else:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.qPredictedWarp)
+            )
+        return True
+
+    def showCurrentTransformPreview(self):
+        if self.showPredictedPreview():
+            return
+        self.updateDotPosition(mode='force')
+
+    def _render_transform(self, transform):
+        sample_warp = cv2.warpPerspective(
+            self.sample,
+            transform,
+            (self.regViewer.singleWindowSize[0], self.regViewer.singleWindowSize[1]),
+        )
+        sample_blend = cv2.addWeighted(self.slice, 0.5, sample_warp, 0.5, 0)
+
+        if self.regViewer.status.imageRGB is False:
+            q_warp = QImage(
+                sample_warp.data,
+                sample_warp.shape[1],
+                sample_warp.shape[0],
+                sample_warp.strides[0],
+                QImage.Format_Grayscale8,
+            )
+            q_blend = QImage(
+                sample_blend.data,
+                sample_blend.shape[1],
+                sample_blend.shape[0],
+                sample_blend.strides[0],
+                QImage.Format_Grayscale8,
+            )
+        else:
+            q_warp = QImage(
+                sample_warp.data,
+                sample_warp.shape[1],
+                sample_warp.shape[0],
+                sample_warp.strides[0],
+                QImage.Format_BGR888,
+            )
+            q_blend = QImage(
+                sample_blend.data,
+                sample_blend.shape[1],
+                sample_blend.shape[0],
+                sample_blend.strides[0],
+                QImage.Format_BGR888,
+            )
+        return sample_warp, sample_blend, q_warp, q_blend

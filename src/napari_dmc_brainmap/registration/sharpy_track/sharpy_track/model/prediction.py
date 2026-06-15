@@ -1,0 +1,203 @@
+from pathlib import Path
+from typing import Any
+
+import cv2
+import numpy as np
+
+
+CORNER_ORDER = np.float32(
+    [
+        [0.0, 0.0],
+        [1.0, 0.0],
+        [1.0, 1.0],
+        [0.0, 1.0],
+    ]
+)
+
+
+def offsets_to_homography(offsets: Any, image_shape: tuple[int, ...]) -> np.ndarray:
+    """Convert four sample-to-atlas corner offsets to a 3x3 homography."""
+    h, w = image_shape[:2]
+    src = CORNER_ORDER.copy()
+    src[:, 0] *= w - 1
+    src[:, 1] *= h - 1
+
+    offsets = np.asarray(offsets, dtype=np.float32).reshape(4, 2)
+    dst = src + offsets
+    return cv2.getPerspectiveTransform(src, dst)
+
+
+class RegistrationTransformPredictor:
+    """Lazy PyTorch adapter for preview-only registration predictions."""
+
+    def __init__(self, model_path: str | Path) -> None:
+        self.model_path = Path(model_path)
+        self.model = None
+        self.torch = None
+        self.device = None
+
+    def predict_transform(
+        self,
+        sample_image: np.ndarray,
+        reference_image: np.ndarray,
+    ) -> np.ndarray:
+        offsets = self.predict_offsets(sample_image, reference_image)
+        return offsets_to_homography(offsets, sample_image.shape)
+
+    def predict_offsets(
+        self,
+        sample_image: np.ndarray,
+        reference_image: np.ndarray,
+    ) -> np.ndarray:
+        self._ensure_model_loaded()
+        expected_channels = self._model_input_channels()
+        force_gray = expected_channels == 2
+        sample_tensor = self._image_to_tensor(sample_image, force_gray=force_gray)
+        reference_tensor = self._image_to_tensor(reference_image, force_gray=force_gray)
+
+        with self.torch.no_grad():
+            output = self.model(sample_tensor, reference_tensor)
+
+        if isinstance(output, (tuple, list)):
+            output = output[0]
+        if hasattr(output, "detach"):
+            output = output.detach().cpu().numpy()
+        return np.asarray(output, dtype=np.float32).reshape(4, 2)
+
+    def _ensure_model_loaded(self) -> None:
+        if self.model is not None:
+            return
+
+        try:
+            import torch
+        except ImportError as exc:
+            raise ImportError(
+                "PyTorch is required to use the registration Predict button."
+            ) from exc
+
+        self.torch = torch
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        try:
+            self.model = torch.jit.load(str(self.model_path), map_location=self.device)
+        except Exception:
+            try:
+                checkpoint = torch.load(
+                    str(self.model_path),
+                    map_location=self.device,
+                    weights_only=False,
+                )
+            except TypeError:
+                checkpoint = torch.load(str(self.model_path), map_location=self.device)
+            if hasattr(checkpoint, "eval"):
+                self.model = checkpoint
+            elif isinstance(checkpoint, dict) and hasattr(checkpoint.get("model"), "eval"):
+                self.model = checkpoint["model"]
+            elif (
+                isinstance(checkpoint, dict)
+                and checkpoint.get("model_config", {}).get("model_name") == "spatial"
+                and "model_state_dict" in checkpoint
+            ):
+                self.model = self._load_spatial_model(checkpoint)
+            else:
+                raise ValueError(
+                    "Model file must be a TorchScript model or a checkpoint "
+                    "containing a callable model object."
+                )
+        self.model.to(self.device)
+        self.model.eval()
+
+    def _load_spatial_model(self, checkpoint: dict):
+        config = checkpoint["model_config"]
+        model = _SpatialOffsetModel(
+            self.torch,
+            base_channels=int(config.get("base_channels", 24)),
+            max_corner_offset_px=float(config.get("max_corner_offset_px", 512.0)),
+            spatial_pool_size=tuple(config.get("spatial_pool_size", [5, 8])),
+            spatial_hidden_channels=int(
+                config.get("spatial_hidden_channels", 256)
+            ),
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        return model
+
+    def _model_input_channels(self) -> int | None:
+        try:
+            return int(self.model.features[0][0].weight.shape[1])
+        except (AttributeError, IndexError, TypeError):
+            return None
+
+    def _image_to_tensor(self, image: np.ndarray, force_gray: bool = False):
+        image = np.asarray(image)
+        if force_gray and image.ndim == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if image.ndim == 2:
+            image = image[:, :, None]
+        image = image.astype(np.float32) / 255.0
+        image = np.transpose(image, (2, 0, 1))[None, ...]
+        return self.torch.from_numpy(image).to(self.device)
+
+
+class _SpatialOffsetModel:
+    """Architecture for spatial-head state-dict registration checkpoints."""
+
+    def __new__(
+        cls,
+        torch_module,
+        base_channels: int,
+        max_corner_offset_px: float,
+        spatial_pool_size: tuple[int, int],
+        spatial_hidden_channels: int,
+    ):
+        nn = torch_module.nn
+
+        class SpatialOffsetModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                channels = [
+                    base_channels,
+                    base_channels * 2,
+                    base_channels * 4,
+                    base_channels * 4,
+                    base_channels * 8,
+                ]
+                in_channels = 2
+                blocks = []
+                for out_channels in channels:
+                    blocks.append(
+                        nn.Sequential(
+                            nn.Conv2d(
+                                in_channels,
+                                out_channels,
+                                kernel_size=3,
+                                stride=2,
+                                padding=1,
+                                bias=False,
+                            ),
+                            nn.BatchNorm2d(out_channels),
+                            nn.ReLU(inplace=True),
+                        )
+                    )
+                    in_channels = out_channels
+
+                self.features = nn.Sequential(*blocks)
+                self.spatial_pool = nn.AdaptiveAvgPool2d(spatial_pool_size)
+                pooled_features = channels[-1] * spatial_pool_size[0] * spatial_pool_size[1]
+                self.head = nn.Sequential(
+                    nn.Flatten(),
+                    nn.Linear(pooled_features, spatial_hidden_channels),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(spatial_hidden_channels, spatial_hidden_channels),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(spatial_hidden_channels, 8),
+                )
+                self.max_corner_offset_px = max_corner_offset_px
+
+            def forward(self, sample, reference):
+                pair = torch_module.cat([sample, reference], dim=1)
+                features = self.spatial_pool(self.features(pair))
+                offsets = self.head(features).reshape(-1, 4, 2)
+                if self.max_corner_offset_px is not None:
+                    offsets = torch_module.tanh(offsets) * self.max_corner_offset_px
+                return offsets
+
+        return SpatialOffsetModel()
