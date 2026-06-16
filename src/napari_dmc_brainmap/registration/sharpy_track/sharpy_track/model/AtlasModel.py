@@ -3,7 +3,10 @@ import numpy as np
 from qtpy.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
-from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import RegistrationTransformPredictor
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import (
+    RegistrationTransformPredictor,
+    homography_to_registration_points,
+)
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
 
@@ -327,22 +330,55 @@ class AtlasModel():
         else:
             atlas_pts = self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] # read dictionary, create dot object
             sample_pts = self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber]
+            self._validate_dot_pairs(atlas_pts, sample_pts)
+            self.atlas_pts = atlas_pts
+            self.sample_pts = sample_pts
+            self._display_dot_pairs(atlas_pts, sample_pts)
+            if len(atlas_pts) >= 5:
+                self.updateTransform(
+                    np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in atlas_pts]),
+                    np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in sample_pts]),
+                )
 
+    def _validate_dot_pairs(self, atlas_pts, sample_pts):
+        for xyAtlas, xySample in zip(atlas_pts,sample_pts):
+            # check if dot coordinates are within boundary
+            if (xyAtlas[0] >=0) and (xyAtlas[0] < self.regViewer.atlas_resolution[0]) and (
+                xyAtlas[1] >=0) and (xyAtlas[1] < self.regViewer.atlas_resolution[1]) and (
+                xySample[0] >=0) and (xySample[0] < self.regViewer.atlas_resolution[0]) and (
+                xySample[1] >=0) and (xySample[1] < self.regViewer.atlas_resolution[1]):
+                pass
+            else:
+                raise IndexError("Registration coordinates out of boundary! \n" 
+                                 "Check slide {} : atlasDots {}, sampleDots{}. \n"
+                                 "Must fulfill: [0=<i<{},0<=j<{}]".format(self.regViewer.status.currentSliceNumber,
+                                                                          xyAtlas,xySample,
+                                                                          self.regViewer.atlas_resolution[0],self.regViewer.atlas_resolution[1]))
 
+    def _clear_visible_dot_pairs(self):
+        left_scene = self.regViewer.widget.viewerLeft.scene
+        right_scene = self.regViewer.widget.viewerRight.scene
+        previous_left_block = left_scene.blockSignals(True)
+        previous_right_block = right_scene.blockSignals(True)
+        try:
+            for dot in self.regViewer.widget.viewerLeft.itemGroup:
+                left_scene.removeItem(dot)
+            for dot in self.regViewer.widget.viewerRight.itemGroup:
+                right_scene.removeItem(dot)
+            self.regViewer.widget.viewerLeft.itemGroup = []
+            self.regViewer.widget.viewerRight.itemGroup = []
+        finally:
+            left_scene.blockSignals(previous_left_block)
+            right_scene.blockSignals(previous_right_block)
+
+    def _display_dot_pairs(self, atlas_pts, sample_pts):
+        self._clear_visible_dot_pairs()
+        left_scene = self.regViewer.widget.viewerLeft.scene
+        right_scene = self.regViewer.widget.viewerRight.scene
+        previous_left_block = left_scene.blockSignals(True)
+        previous_right_block = right_scene.blockSignals(True)
+        try:
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                # check if dot coordinates are within boundary
-                if (xyAtlas[0] >=0) and (xyAtlas[0] < self.regViewer.atlas_resolution[0]) and (
-                    xyAtlas[1] >=0) and (xyAtlas[1] < self.regViewer.atlas_resolution[1]) and (
-                    xySample[0] >=0) and (xySample[0] < self.regViewer.atlas_resolution[0]) and (
-                    xySample[1] >=0) and (xySample[1] < self.regViewer.atlas_resolution[1]):
-                    pass
-                else:
-                    raise IndexError("Registration coordinates out of boundary! \n" 
-                                     "Check slide {} : atlasDots {}, sampleDots{}. \n"
-                                     "Must fulfill: [0=<i<{},0<=j<{}]".format(self.regViewer.status.currentSliceNumber,
-                                                                              xyAtlas,xySample,
-                                                                              self.regViewer.atlas_resolution[0],self.regViewer.atlas_resolution[1]))
-                
                 dotLeft = DotObject(self.regViewer.res_down[xyAtlas[0]], 
                                     self.regViewer.res_down[xyAtlas[1]], 
                                     self.regViewer.dotRR) # list to itemGroup
@@ -354,11 +390,14 @@ class AtlasModel():
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
                 # add dots to scene
-                self.regViewer.widget.viewerLeft.scene.addItem(dotLeft)
-                self.regViewer.widget.viewerRight.scene.addItem(dotRight)
+                left_scene.addItem(dotLeft)
+                right_scene.addItem(dotRight)
                 # store dot to itemGroup
                 self.regViewer.widget.viewerLeft.itemGroup.append(dotLeft) # add dot to leftViewer
                 self.regViewer.widget.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
+        finally:
+            left_scene.blockSignals(previous_left_block)
+            right_scene.blockSignals(previous_right_block)
 
     def updateTransform(self,atlas_pts,sample_pts):
         self.clearPredictedPreview()
@@ -394,6 +433,37 @@ class AtlasModel():
         ) = self._render_transform(transform)
         self.regViewer.status.blendMode[self.predictedSliceNumber] = 1
         self.showPredictedPreview()
+
+    def materializePredictedDots(self):
+        if not self.hasPredictedPreview():
+            return False
+
+        current_slice = self.regViewer.status.currentSliceNumber
+        sample_pts, atlas_pts = homography_to_registration_points(
+            self.predictedTransform,
+            self.sample.shape,
+            self.regViewer.atlas_resolution,
+            self.regViewer.res_up,
+        )
+        self._validate_dot_pairs(atlas_pts, sample_pts)
+        self.regViewer.status.atlasLocation[current_slice] = [
+            self.regViewer.status.x_angle,
+            self.regViewer.status.y_angle,
+            self.regViewer.status.current_z,
+        ]
+        self.regViewer.status.atlasDots[current_slice] = atlas_pts
+        self.regViewer.status.sampleDots[current_slice] = sample_pts
+        self.atlas_pts = atlas_pts
+        self.sample_pts = sample_pts
+        self._display_dot_pairs(atlas_pts, sample_pts)
+        self.regViewer.status.blendMode[current_slice] = 1
+        self.regViewer.status.saveRegistration()
+        self.updateTransform(
+            np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in atlas_pts]),
+            np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in sample_pts]),
+        )
+        self.regViewer.widget.updatePredictButton()
+        return True
 
     def clearPredictedPreview(self, reset_view=False):
         active_preview = (

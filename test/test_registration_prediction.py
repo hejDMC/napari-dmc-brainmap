@@ -7,6 +7,7 @@ sys.path.append("./src")
 
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import (
     RegistrationTransformPredictor,
+    homography_to_registration_points,
     offsets_to_homography,
 )
 
@@ -69,3 +70,56 @@ def test_predictor_adapter_uses_offsets_for_transform():
 
     mapped = _map_points(transform, [[0, 0], [11, 7]])
     np.testing.assert_allclose(mapped, [[2, 0], [13, 7]], atol=1e-4)
+
+
+def test_homography_to_registration_points_identity():
+    sample_points, atlas_points = homography_to_registration_points(
+        np.eye(3, dtype=np.float32),
+        (20, 30),
+        [30, 20],
+    )
+
+    assert len(sample_points) == 5
+    assert len(atlas_points) == 5
+    assert sample_points == atlas_points
+    assert len({tuple(point) for point in sample_points}) == 5
+    for x, y in sample_points:
+        assert 0 <= x < 30
+        assert 0 <= y < 20
+
+
+def test_homography_to_registration_points_translation():
+    transform = np.array(
+        [
+            [1, 0, 3],
+            [0, 1, 2],
+            [0, 0, 1],
+        ],
+        dtype=np.float32,
+    )
+
+    sample_points, atlas_points = homography_to_registration_points(
+        transform,
+        (20, 30),
+        [30, 20],
+    )
+
+    assert len(sample_points) == 5
+    for sample_point, atlas_point in zip(sample_points, atlas_points):
+        assert atlas_point == [sample_point[0] + 3, sample_point[1] + 2]
+        assert 0 <= atlas_point[0] < 30
+        assert 0 <= atlas_point[1] < 20
+
+
+def test_homography_to_registration_points_rejects_out_of_bound_transform():
+    transform = np.array(
+        [
+            [1, 0, 100],
+            [0, 1, 100],
+            [0, 0, 1],
+        ],
+        dtype=np.float32,
+    )
+
+    with np.testing.assert_raises(ValueError):
+        homography_to_registration_points(transform, (20, 30), [30, 20])

@@ -80,6 +80,19 @@ class StatusContainer():
     
     def toggleChanged(self):
         if self.regViewer.widget.toggle.isChecked():
+            if self.regViewer.atlasModel.hasPredictedPreview():
+                try:
+                    self.regViewer.atlasModel.materializePredictedDots()
+                except Exception as exc:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setWindowTitle("Prediction dots failed")
+                    msg.setText(str(exc))
+                    msg.exec()
+                    self.regViewer.widget.toggle.setChecked(False)
+                    self.tMode = 0
+                    self.regViewer.widget.updatePredictButton()
+                    return
             self.tMode = 1 # ON
             self.regViewer.atlasModel.clearPredictedPreview(reset_view=True)
             self.regViewer.widget.z_slider.setDisabled(True) # lock Sliders, prevent user from changing

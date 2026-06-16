@@ -27,6 +27,123 @@ def offsets_to_homography(offsets: Any, image_shape: tuple[int, ...]) -> np.ndar
     return cv2.getPerspectiveTransform(src, dst)
 
 
+def project_points(transform: np.ndarray, points: Any) -> np.ndarray:
+    """Apply a 3x3 homography to a list of xy points."""
+    points = np.asarray(points, dtype=np.float32).reshape(-1, 1, 2)
+    return cv2.perspectiveTransform(points, np.asarray(transform, dtype=np.float32)).reshape(-1, 2)
+
+
+def homography_to_registration_points(
+    transform: np.ndarray,
+    display_shape: tuple[int, ...],
+    atlas_resolution: tuple[int, int] | list[int] | None = None,
+    scale_mapping: dict[int, int] | None = None,
+    count: int = 5,
+) -> tuple[list[list[int]], list[list[int]]]:
+    """Convert a display-space homography into spread sample/atlas point pairs."""
+    if count != 5:
+        raise ValueError("Prediction materialization currently requires exactly 5 points.")
+
+    height, width = display_shape[:2]
+    if height <= 1 or width <= 1:
+        raise ValueError("Cannot generate prediction dots for an empty image.")
+
+    inset_x = max((width - 1) * 0.08, 1.0)
+    inset_y = max((height - 1) * 0.08, 1.0)
+    grid_x = np.linspace(inset_x, (width - 1) - inset_x, 17)
+    grid_y = np.linspace(inset_y, (height - 1) - inset_y, 17)
+    mesh_x, mesh_y = np.meshgrid(grid_x, grid_y)
+    sample_candidates = np.column_stack([mesh_x.ravel(), mesh_y.ravel()]).astype(np.float32)
+    rounded_sample = np.rint(sample_candidates).astype(int)
+    sample_candidates = rounded_sample.astype(np.float32)
+    atlas_candidates = project_points(transform, sample_candidates)
+
+    rounded_atlas = np.rint(atlas_candidates).astype(int)
+    valid = (
+        np.isfinite(atlas_candidates).all(axis=1)
+        & (rounded_sample[:, 0] >= 0)
+        & (rounded_sample[:, 0] < width)
+        & (rounded_sample[:, 1] >= 0)
+        & (rounded_sample[:, 1] < height)
+        & (rounded_atlas[:, 0] >= 0)
+        & (rounded_atlas[:, 0] < width)
+        & (rounded_atlas[:, 1] >= 0)
+        & (rounded_atlas[:, 1] < height)
+    )
+
+    if not np.any(valid):
+        raise ValueError(
+            "Prediction did not produce any in-bound points for this image."
+        )
+
+    sample_candidates = sample_candidates[valid]
+    rounded_sample = rounded_sample[valid]
+    rounded_atlas = rounded_atlas[valid]
+    anchors = np.array(
+        [
+            [inset_x, inset_y],
+            [(width - 1) - inset_x, inset_y],
+            [(width - 1) - inset_x, (height - 1) - inset_y],
+            [inset_x, (height - 1) - inset_y],
+            [(width - 1) / 2.0, (height - 1) / 2.0],
+        ],
+        dtype=np.float32,
+    )
+
+    selected_indices = []
+    available_indices = set(range(len(sample_candidates)))
+    for anchor in anchors:
+        if not available_indices:
+            break
+        ordered = np.argsort(np.linalg.norm(sample_candidates - anchor, axis=1))
+        for index in ordered:
+            index = int(index)
+            if index in available_indices:
+                selected_indices.append(index)
+                available_indices.remove(index)
+                break
+
+    if len(selected_indices) < count:
+        raise ValueError(
+            "Prediction could not generate 5 in-bound registration dots. "
+            "Try adjusting the atlas slice or prediction model."
+        )
+
+    sample_points = rounded_sample[selected_indices].tolist()
+    atlas_points = rounded_atlas[selected_indices].tolist()
+
+    if scale_mapping is not None:
+        sample_points = _scale_points(sample_points, scale_mapping)
+        atlas_points = _scale_points(atlas_points, scale_mapping)
+
+    if atlas_resolution is not None:
+        _validate_bounds(sample_points, atlas_resolution, "sample")
+        _validate_bounds(atlas_points, atlas_resolution, "atlas")
+
+    return sample_points, atlas_points
+
+
+def _scale_points(points: list[list[int]], scale_mapping: dict[int, int]) -> list[list[int]]:
+    try:
+        return [[int(scale_mapping[x]), int(scale_mapping[y])] for x, y in points]
+    except KeyError as exc:
+        raise ValueError("Prediction dot coordinate is outside the display scale map.") from exc
+
+
+def _validate_bounds(
+    points: list[list[int]],
+    atlas_resolution: tuple[int, int] | list[int],
+    name: str,
+) -> None:
+    width, height = atlas_resolution
+    for x, y in points:
+        if not (0 <= x < width and 0 <= y < height):
+            raise ValueError(
+                f"Predicted {name} dot [{x}, {y}] is outside image bounds "
+                f"[0 <= x < {width}, 0 <= y < {height}]."
+            )
+
+
 class RegistrationTransformPredictor:
     """Lazy PyTorch adapter for preview-only registration predictions."""
 
