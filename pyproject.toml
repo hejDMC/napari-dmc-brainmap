@@ -59,11 +59,17 @@ napari-dmc-brainmap = "napari_dmc_brainmap:napari.yaml"
 
 
 [build-system]
-requires = ["setuptools>=75.8.0", "wheel"]
+requires = ["setuptools>=77.0.0", "packaging>=24.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [[tool.uv.index]]
+name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
 
 [tool.setuptools]
 package-dir = {"" = "src"}
