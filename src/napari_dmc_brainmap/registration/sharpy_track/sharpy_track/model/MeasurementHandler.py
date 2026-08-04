@@ -72,11 +72,11 @@ class MeasurementHandler:
         # create dot objects
         for source_xy in self.regViewer.measurementPage.active_rows["source_coords"]:
             # project to scaled space
-            source_xy = self.regViewer.res_down[source_xy[0]], self.regViewer.res_down[source_xy[1]]
+            source_xy = self.regViewer.native_to_display_point(source_xy)
             self.regViewer.widget.viewerRight.addSourceDot(source_xy[0], source_xy[1])
         for truth_xy in self.regViewer.measurementPage.active_rows["truth_coords"]:
             # project to scaled space
-            truth_xy = self.regViewer.res_down[truth_xy[0]], self.regViewer.res_down[truth_xy[1]]
+            truth_xy = self.regViewer.native_to_display_point(truth_xy)
             self.regViewer.widget.viewerLeft.addTruthDot(truth_xy[0], truth_xy[1])
         # enable remove_btn
         for row_obj in self.regViewer.measurementPage.active_rows["row_obj"]:

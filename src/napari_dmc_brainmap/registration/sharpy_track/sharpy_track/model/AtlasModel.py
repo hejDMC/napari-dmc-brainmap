@@ -256,52 +256,52 @@ class AtlasModel():
     def updateDotPosition(self,mode='default'):
         # ignore if less than 5 pairs of dots
         if len(self.regViewer.widget.viewerLeft.itemGroup) == 0:
-            pass
+            return
 
-        elif 0 < len(self.regViewer.widget.viewerLeft.itemGroup) < 5:
-            # check if has saved coodinates
-            atlas_pts = [] 
-            for dot in self.regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                  int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-            sample_pts = []
-            for dot in self.regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                   int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-                
-            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
-                pass
-            else:
-                self.atlas_pts = atlas_pts
-                self.sample_pts = sample_pts
-                # update dot record in dictionary
-                self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] = atlas_pts
-                self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber] = sample_pts
-                self.regViewer.status.saveRegistration()
+        atlas_pts = self._dot_items_to_native(
+            self.regViewer.widget.viewerLeft.itemGroup
+        )
+        sample_pts = self._dot_items_to_native(
+            self.regViewer.widget.viewerRight.itemGroup
+        )
+        if (
+            atlas_pts == self.atlas_pts
+            and sample_pts == self.sample_pts
+            and mode == 'default'
+        ):
+            return
 
-        else: # refresh dot coodinate
-            atlas_pts = [] 
-            for dot in self.regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                  int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-            sample_pts = []
-            for dot in self.regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                   int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
-                pass
-            else:
-                self.atlas_pts = atlas_pts
-                self.sample_pts = sample_pts
-                # update dot record in dictionary
-                self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] = atlas_pts
-                self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber] = sample_pts
-                self.regViewer.status.saveRegistration()
-                # apply transformation
-                    # atlas_pts ---> downscale to screen
-                    # sample_pts ---> downscale to screen
-                self.updateTransform(np.array([[self.regViewer.res_down[i[0]],self.regViewer.res_down[i[1]]] for i in atlas_pts]), 
-                                     np.array([[self.regViewer.res_down[i[0]],self.regViewer.res_down[i[1]]] for i in sample_pts])) # scale coordinates
+        self.atlas_pts = atlas_pts
+        self.sample_pts = sample_pts
+        self.regViewer.status.atlasDots[
+            self.regViewer.status.currentSliceNumber
+        ] = atlas_pts
+        self.regViewer.status.sampleDots[
+            self.regViewer.status.currentSliceNumber
+        ] = sample_pts
+        self.regViewer.status.saveRegistration()
+
+        if len(atlas_pts) >= 5:
+            self.updateTransform(
+                self._native_points_to_display(atlas_pts),
+                self._native_points_to_display(sample_pts),
+            )
+
+    def _dot_items_to_native(self, dots):
+        points = []
+        for dot in dots:
+            center = [
+                dot.pos().x() + dot.size / 2.0,
+                dot.pos().y() + dot.size / 2.0,
+            ]
+            points.append(self.regViewer.display_to_native_point(center))
+        return points
+
+    def _native_points_to_display(self, points):
+        return np.asarray(
+            [self.regViewer.native_to_display_point(point) for point in points],
+            dtype=np.float32,
+        )
         
     def checkSaved(self):
         # load exist dots if there is any
@@ -336,8 +336,8 @@ class AtlasModel():
             self._display_dot_pairs(atlas_pts, sample_pts)
             if len(atlas_pts) >= 5:
                 self.updateTransform(
-                    np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in atlas_pts]),
-                    np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in sample_pts]),
+                    self._native_points_to_display(atlas_pts),
+                    self._native_points_to_display(sample_pts),
                 )
 
     def _validate_dot_pairs(self, atlas_pts, sample_pts):
@@ -379,13 +379,18 @@ class AtlasModel():
         previous_right_block = right_scene.blockSignals(True)
         try:
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                dotLeft = DotObject(self.regViewer.res_down[xyAtlas[0]], 
-                                    self.regViewer.res_down[xyAtlas[1]], 
-                                    self.regViewer.dotRR) # list to itemGroup
-                
-                dotRight = DotObject(self.regViewer.res_down[xySample[0]], 
-                                     self.regViewer.res_down[xySample[1]], 
-                                     self.regViewer.dotRR) # list to itemGroup
+                display_atlas = self.regViewer.native_to_display_point(xyAtlas)
+                display_sample = self.regViewer.native_to_display_point(xySample)
+                dotLeft = DotObject(
+                    display_atlas[0],
+                    display_atlas[1],
+                    self.regViewer.dotRR,
+                )
+                dotRight = DotObject(
+                    display_sample[0],
+                    display_sample[1],
+                    self.regViewer.dotRR,
+                )
                 
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
@@ -439,12 +444,18 @@ class AtlasModel():
             return False
 
         current_slice = self.regViewer.status.currentSliceNumber
-        sample_pts, atlas_pts = homography_to_registration_points(
+        sample_display_pts, atlas_display_pts = homography_to_registration_points(
             self.predictedTransform,
             self.sample.shape,
-            self.regViewer.atlas_resolution,
-            self.regViewer.res_up,
         )
+        sample_pts = [
+            self.regViewer.display_to_native_point(point)
+            for point in sample_display_pts
+        ]
+        atlas_pts = [
+            self.regViewer.display_to_native_point(point)
+            for point in atlas_display_pts
+        ]
         self._validate_dot_pairs(atlas_pts, sample_pts)
         self.regViewer.status.atlasLocation[current_slice] = [
             self.regViewer.status.x_angle,
@@ -459,8 +470,8 @@ class AtlasModel():
         self.regViewer.status.blendMode[current_slice] = 1
         self.regViewer.status.saveRegistration()
         self.updateTransform(
-            np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in atlas_pts]),
-            np.array([[self.regViewer.res_down[i[0]], self.regViewer.res_down[i[1]]] for i in sample_pts]),
+            self._native_points_to_display(atlas_pts),
+            self._native_points_to_display(sample_pts),
         )
         self.regViewer.widget.updatePredictButton()
         return True
