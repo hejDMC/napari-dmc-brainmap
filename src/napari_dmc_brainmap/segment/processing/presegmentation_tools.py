@@ -340,6 +340,7 @@ class CellsSegmenter(PreSegmenter):
         # csv_to_save = pd.DataFrame({'Position Y': idx[0], 'Position X': idx[1]})
         csv_to_save = pd.DataFrame(seg_cells, columns=["Position Y", "Position X"])
         self.save_to_csv(csv_to_save, save_path)
+        cv2.imwrite(str(mask_save_fn), segmented_image)
 
         # Create a binary image with only centroid points for further visualization
         # centroid_binary = np.zeros(segmented_image.shape, dtype='uint8')
