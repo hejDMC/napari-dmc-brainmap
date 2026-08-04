@@ -111,6 +111,46 @@ def test_predictor_loads_model_on_cpu(monkeypatch, tmp_path):
     assert model.is_evaluating
 
 
+def test_predictor_loads_checkpoint_weights_only(monkeypatch, tmp_path):
+    class FakeModel:
+        def __init__(self):
+            self.device = None
+            self.is_evaluating = False
+
+        def to(self, device):
+            self.device = device
+            return self
+
+        def eval(self):
+            self.is_evaluating = True
+            return self
+
+    model = FakeModel()
+    load_calls = []
+
+    def fail_to_load_torchscript(path, map_location):
+        raise ValueError("not a TorchScript model")
+
+    def load_checkpoint(path, map_location, weights_only):
+        load_calls.append((path, map_location, weights_only))
+        return model
+
+    fake_torch = SimpleNamespace(
+        device=lambda name: name,
+        jit=SimpleNamespace(load=fail_to_load_torchscript),
+        load=load_checkpoint,
+    )
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+    model_path = tmp_path / "model.pt"
+    predictor = RegistrationTransformPredictor(model_path)
+    predictor.load()
+
+    assert load_calls == [(str(model_path), "cpu", True)]
+    assert model.device == "cpu"
+    assert model.is_evaluating
+
+
 def test_registration_start_preloads_selected_model(monkeypatch, tmp_path):
     events = []
 

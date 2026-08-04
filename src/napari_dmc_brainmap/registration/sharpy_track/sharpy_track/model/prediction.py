@@ -201,14 +201,11 @@ class RegistrationTransformPredictor:
         try:
             self.model = torch.jit.load(str(self.model_path), map_location=self.device)
         except Exception:
-            try:
-                checkpoint = torch.load(
-                    str(self.model_path),
-                    map_location=self.device,
-                    weights_only=False,
-                )
-            except TypeError:
-                checkpoint = torch.load(str(self.model_path), map_location=self.device)
+            checkpoint = torch.load(
+                str(self.model_path),
+                map_location=self.device,
+                weights_only=True,
+            )
             if hasattr(checkpoint, "eval"):
                 self.model = checkpoint
             elif isinstance(checkpoint, dict) and hasattr(checkpoint.get("model"), "eval"):
