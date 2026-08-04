@@ -1,6 +1,21 @@
 # sharpy_track
  A napari plugin (planned) for mouse brain slice image registration.
 
+## Optional registration prediction
+
+DMC-BrainMap supports prediction-assisted registration with the
+[DMC-BrainMap Registration Predictor](https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor).
+Download a released `.pt` checkpoint from the model repository. Before opening
+the registration GUI, click **Browse Model** in the DMC-BrainMap registration
+widget, select the downloaded checkpoint, and then click **Start Registration
+GUI**.
+
+After navigating to the corresponding atlas slice, click the **Predict
+registration** button to preview an initial alignment. Turn on transformation
+mode to convert an accepted preview into five editable registration-point
+pairs. Inspect and adjust those points before saving; the prediction is only an
+initialization aid and still requires visual quality control.
+
 ## How to install
 1. Download this repository by
 

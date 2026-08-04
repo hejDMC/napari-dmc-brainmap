@@ -10,9 +10,10 @@ project = 'napari-dmc-brainmap'
 copyright = '2025, DMC'
 author = 'DMC'
 
-from importlib.metadata import version
+from importlib.metadata import version as package_version
 
-release = version(project)
+release = package_version(project)
+version = release
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
