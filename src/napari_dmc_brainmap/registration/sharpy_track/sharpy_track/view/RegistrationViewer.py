@@ -15,7 +15,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.statu
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import InterpolatePosition, AccuracyMeasurement, ShortcutsInfo
 
 class RegistrationViewer(QMainWindow):
-    def __init__(self, regViewerWidget, regi_dict) -> None:
+    def __init__(self, regViewerWidget, regi_dict, predictor=None) -> None:
         super().__init__()
         self.regViewerWidget = regViewerWidget
         self.app = regViewerWidget.viewer
@@ -29,7 +29,7 @@ class RegistrationViewer(QMainWindow):
         self.setCentralWidget(self.widget)
 
         # create atlasModel
-        self.atlasModel = AtlasModel(self)
+        self.atlasModel = AtlasModel(self, predictor=predictor)
         self.widget.viewerLeft.scene.changed.connect(lambda: self.atlasModel.updateDotPosition(mode="default"))
         self.widget.viewerRight.scene.changed.connect(lambda: self.atlasModel.updateDotPosition(mode="default"))
 

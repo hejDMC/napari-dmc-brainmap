@@ -16,7 +16,7 @@ from bg_atlasapi import BrainGlobeAtlas
 
 
 class AtlasModel():
-    def __init__(self, regViewer) -> None:
+    def __init__(self, regViewer, predictor=None) -> None:
         self.regViewer = regViewer
         self.regi_dict = regViewer.regi_dict
         self.sharpy_dir = Path(files("napari_dmc_brainmap").joinpath("registration"))
@@ -34,7 +34,7 @@ class AtlasModel():
         self.loadStructureTree()
         self.atlas_pts = []
         self.sample_pts = []
-        self.predictor = None
+        self.predictor = predictor
         self.predictedSliceNumber = None
         self.predictedTransform = None
 

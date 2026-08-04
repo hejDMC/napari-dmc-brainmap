@@ -9,6 +9,7 @@ from superqt import QCollapsible
 from qtpy.QtWidgets import (
     QFileDialog,
     QLabel,
+    QMessageBox,
     QPushButton,
     QWidget,
     QVBoxLayout,
@@ -23,6 +24,9 @@ from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import split_to_list, create_regi_dict
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, get_orient_map
 from napari_dmc_brainmap.utils.color_manager import ColorManager
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import (
+    RegistrationTransformPredictor,
+)
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
 from napari_dmc_brainmap.visualization.vis_plots.brainsection_plotter import BrainsectionPlotter
 from bg_atlasapi import BrainGlobeAtlas
@@ -350,13 +354,32 @@ class RegistrationWidget(QWidget):
         input_path = self.header.input_path.value
         if not check_input_path(input_path):
             return
+
+        predictor = None
+        if self.model_path is not None:
+            predictor = RegistrationTransformPredictor(self.model_path)
+            try:
+                print("loading prediction model...")
+                predictor.load()
+            except Exception as exc:
+                QMessageBox.critical(
+                    self,
+                    "Prediction model failed to load",
+                    f"Could not load {self.model_path.name}:\n{exc}",
+                )
+                return
+
         regi_chan = self.header.regi_chan.value
         regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
         regi_dict = create_regi_dict(input_path, regi_dir)
         if self.model_path is not None:
             regi_dict["model_path"] = self.model_path
 
-        self.reg_viewer = RegistrationViewer(self, regi_dict)
+        self.reg_viewer = RegistrationViewer(
+            self,
+            regi_dict,
+            predictor=predictor,
+        )
         self.reg_viewer.show()
 
     def del_regviewer_instance(self) -> None:

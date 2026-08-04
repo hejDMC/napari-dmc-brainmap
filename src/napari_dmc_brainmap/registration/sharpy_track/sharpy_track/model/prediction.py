@@ -153,6 +153,10 @@ class RegistrationTransformPredictor:
         self.torch = None
         self.device = None
 
+    def load(self) -> None:
+        """Load and prepare the prediction model for CPU inference."""
+        self._ensure_model_loaded()
+
     def predict_transform(
         self,
         sample_image: np.ndarray,
@@ -193,7 +197,7 @@ class RegistrationTransformPredictor:
             ) from exc
 
         self.torch = torch
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")
         try:
             self.model = torch.jit.load(str(self.model_path), map_location=self.device)
         except Exception:
