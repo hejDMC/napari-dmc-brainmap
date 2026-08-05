@@ -7,10 +7,14 @@ This [napari](https://napari.org/stable/) plugin was generated with [Cookiecutte
 [![PyPI](https://img.shields.io/pypi/v/napari-dmc-brainmap.svg?color=green)](https://pypi.org/project/napari-dmc-brainmap)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-dmc-brainmap.svg?color=green)](https://python.org)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-dmc-brainmap)](https://napari-hub.org/plugins/napari-dmc-brainmap)
+[![Documentation Status](https://readthedocs.org/projects/napari-dmc-brainmap/badge/?version=main)](https://napari-dmc-brainmap.readthedocs.io/en/main/?badge=main)
 
 
 ## Quick start
-A detailed guide and tutorial can be found on the [Wiki pages of this repo](https://github.com/hejDMC/napari-dmc-brainmap/wiki).
+User guides and tutorials are available in the
+[project wiki](https://github.com/hejDMC/napari-dmc-brainmap/wiki). The
+generated technical documentation is published on
+[Read the Docs](https://napari-dmc-brainmap.readthedocs.io/en/main/).
 
 ### Installation
 
@@ -41,6 +45,10 @@ CPU-only build separately:
 ```bash
 python -m pip install "torch>=2.12.0" --index-url https://download.pytorch.org/whl/cpu
 ```
+
+See the
+[prediction-assisted registration guide](https://napari-dmc-brainmap.readthedocs.io/en/main/registration_prediction.html)
+for model download, setup, usage, and quality-control guidance.
 
 After installation, open DMC-BrainMap from the napari plugin menu:
 
@@ -134,7 +142,10 @@ animal_id-2
 ```
 
 ## Documentation
-Documentation on DMC-BrainMap's source code can be found on the project's [Read the Docs page](https://napari-dmc-brainmap.readthedocs.io/en/latest/#).
+
+- [Technical documentation](https://napari-dmc-brainmap.readthedocs.io/en/main/)
+- [Prediction-assisted registration](https://napari-dmc-brainmap.readthedocs.io/en/main/registration_prediction.html)
+- [User guides and tutorials](https://github.com/hejDMC/napari-dmc-brainmap/wiki)
 
 ## Seeking help or contributing
 

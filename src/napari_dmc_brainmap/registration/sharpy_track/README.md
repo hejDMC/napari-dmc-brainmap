@@ -1,10 +1,22 @@
 # sharpy_track
- A napari plugin (planned) for mouse brain slice image registration.
+
+This directory contains the SHARPy-track mouse brain slice registration
+interface embedded in DMC-BrainMap. Install and launch it through the
+DMC-BrainMap napari plugin. See the
+[DMC-BrainMap README](https://github.com/hejDMC/napari-dmc-brainmap#readme)
+for current installation instructions and the
+[project wiki](https://github.com/hejDMC/napari-dmc-brainmap/wiki) for the
+registration workflow.
 
 ## Optional registration prediction
 
 DMC-BrainMap supports prediction-assisted registration with the
 [DMC-BrainMap Registration Predictor](https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor).
+The
+[prediction-assisted registration guide](https://napari-dmc-brainmap.readthedocs.io/en/main/registration_prediction.html)
+documents the supported checkpoint, PyTorch installation, model selection,
+prediction workflow, limitations, and required quality control.
+
 PyTorch is optional. Install its CPU-only build in the same environment as
 napari before using prediction:
 
@@ -12,16 +24,9 @@ napari before using prediction:
 python -m pip install "torch>=2.12.0" --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Download a released `.pt` checkpoint from the model repository. Before
-opening the registration GUI, click **Browse Model** in the DMC-BrainMap
-registration widget, select the downloaded checkpoint, and then click **Start
-Registration GUI**.
-
-After navigating to the corresponding atlas slice, click the **Predict
-registration** button to preview an initial alignment. Turn on transformation
-mode to convert an accepted preview into five editable registration-point
-pairs. Inspect and adjust those points before saving; the prediction is only an
-initialization aid and still requires visual quality control.
+> [!NOTE]
+> The standalone instructions below are retained for legacy reference. Current
+> users should install and launch registration through DMC-BrainMap.
 
 ## How to install
 1. Download this repository by
