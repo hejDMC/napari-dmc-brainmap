@@ -1,3 +1,4 @@
+import builtins
 import sys
 from types import SimpleNamespace
 
@@ -152,6 +153,24 @@ def test_predictor_loads_checkpoint_weights_only(monkeypatch, tmp_path):
     assert load_calls == [(str(model_path), "cpu", True)]
     assert model.device == "cpu"
     assert model.is_evaluating
+
+
+def test_predictor_missing_torch_shows_cpu_install_command(monkeypatch, tmp_path):
+    original_import = builtins.__import__
+
+    def import_without_torch(name, *args, **kwargs):
+        if name == "torch":
+            raise ImportError("torch is not installed")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_torch)
+    predictor = RegistrationTransformPredictor(tmp_path / "model.pt")
+
+    with np.testing.assert_raises_regex(
+        ImportError,
+        "download.pytorch.org/whl/cpu",
+    ):
+        predictor.load()
 
 
 def test_predictor_validates_native_input_contract():

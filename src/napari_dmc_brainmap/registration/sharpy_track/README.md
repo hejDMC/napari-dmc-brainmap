@@ -5,10 +5,17 @@
 
 DMC-BrainMap supports prediction-assisted registration with the
 [DMC-BrainMap Registration Predictor](https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor).
-Download a released `.pt` checkpoint from the model repository. Before opening
-the registration GUI, click **Browse Model** in the DMC-BrainMap registration
-widget, select the downloaded checkpoint, and then click **Start Registration
-GUI**.
+PyTorch is optional. Install its CPU-only build in the same environment as
+napari before using prediction:
+
+```shell
+python -m pip install "torch>=2.12.0" --index-url https://download.pytorch.org/whl/cpu
+```
+
+Download a released `.pt` checkpoint from the model repository. Before
+opening the registration GUI, click **Browse Model** in the DMC-BrainMap
+registration widget, select the downloaded checkpoint, and then click **Start
+Registration GUI**.
 
 After navigating to the corresponding atlas slice, click the **Predict
 registration** button to preview an initial alignment. Turn on transformation

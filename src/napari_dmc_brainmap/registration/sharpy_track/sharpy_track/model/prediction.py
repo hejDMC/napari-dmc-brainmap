@@ -222,7 +222,10 @@ class RegistrationTransformPredictor:
             import torch
         except ImportError as exc:
             raise ImportError(
-                "PyTorch is required to use the registration Predict button."
+                "PyTorch is required to use the registration Predict button. "
+                "Install the CPU build with: python -m pip install "
+                "\"torch>=2.12.0\" --index-url "
+                "https://download.pytorch.org/whl/cpu"
             ) from exc
 
         self.torch = torch

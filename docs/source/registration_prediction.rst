@@ -7,6 +7,22 @@ Brain Atlas reference slice. The supported checkpoint and its model card are
 published in the `DMC-BrainMap Registration Predictor repository
 <https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor>`_.
 
+Install PyTorch for prediction
+------------------------------
+
+PyTorch is optional and is not installed with the standard DMC-BrainMap
+package. To use registration prediction, install the CPU-only build in the
+same Python environment as napari:
+
+.. code-block:: console
+
+   python -m pip install "torch>=2.12.0" --index-url https://download.pytorch.org/whl/cpu
+
+The ``prediction`` package extra declares the compatible PyTorch version for
+package managers that are already configured to use the appropriate PyTorch
+index. Installing from the CPU index explicitly avoids downloading unnecessary
+GPU runtime packages.
+
 Download the model
 ------------------
 
