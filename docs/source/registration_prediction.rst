@@ -12,8 +12,9 @@ Download the model
 
 #. Open the model repository linked above.
 #. Select **Files and versions**.
-#. Download the released ``.pt`` checkpoint. For version 1.0.0, the filename is
-   ``dmc-brainmap-registration-predictor-v1.0.0.pt``.
+#. Download the `version 1.0.0 checkpoint
+   <https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor/resolve/v1.0.0/dmc-brainmap-registration-predictor-v1.0.0.pt?download=true>`_.
+   The filename is ``dmc-brainmap-registration-predictor-v1.0.0.pt``.
 
 The model card documents the checkpoint version, supported inputs, evaluation
 results, limitations, license, and SHA-256 checksum.
