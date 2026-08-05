@@ -1,6 +1,6 @@
 [project]
 name = "napari-dmc-brainmap"
-version = "0.1.7b16"
+version = "0.1.8"
 description = "DMC-BrainMap is an end-to-end tool for multi-feature brain mapping across species"
 readme = "README.md"
 requires-python = "==3.10.*"
@@ -10,7 +10,7 @@ authors = [
     { name = "Felix Jung", email = "jung.neurosc@gmail.com" },
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: napari",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
