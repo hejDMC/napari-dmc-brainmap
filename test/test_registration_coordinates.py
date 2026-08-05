@@ -4,7 +4,9 @@ import numpy as np
 import pytest
 
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.coordinates import (
+    coordinate_scale_matrix,
     display_to_native_point,
+    homography_to_display_space,
     native_to_display_point,
     scale_coordinate,
 )
@@ -131,3 +133,75 @@ def test_scale_coordinate_clamps_to_valid_pixel_endpoints():
 def test_scale_coordinate_rejects_invalid_extents(source_extent, target_extent):
     with pytest.raises(ValueError, match="positive"):
         scale_coordinate(0, source_extent, target_extent)
+
+
+def test_coordinate_scale_matrix_uses_independent_endpoint_scales():
+    matrix = coordinate_scale_matrix(NATIVE_SIZE, DISPLAY_SIZE)
+
+    np.testing.assert_allclose(
+        matrix,
+        np.diag([762 / 1139, 535 / 799, 1.0]),
+    )
+
+
+def test_coordinate_scale_matrix_rejects_singular_image_extent():
+    with pytest.raises(ValueError, match="at least 2"):
+        coordinate_scale_matrix([1, 800], DISPLAY_SIZE)
+
+
+def test_native_translation_is_scaled_for_display_preview():
+    native_transform = np.array(
+        [
+            [1.0, 0.0, 120.0],
+            [0.0, 1.0, -45.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    display_transform = homography_to_display_space(
+        native_transform,
+        NATIVE_SIZE,
+        DISPLAY_SIZE,
+        NATIVE_SIZE,
+        DISPLAY_SIZE,
+    )
+
+    np.testing.assert_allclose(
+        display_transform,
+        np.array(
+            [
+                [1.0, 0.0, 120.0 * 762 / 1139],
+                [0.0, 1.0, -45.0 * 535 / 799],
+                [0.0, 0.0, 1.0],
+            ]
+        ),
+    )
+
+
+def test_display_homography_matches_native_projection():
+    native_transform = np.array(
+        [
+            [0.97, 0.08, 34.0],
+            [-0.03, 1.04, -21.0],
+            [0.0002, -0.0001, 1.0],
+        ]
+    )
+    display_transform = homography_to_display_space(
+        native_transform,
+        NATIVE_SIZE,
+        DISPLAY_SIZE,
+        NATIVE_SIZE,
+        DISPLAY_SIZE,
+    )
+    native_point = np.array([412.25, 305.75, 1.0])
+    native_projected = native_transform @ native_point
+    native_projected /= native_projected[2]
+    sample_scale = coordinate_scale_matrix(NATIVE_SIZE, DISPLAY_SIZE)
+    display_point = sample_scale @ native_point
+    display_projected = display_transform @ display_point
+    display_projected /= display_projected[2]
+
+    np.testing.assert_allclose(
+        display_projected,
+        sample_scale @ native_projected,
+        atol=1e-9,
+    )

@@ -11,6 +11,9 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
     homography_to_registration_points,
     offsets_to_homography,
 )
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import (
+    AtlasModel,
+)
 from napari_dmc_brainmap.registration import registration as registration_module
 
 
@@ -149,6 +152,160 @@ def test_predictor_loads_checkpoint_weights_only(monkeypatch, tmp_path):
     assert load_calls == [(str(model_path), "cpu", True)]
     assert model.device == "cpu"
     assert model.is_evaluating
+
+
+def test_predictor_validates_native_input_contract():
+    sample = np.zeros((800, 1140), dtype=np.uint8)
+    reference = np.zeros((800, 1140), dtype=np.uint8)
+
+    RegistrationTransformPredictor._validate_inputs(sample, reference)
+
+
+def test_predictor_rejects_monitor_resized_input():
+    sample = np.zeros((536, 763), dtype=np.uint8)
+    reference = np.zeros((536, 763), dtype=np.uint8)
+
+    with np.testing.assert_raises_regex(ValueError, "1140 x 800"):
+        RegistrationTransformPredictor._validate_inputs(sample, reference)
+
+
+def test_predictor_rejects_non_uint8_or_color_reference():
+    sample = np.zeros((800, 1140), dtype=np.uint8)
+    float_reference = np.zeros((800, 1140), dtype=np.float32)
+    color_reference = np.zeros((800, 1140, 3), dtype=np.uint8)
+
+    with np.testing.assert_raises_regex(ValueError, "uint8"):
+        RegistrationTransformPredictor._validate_inputs(
+            sample,
+            float_reference,
+        )
+    with np.testing.assert_raises_regex(ValueError, "grayscale"):
+        RegistrationTransformPredictor._validate_inputs(
+            sample,
+            color_reference,
+        )
+
+
+def test_atlas_model_predicts_native_and_renders_display_transform():
+    native_transform = np.array(
+        [
+            [1.0, 0.0, 100.0],
+            [0.0, 1.0, -50.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+    class FakePredictor:
+        def __init__(self):
+            self.calls = []
+
+        def predict_transform(self, sample, reference):
+            self.calls.append((sample, reference))
+            return native_transform.copy()
+
+    predictor = FakePredictor()
+    status = SimpleNamespace(
+        currentSliceNumber=3,
+        blendMode={},
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.predictor = predictor
+    model.sample_native = np.zeros((800, 1140), dtype=np.uint8)
+    model.reference_native = np.zeros((800, 1140), dtype=np.uint8)
+    model.sample = np.zeros((536, 763), dtype=np.uint8)
+    model.slice = np.zeros((536, 763), dtype=np.uint8)
+    model.predictedSliceNumber = None
+    model.predictedTransformNative = None
+    model.predictedTransformDisplay = None
+    model.regViewer = SimpleNamespace(status=status)
+    rendered = []
+    model._render_transform = lambda transform: (
+        rendered.append(transform.copy()),
+        None,
+        None,
+        None,
+    )
+    model.showPredictedPreview = lambda: True
+
+    model.applyPredictedTransform()
+
+    assert len(predictor.calls) == 1
+    assert predictor.calls[0][0] is model.sample_native
+    assert predictor.calls[0][1] is model.reference_native
+    np.testing.assert_allclose(
+        model.predictedTransformNative,
+        native_transform,
+    )
+    np.testing.assert_allclose(
+        model.predictedTransformDisplay,
+        np.array(
+            [
+                [1.0, 0.0, 100.0 * 762 / 1139],
+                [0.0, 1.0, -50.0 * 535 / 799],
+                [0.0, 0.0, 1.0],
+            ]
+        ),
+    )
+    np.testing.assert_allclose(
+        rendered[0],
+        model.predictedTransformDisplay,
+    )
+    assert model.predictedSliceNumber == 3
+
+
+def test_atlas_model_preserves_clean_native_reference_for_prediction():
+    status = SimpleNamespace(
+        x_angle=0.0,
+        y_angle=0.0,
+        current_z=0.0,
+        imageRGB=False,
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(
+        status=status,
+        singleWindowSize=[763, 536],
+    )
+    model.xyz_dict = {
+        "x": ["rl", 1140, 10],
+        "y": ["si", 800, 10],
+        "z": ["ap", 1320, 10],
+    }
+    model.fontscale = 1.0
+    model.fontthickness = 1
+    model.simpleSlice = lambda: setattr(
+        model,
+        "slice",
+        np.zeros((800, 1140), dtype=np.uint8),
+    )
+
+    model.getSlice()
+
+    assert model.reference_native.shape == (800, 1140)
+    assert model.slice.shape == (536, 763)
+    assert not np.shares_memory(model.reference_native, model.slice)
+    assert np.count_nonzero(model.reference_native) == 0
+    assert np.count_nonzero(model.slice) > 0
+
+
+def test_atlas_model_preserves_native_sample_for_prediction():
+    status = SimpleNamespace(
+        sliceNum=1,
+        currentSliceNumber=0,
+        imageRGB=False,
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(
+        status=status,
+        singleWindowSize=[763, 536],
+    )
+    model.imgStack = np.zeros((1, 800, 1140), dtype=np.uint8)
+
+    model.getSample()
+
+    assert np.shares_memory(model.sample_native, model.imgStack)
+    assert model.sample_native.shape == (800, 1140)
+    assert model.sample.shape == (536, 763)
 
 
 def test_registration_start_preloads_selected_model(monkeypatch, tmp_path):
@@ -312,3 +469,51 @@ def test_homography_to_registration_points_rejects_out_of_bound_transform():
 
     with np.testing.assert_raises(ValueError):
         homography_to_registration_points(transform, (20, 30), [30, 20])
+
+
+def test_materialized_native_dots_do_not_depend_on_display_size():
+    def materialize(display_shape):
+        saved = []
+        status = SimpleNamespace(
+            currentSliceNumber=0,
+            x_angle=0.0,
+            y_angle=0.0,
+            current_z=0.0,
+            atlasLocation={},
+            atlasDots={},
+            sampleDots={},
+            blendMode={},
+            saveRegistration=lambda: saved.append(True),
+        )
+        model = AtlasModel.__new__(AtlasModel)
+        model.predictedTransformNative = np.eye(3, dtype=np.float32)
+        model.sample_native = np.zeros((800, 1140), dtype=np.uint8)
+        model.sample = np.zeros(display_shape, dtype=np.uint8)
+        model.regViewer = SimpleNamespace(
+            status=status,
+            atlas_resolution=[1140, 800],
+            widget=SimpleNamespace(updatePredictButton=lambda: None),
+        )
+        model.hasPredictedPreview = lambda: True
+        model._display_dot_pairs = lambda atlas, sample: None
+        model._native_points_to_display = lambda points: np.asarray(
+            points,
+            dtype=np.float32,
+        )
+        model.updateTransform = lambda atlas, sample: None
+
+        assert model.materializePredictedDots()
+        assert saved == [True]
+        return status.sampleDots[0], status.atlasDots[0]
+
+    full_size = materialize((800, 1140))
+    reduced_size = materialize((536, 763))
+
+    assert full_size == reduced_size
+    assert full_size[0] == full_size[1]
+    assert all(
+        type(value) is int
+        for point_set in full_size
+        for point in point_set
+        for value in point
+    )

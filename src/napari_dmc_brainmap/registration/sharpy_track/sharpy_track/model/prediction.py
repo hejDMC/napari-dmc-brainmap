@@ -5,6 +5,9 @@ import cv2
 import numpy as np
 
 
+VALIDATED_IMAGE_SHAPE = (800, 1140)
+
+
 CORNER_ORDER = np.float32(
     [
         [0.0, 0.0],
@@ -35,16 +38,16 @@ def project_points(transform: np.ndarray, points: Any) -> np.ndarray:
 
 def homography_to_registration_points(
     transform: np.ndarray,
-    display_shape: tuple[int, ...],
+    image_shape: tuple[int, ...],
     atlas_resolution: tuple[int, int] | list[int] | None = None,
     scale_mapping: dict[int, int] | None = None,
     count: int = 5,
 ) -> tuple[list[list[int]], list[list[int]]]:
-    """Convert a display-space homography into spread sample/atlas point pairs."""
+    """Convert an image-space homography into spread sample/atlas point pairs."""
     if count != 5:
         raise ValueError("Prediction materialization currently requires exactly 5 points.")
 
-    height, width = display_shape[:2]
+    height, width = image_shape[:2]
     if height <= 1 or width <= 1:
         raise ValueError("Cannot generate prediction dots for an empty image.")
 
@@ -170,6 +173,7 @@ class RegistrationTransformPredictor:
         sample_image: np.ndarray,
         reference_image: np.ndarray,
     ) -> np.ndarray:
+        self._validate_inputs(sample_image, reference_image)
         self._ensure_model_loaded()
         expected_channels = self._model_input_channels()
         force_gray = expected_channels == 2
@@ -184,6 +188,31 @@ class RegistrationTransformPredictor:
         if hasattr(output, "detach"):
             output = output.detach().cpu().numpy()
         return np.asarray(output, dtype=np.float32).reshape(4, 2)
+
+    @staticmethod
+    def _validate_inputs(
+        sample_image: np.ndarray,
+        reference_image: np.ndarray,
+    ) -> None:
+        sample = np.asarray(sample_image)
+        reference = np.asarray(reference_image)
+        for name, image in [("sample", sample), ("reference", reference)]:
+            if image.ndim not in (2, 3):
+                raise ValueError(
+                    f"Prediction {name} image must be grayscale or color."
+                )
+            if image.shape[:2] != VALIDATED_IMAGE_SHAPE:
+                raise ValueError(
+                    f"Prediction {name} image must be 1140 x 800 pixels "
+                    f"(width x height); got {image.shape[1]} x {image.shape[0]}."
+                )
+            if image.dtype != np.uint8:
+                raise ValueError(
+                    f"Prediction {name} image must use uint8 pixels; "
+                    f"got {image.dtype}."
+                )
+        if reference.ndim != 2:
+            raise ValueError("Prediction reference image must be grayscale.")
 
     def _ensure_model_loaded(self) -> None:
         if self.model is not None:

@@ -3,6 +3,9 @@ import numpy as np
 from qtpy.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.coordinates import (
+    homography_to_display_space,
+)
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import (
     RegistrationTransformPredictor,
     homography_to_registration_points,
@@ -36,7 +39,8 @@ class AtlasModel():
         self.sample_pts = []
         self.predictor = predictor
         self.predictedSliceNumber = None
-        self.predictedTransform = None
+        self.predictedTransformNative = None
+        self.predictedTransformDisplay = None
 
 
     def loadTemplate(self):
@@ -151,6 +155,8 @@ class AtlasModel():
             self.simpleSlice() # update simple slice
         else:
             self.angleSlice() # update angled slice
+        self.reference_native = self.slice.copy()
+        display_slice = self.reference_native.copy()
         name_dict = {
             'ap': 'AP',
             'si': 'DV',
@@ -163,7 +169,7 @@ class AtlasModel():
         offset =  int(self.fontscale * 10) # integer
 
         text_w, text_h = cv2.getTextSize(z_str + ": " + str(self.regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
-        ap_text_location = [self.slice.shape[1]-offset-text_w,text_h+offset]
+        ap_text_location = [display_slice.shape[1]-offset-text_w,text_h+offset]
 
         text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(self.regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         xangle_text_location = [offset,text_h+offset]
@@ -171,11 +177,11 @@ class AtlasModel():
         text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(self.regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         yangle_text_location = [offset,offset+text_h+offset+text_h]
         # put text
-        cv2.putText(self.slice, z_str + ": " + str(self.regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
-        cv2.putText(self.slice, x_str + " Angle: " + str(self.regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
-        cv2.putText(self.slice, y_str + " Angle: " + str(self.regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, z_str + ": " + str(self.regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, x_str + " Angle: " + str(self.regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, y_str + " Angle: " + str(self.regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
 
-        self.slice = cv2.resize(self.slice,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1])) # resize to single window size
+        self.slice = cv2.resize(display_slice,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1])) # resize to single window size
         if self.regViewer.status.imageRGB is False:
             self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
         else:
@@ -185,11 +191,14 @@ class AtlasModel():
     def getSample(self):
         if self.regViewer.status.sliceNum == 0:
             # self.sampleQimg = QImage(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')))
-            self.sample = cv2.imread(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')),cv2.IMREAD_COLOR)
-            self.sample = cv2.resize(self.sample,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
+            self.sample_native = cv2.imread(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')),cv2.IMREAD_COLOR)
+            self.sample = cv2.resize(self.sample_native,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888)
         else:
-            self.sample = cv2.resize(self.imgStack[self.regViewer.status.currentSliceNumber],(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
+            self.sample_native = self.imgStack[
+                self.regViewer.status.currentSliceNumber
+            ]
+            self.sample = cv2.resize(self.sample_native,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
             if self.regViewer.status.imageRGB is False:
                 self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8) # if grayscale sample
             else:
@@ -426,16 +435,27 @@ class AtlasModel():
             self.predictor = RegistrationTransformPredictor(
                 self.regViewer.regi_dict["model_path"]
             )
-        transform = self.predictor.predict_transform(self.sample, self.slice)
+        native_transform = self.predictor.predict_transform(
+            self.sample_native,
+            self.reference_native,
+        )
+        display_transform = homography_to_display_space(
+            native_transform,
+            self._image_size(self.sample_native),
+            self._image_size(self.sample),
+            self._image_size(self.reference_native),
+            self._image_size(self.slice),
+        )
         self.clearPredictedPreview()
-        self.predictedTransform = transform
+        self.predictedTransformNative = native_transform
+        self.predictedTransformDisplay = display_transform
         self.predictedSliceNumber = self.regViewer.status.currentSliceNumber
         (
             self.predictedWarp,
             self.predictedBlend,
             self.qPredictedWarp,
             self.qPredictedBlend,
-        ) = self._render_transform(transform)
+        ) = self._render_transform(display_transform)
         self.regViewer.status.blendMode[self.predictedSliceNumber] = 1
         self.showPredictedPreview()
 
@@ -444,18 +464,11 @@ class AtlasModel():
             return False
 
         current_slice = self.regViewer.status.currentSliceNumber
-        sample_display_pts, atlas_display_pts = homography_to_registration_points(
-            self.predictedTransform,
-            self.sample.shape,
+        sample_pts, atlas_pts = homography_to_registration_points(
+            self.predictedTransformNative,
+            self.sample_native.shape,
+            self.regViewer.atlas_resolution,
         )
-        sample_pts = [
-            self.regViewer.display_to_native_point(point)
-            for point in sample_display_pts
-        ]
-        atlas_pts = [
-            self.regViewer.display_to_native_point(point)
-            for point in atlas_display_pts
-        ]
         self._validate_dot_pairs(atlas_pts, sample_pts)
         self.regViewer.status.atlasLocation[current_slice] = [
             self.regViewer.status.x_angle,
@@ -481,7 +494,8 @@ class AtlasModel():
             self.predictedSliceNumber == self.regViewer.status.currentSliceNumber
         )
         self.predictedSliceNumber = None
-        self.predictedTransform = None
+        self.predictedTransformNative = None
+        self.predictedTransformDisplay = None
         for attr in [
             "predictedWarp",
             "predictedBlend",
@@ -528,6 +542,10 @@ class AtlasModel():
         if self.showPredictedPreview():
             return
         self.updateDotPosition(mode='force')
+
+    @staticmethod
+    def _image_size(image):
+        return [image.shape[1], image.shape[0]]
 
     def _render_transform(self, transform):
         sample_warp = cv2.warpPerspective(
