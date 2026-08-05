@@ -37,6 +37,7 @@ class StatusContainer():
 
 
     def sampleChanged(self):
+        self.regViewer.atlasModel.clearPredictedPreview()
         self.currentSliceNumber = self.regViewer.widget.sampleSlider.value()
         self.regViewer.widget.imageTitle.setText(str(self.currentSliceNumber)+'---'+self.imgFileName[self.currentSliceNumber])
         self.regViewer.widget.viewerRight.loadSample()
@@ -53,26 +54,47 @@ class StatusContainer():
         self.regViewer.atlasModel.atlas_pts = []
         self.regViewer.atlasModel.sample_pts = []
         self.regViewer.atlasModel.checkSaved()
+        self.regViewer.widget.updatePredictButton()
 
 
     def z_changed(self):
+        self.regViewer.atlasModel.clearPredictedPreview()
         self.current_z = np.round(coord_mm_transform([0], [self.bregma[self.z_idx]],
                                       [self.xyz_dict['z'][2]]) - 
                                       self.regViewer.widget.z_slider.value() /
                                         (1000/self.xyz_dict['z'][2]), self.decimal) # adapt Z step from atlas resolution
         self.regViewer.widget.viewerLeft.loadSlice()
+        self.regViewer.widget.updatePredictButton()
 
     def x_changed(self):
+        self.regViewer.atlasModel.clearPredictedPreview()
         self.x_angle = np.round(self.regViewer.widget.x_slider.value() / 10, 1)
         self.regViewer.widget.viewerLeft.loadSlice()
+        self.regViewer.widget.updatePredictButton()
     
     def y_changed(self):
+        self.regViewer.atlasModel.clearPredictedPreview()
         self.y_angle = np.round(self.regViewer.widget.y_slider.value() / 10, 1)
         self.regViewer.widget.viewerLeft.loadSlice()
+        self.regViewer.widget.updatePredictButton()
     
     def toggleChanged(self):
         if self.regViewer.widget.toggle.isChecked():
+            if self.regViewer.atlasModel.hasPredictedPreview():
+                try:
+                    self.regViewer.atlasModel.materializePredictedDots()
+                except Exception as exc:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setWindowTitle("Prediction dots failed")
+                    msg.setText(str(exc))
+                    msg.exec()
+                    self.regViewer.widget.toggle.setChecked(False)
+                    self.tMode = 0
+                    self.regViewer.widget.updatePredictButton()
+                    return
             self.tMode = 1 # ON
+            self.regViewer.atlasModel.clearPredictedPreview(reset_view=True)
             self.regViewer.widget.z_slider.setDisabled(True) # lock Sliders, prevent user from changing
             self.regViewer.widget.x_slider.setDisabled(True) # when in transformation mode
             self.regViewer.widget.y_slider.setDisabled(True)
@@ -89,6 +111,7 @@ class StatusContainer():
             self.regViewer.widget.sampleSlider.setDisabled(False)
             self.regViewer.widget.viewerLeft.view.setInteractive(False)
             self.regViewer.widget.viewerRight.view.setInteractive(False)
+        self.regViewer.widget.updatePredictButton()
 
 
     def wheelEventHandle(self, event):
@@ -211,18 +234,25 @@ class StatusContainer():
             else:
                 self.regViewer.atlasModel.hideContour()
 
+        elif event.key() == Qt.Key_P: # P for prediction
+            if (
+                hasattr(self.regViewer.widget, "predict_btn")
+                and self.regViewer.widget.predict_btn.isEnabled()
+            ):
+                self.regViewer.widget.predict_btn.click()
+
         elif event.key() == Qt.Key_Z: # ZXC for blendMode
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 0 # all atlas
-                self.regViewer.atlasModel.updateDotPosition(mode='force')
+                self.regViewer.atlasModel.showCurrentTransformPreview()
         elif event.key() == Qt.Key_X:
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 1 # overlay
-                self.regViewer.atlasModel.updateDotPosition(mode='force')
+                self.regViewer.atlasModel.showCurrentTransformPreview()
         elif event.key() == Qt.Key_C:
             if self.currentSliceNumber in self.blendMode:
                 self.blendMode[self.currentSliceNumber] = 2 # all sample
-                self.regViewer.atlasModel.updateDotPosition(mode='force')
+                self.regViewer.atlasModel.showCurrentTransformPreview()
         
         # press D for deleting all paired dots at current slide
         elif event.key() == Qt.Key_D:
@@ -248,6 +278,7 @@ class StatusContainer():
                     self.sampleDots[self.regViewer.status.currentSliceNumber] = []
                     self.saveRegistration()
                     del self.blendMode[self.currentSliceNumber]
+                    self.regViewer.widget.updatePredictButton()
 
                 else:
                     pass

@@ -6,7 +6,14 @@ from typing import Dict, List, Tuple, Union
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from superqt import QCollapsible
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout
+from qtpy.QtWidgets import (
+    QFileDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QWidget,
+    QVBoxLayout,
+)
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -17,6 +24,9 @@ from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import split_to_list, create_regi_dict
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, get_orient_map
 from napari_dmc_brainmap.utils.color_manager import ColorManager
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import (
+    RegistrationTransformPredictor,
+)
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
 from napari_dmc_brainmap.visualization.vis_plots.brainsection_plotter import BrainsectionPlotter
 from bg_atlasapi import BrainGlobeAtlas
@@ -299,11 +309,15 @@ class RegistrationWidget(QWidget):
         """
         super().__init__()
         self.viewer = napari_viewer
+        self.model_path = None
         self.setLayout(QVBoxLayout())
         self.header = initialize_widget()
 
         start_button = QPushButton("Start Registration GUI")
         start_button.clicked.connect(self._start_sharpy_track)
+        browse_model_button = QPushButton("Browse Model")
+        browse_model_button.clicked.connect(self._browse_model)
+        self.model_label = QLabel("No model selected")
 
         self._collapse_schematic = QCollapsible("Plot schematic of section locations: expand for more")
         self.schematic = initialize_schematic_widget()
@@ -314,8 +328,24 @@ class RegistrationWidget(QWidget):
         self._collapse_schematic.addWidget(schematic_button)
 
         self.layout().addWidget(self.header.native)
+        self.layout().addWidget(browse_model_button)
+        self.layout().addWidget(self.model_label)
         self.layout().addWidget(start_button)
         self.layout().addWidget(self._collapse_schematic)
+
+    def _browse_model(self) -> None:
+        """
+        Select a PyTorch model checkpoint for registration prediction.
+        """
+        model_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choose registration prediction model",
+            "",
+            "PyTorch model (*.pt *.pth *.ckpt);;All files (*)",
+        )
+        if model_path:
+            self.model_path = Path(model_path)
+            self.model_label.setText(f"Model: {self.model_path.name}")
 
     def _start_sharpy_track(self) -> None:
         """
@@ -324,11 +354,32 @@ class RegistrationWidget(QWidget):
         input_path = self.header.input_path.value
         if not check_input_path(input_path):
             return
+
+        predictor = None
+        if self.model_path is not None:
+            predictor = RegistrationTransformPredictor(self.model_path)
+            try:
+                print("loading prediction model...")
+                predictor.load()
+            except Exception as exc:
+                QMessageBox.critical(
+                    self,
+                    "Prediction model failed to load",
+                    f"Could not load {self.model_path.name}:\n{exc}",
+                )
+                return
+
         regi_chan = self.header.regi_chan.value
         regi_dir = get_info(input_path, 'sharpy_track', channel=regi_chan, only_dir=True)
         regi_dict = create_regi_dict(input_path, regi_dir)
+        if self.model_path is not None:
+            regi_dict["model_path"] = self.model_path
 
-        self.reg_viewer = RegistrationViewer(self, regi_dict)
+        self.reg_viewer = RegistrationViewer(
+            self,
+            regi_dict,
+            predictor=predictor,
+        )
         self.reg_viewer.show()
 
     def del_regviewer_instance(self) -> None:
@@ -385,4 +436,3 @@ class RegistrationWidget(QWidget):
 
         mpl_widget = do_schematic(brainsection_plotter, atlas, plotting_params, regi_data, save_path)
         self.viewer.window.add_dock_widget(mpl_widget, area='left').setFloating(True)
-

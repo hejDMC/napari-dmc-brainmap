@@ -30,10 +30,15 @@ class ViewerGeneral():
     def getCursorPos(self):
         if self.regViewer.status.contour == 1: # only when contour active, update in status
             # cursor position within boundary check
-            if (self.view.cursorPos[0] in self.regViewer.res_x_range) and (
-                self.view.cursorPos[1] in self.regViewer.res_y_range):
-                self.regViewer.status.hoverX = self.regViewer.res_up[self.view.cursorPos[0]] # save hover position to status, if single window size different from 1140*800 scale coordinates
-                self.regViewer.status.hoverY = self.regViewer.res_up[self.view.cursorPos[1]]
+            if (
+                0 <= self.view.cursorPos[0] < self.regViewer.singleWindowSize[0]
+                and 0 <= self.view.cursorPos[1] < self.regViewer.singleWindowSize[1]
+            ):
+                hover = self.regViewer.display_to_native_point(
+                    self.view.cursorPos
+                )
+                self.regViewer.status.hoverX = hover[0]
+                self.regViewer.status.hoverY = hover[1]
                 self.regViewer.atlasModel.treeFindArea()
                 
             else:
@@ -43,7 +48,9 @@ class ViewerGeneral():
     
 
     def projectSourcePos(self):
-        x_src, y_src = self.regViewer.res_up[int(self.view.cursorPos[0])], self.regViewer.res_up[int(self.view.cursorPos[1])]
+        x_src, y_src = self.regViewer.display_to_native_point(
+            self.view.cursorPos
+        )
         x_target, y_target = mapPointTransform(x_src, y_src, self.tform)
         # round
         x_target, y_target = np.round(x_target).astype(int), np.round(y_target).astype(int)
@@ -68,7 +75,13 @@ class ViewerGeneral():
                 # create new pixmap item
                 item = QGraphicsPixmapItem(self.regViewer.measurementPage.pixmap_y_32)
                 self.targetPointHover.addToGroup(item)
-            self.targetPointHover.childItems()[0].setPos(self.regViewer.res_down[x_target] - 16, self.regViewer.res_down[y_target] - 16)
+            target_display = self.regViewer.native_to_display_point(
+                [x_target, y_target]
+            )
+            self.targetPointHover.childItems()[0].setPos(
+                target_display[0] - 16,
+                target_display[1] - 16,
+            )
 
         # Update live labels if a row is active
         row = getattr(self.regViewer.measurementPage, 'unset_tre_row', None)
@@ -95,7 +108,8 @@ class ViewerGeneral():
         # retrieve source and target position from regViewer.measurementPage
         x_src, y_src = self.regViewer.measurementPage.unset_source_pos
         # add source dot on right viewer
-        self.addSourceDot(self.regViewer.res_down[x_src], self.regViewer.res_down[y_src])
+        source_display = self.regViewer.native_to_display_point([x_src, y_src])
+        self.addSourceDot(source_display[0], source_display[1])
         # save to active_rows dictionary
         x_target, y_target = self.regViewer.measurementPage.unset_target_pos
         self.regViewer.measurementPage.active_rows["source_coords"].append([int(x_src), int(y_src)])
@@ -115,7 +129,7 @@ class ViewerGeneral():
         self.regViewer.measurementPage.display_truth_pointer()
 
 
-    def addSourceDot(self, x: int, y: int, diameter: int = 8) -> None:
+    def addSourceDot(self, x: float, y: float, diameter: int = 8) -> None:
         ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)
         ellipse.setBrush(QColor(255, 140, 0))  # solid dark orange
         ellipse.setPen(QPen(Qt.NoPen))
@@ -126,7 +140,9 @@ class ViewerGeneral():
         self.scene.addItem(self.regViewer.measurementPage.active_rows["source_obj"][-1])
     
     def update_true_pos(self):
-        x_truth, y_truth = self.regViewer.res_up[int(self.view.cursorPos[0])], self.regViewer.res_up[int(self.view.cursorPos[1])]
+        x_truth, y_truth = self.regViewer.display_to_native_point(
+            self.view.cursorPos
+        )
         # save to measurementPage.unset_truth_pos
         self.regViewer.measurementPage.unset_truth_pos = (x_truth, y_truth)
         # update true_pos field in TreRow
@@ -143,7 +159,10 @@ class ViewerGeneral():
         self.regViewer.widget.viewerLeft.view.viewport().setCursor(Qt.ArrowCursor)
         
         x_truth, y_truth = self.regViewer.measurementPage.unset_truth_pos
-        self.addTruthDot(self.regViewer.res_down[x_truth], self.regViewer.res_down[y_truth])
+        truth_display = self.regViewer.native_to_display_point(
+            [x_truth, y_truth]
+        )
+        self.addTruthDot(truth_display[0], truth_display[1])
         # save to active_rows dictionary
         self.regViewer.measurementPage.active_rows["truth_coords"].append([int(x_truth), int(y_truth)])
 
@@ -169,7 +188,7 @@ class ViewerGeneral():
 
 
     
-    def addTruthDot(self, x: int, y: int, diameter: int = 8) -> None:
+    def addTruthDot(self, x: float, y: float, diameter: int = 8) -> None:
         ellipse = QGraphicsEllipseItem(0, 0, diameter, diameter)
         ellipse.setBrush(QColor(255, 140, 0))  # solid red
         ellipse.setPen(QPen(Qt.NoPen))

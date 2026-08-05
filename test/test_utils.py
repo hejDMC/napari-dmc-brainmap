@@ -149,7 +149,7 @@ def test_get_bregma():
 
     # Test case 4: Unknown atlas ID
     atlas_id = "unknown_atlas"
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="not a valid atlas name"):
         get_bregma(atlas_id)
 
 

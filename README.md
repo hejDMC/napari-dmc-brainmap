@@ -32,6 +32,16 @@ You can also install the released plugin with pip:
 pip install napari-dmc-brainmap
 ```
 
+##### Optional registration prediction
+
+PyTorch is optional and is not installed with the standard plugin. To use the
+registration prediction feature in a pip or napari environment, install the
+CPU-only build separately:
+
+```bash
+python -m pip install "torch>=2.12.0" --index-url https://download.pytorch.org/whl/cpu
+```
+
 After installation, open DMC-BrainMap from the napari plugin menu:
 
 ```text
@@ -57,7 +67,29 @@ Sync the environment:
 uv sync
 ```
 
-This creates the project environment, installs Python 3.10 as required by the project, installs napari and all dependencies, and installs `napari-dmc-brainmap` from the local checkout.
+This creates the project environment, installs Python 3.10 as required by the
+project, installs napari and all required dependencies, and installs
+`napari-dmc-brainmap` from the local checkout. Optional prediction support is
+installed only when the `prediction` extra is selected as described below.
+
+##### Optional registration prediction
+
+Enable the `prediction` extra when synchronizing the development environment:
+
+```bash
+uv sync --extra prediction
+```
+
+To include both prediction and test dependencies, use:
+
+```bash
+uv sync --extra prediction --group test
+```
+
+`uv sync --all-extras` also installs prediction support. A plain
+`uv sync` intentionally excludes optional extras and may remove a previously
+installed PyTorch package during exact synchronization. PyTorch remains
+recorded in `uv.lock` so the selected extra stays reproducible.
 
 Start napari:
 

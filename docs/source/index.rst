@@ -11,4 +11,5 @@ napari-dmc-brainmap documentation
    :maxdepth: 2
    :caption: Contents:
 
+   registration_prediction
    modules

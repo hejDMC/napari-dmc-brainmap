@@ -3,6 +3,13 @@ import numpy as np
 from qtpy.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.coordinates import (
+    homography_to_display_space,
+)
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction import (
+    RegistrationTransformPredictor,
+    homography_to_registration_points,
+)
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
 
@@ -12,7 +19,7 @@ from bg_atlasapi import BrainGlobeAtlas
 
 
 class AtlasModel():
-    def __init__(self, regViewer) -> None:
+    def __init__(self, regViewer, predictor=None) -> None:
         self.regViewer = regViewer
         self.regi_dict = regViewer.regi_dict
         self.sharpy_dir = Path(files("napari_dmc_brainmap").joinpath("registration"))
@@ -30,6 +37,11 @@ class AtlasModel():
         self.loadStructureTree()
         self.atlas_pts = []
         self.sample_pts = []
+        self.predictor = predictor
+        self.slice_in_volume = True
+        self.predictedSliceNumber = None
+        self.predictedTransformNative = None
+        self.predictedTransformDisplay = None
 
 
     def loadTemplate(self):
@@ -141,9 +153,12 @@ class AtlasModel():
 
     def getSlice(self):
         if (self.regViewer.status.x_angle == 0) and (self.regViewer.status.y_angle == 0):
+            self.slice_in_volume = True
             self.simpleSlice() # update simple slice
         else:
             self.angleSlice() # update angled slice
+        self.reference_native = self.slice.copy()
+        display_slice = self.reference_native.copy()
         name_dict = {
             'ap': 'AP',
             'si': 'DV',
@@ -156,7 +171,7 @@ class AtlasModel():
         offset =  int(self.fontscale * 10) # integer
 
         text_w, text_h = cv2.getTextSize(z_str + ": " + str(self.regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
-        ap_text_location = [self.slice.shape[1]-offset-text_w,text_h+offset]
+        ap_text_location = [display_slice.shape[1]-offset-text_w,text_h+offset]
 
         text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(self.regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         xangle_text_location = [offset,text_h+offset]
@@ -164,11 +179,11 @@ class AtlasModel():
         text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(self.regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         yangle_text_location = [offset,offset+text_h+offset+text_h]
         # put text
-        cv2.putText(self.slice, z_str + ": " + str(self.regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
-        cv2.putText(self.slice, x_str + " Angle: " + str(self.regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
-        cv2.putText(self.slice, y_str + " Angle: " + str(self.regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, z_str + ": " + str(self.regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, x_str + " Angle: " + str(self.regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, y_str + " Angle: " + str(self.regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
 
-        self.slice = cv2.resize(self.slice,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1])) # resize to single window size
+        self.slice = cv2.resize(display_slice,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1])) # resize to single window size
         if self.regViewer.status.imageRGB is False:
             self.sliceQimg = QImage(self.slice.data, self.slice.shape[1],self.slice.shape[0],self.slice.strides[0],QImage.Format_Grayscale8)
         else:
@@ -178,11 +193,14 @@ class AtlasModel():
     def getSample(self):
         if self.regViewer.status.sliceNum == 0:
             # self.sampleQimg = QImage(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')))
-            self.sample = cv2.imread(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')),cv2.IMREAD_COLOR)
-            self.sample = cv2.resize(self.sample,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
+            self.sample_native = cv2.imread(str(self.sharpy_dir.joinpath('sharpy_track','sharpy_track','images','empty.png')),cv2.IMREAD_COLOR)
+            self.sample = cv2.resize(self.sample_native,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
             self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888)
         else:
-            self.sample = cv2.resize(self.imgStack[self.regViewer.status.currentSliceNumber],(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
+            self.sample_native = self.imgStack[
+                self.regViewer.status.currentSliceNumber
+            ]
+            self.sample = cv2.resize(self.sample_native,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
             if self.regViewer.status.imageRGB is False:
                 self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8) # if grayscale sample
             else:
@@ -215,11 +233,13 @@ class AtlasModel():
         # within-volume check
         outside_vol = np.argwhere((z_flat<0)|(z_flat>(self.xyz_dict['z'][1]-1))) # outside of volume index
         if outside_vol.size == 0: # if outside empty, inside of volume
+            self.slice_in_volume = True
             # index volume with z_mat and grid
             self.z_mat = z_mat # save AP plane for indexing structure information
             self.z_flat = z_flat # save current AP list to AtlasModel for getContourIndex
             self.slice = self.template[z_flat, self.r_grid_y, self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1])
         else: # if not empty, show black image with warning
+            self.slice_in_volume = False
             self.slice = np.zeros((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),dtype=np.uint8)
             cv2.putText(self.slice, "Slice out of volume!", (int(self.xyz_dict['x'][1]/3),int(self.xyz_dict['y'][1]/2)), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
     
@@ -249,52 +269,52 @@ class AtlasModel():
     def updateDotPosition(self,mode='default'):
         # ignore if less than 5 pairs of dots
         if len(self.regViewer.widget.viewerLeft.itemGroup) == 0:
-            pass
+            return
 
-        elif 0 < len(self.regViewer.widget.viewerLeft.itemGroup) < 5:
-            # check if has saved coodinates
-            atlas_pts = [] 
-            for dot in self.regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                  int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-            sample_pts = []
-            for dot in self.regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                   int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-                
-            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
-                pass
-            else:
-                self.atlas_pts = atlas_pts
-                self.sample_pts = sample_pts
-                # update dot record in dictionary
-                self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] = atlas_pts
-                self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber] = sample_pts
-                self.regViewer.status.saveRegistration()
+        atlas_pts = self._dot_items_to_native(
+            self.regViewer.widget.viewerLeft.itemGroup
+        )
+        sample_pts = self._dot_items_to_native(
+            self.regViewer.widget.viewerRight.itemGroup
+        )
+        if (
+            atlas_pts == self.atlas_pts
+            and sample_pts == self.sample_pts
+            and mode == 'default'
+        ):
+            return
 
-        else: # refresh dot coodinate
-            atlas_pts = [] 
-            for dot in self.regViewer.widget.viewerLeft.itemGroup: # itemGroup to list
-                atlas_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                  int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-            sample_pts = []
-            for dot in self.regViewer.widget.viewerRight.itemGroup: # itemGroup to list
-                sample_pts.append([int(self.regViewer.res_up[int(dot.pos().x()) + (self.regViewer.dotRR/2)]), 
-                                   int(self.regViewer.res_up[int(dot.pos().y()) + (self.regViewer.dotRR/2)])]) # scale coordinates
-            if (atlas_pts == self.atlas_pts) and (sample_pts == self.sample_pts) and (mode == 'default'): # check if dots changed
-                pass
-            else:
-                self.atlas_pts = atlas_pts
-                self.sample_pts = sample_pts
-                # update dot record in dictionary
-                self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] = atlas_pts
-                self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber] = sample_pts
-                self.regViewer.status.saveRegistration()
-                # apply transformation
-                    # atlas_pts ---> downscale to screen
-                    # sample_pts ---> downscale to screen
-                self.updateTransform(np.array([[self.regViewer.res_down[i[0]],self.regViewer.res_down[i[1]]] for i in atlas_pts]), 
-                                     np.array([[self.regViewer.res_down[i[0]],self.regViewer.res_down[i[1]]] for i in sample_pts])) # scale coordinates
+        self.atlas_pts = atlas_pts
+        self.sample_pts = sample_pts
+        self.regViewer.status.atlasDots[
+            self.regViewer.status.currentSliceNumber
+        ] = atlas_pts
+        self.regViewer.status.sampleDots[
+            self.regViewer.status.currentSliceNumber
+        ] = sample_pts
+        self.regViewer.status.saveRegistration()
+
+        if len(atlas_pts) >= 5:
+            self.updateTransform(
+                self._native_points_to_display(atlas_pts),
+                self._native_points_to_display(sample_pts),
+            )
+
+    def _dot_items_to_native(self, dots):
+        points = []
+        for dot in dots:
+            center = [
+                dot.pos().x() + dot.size / 2.0,
+                dot.pos().y() + dot.size / 2.0,
+            ]
+            points.append(self.regViewer.display_to_native_point(center))
+        return points
+
+    def _native_points_to_display(self, points):
+        return np.asarray(
+            [self.regViewer.native_to_display_point(point) for point in points],
+            dtype=np.float32,
+        )
         
     def checkSaved(self):
         # load exist dots if there is any
@@ -323,51 +343,85 @@ class AtlasModel():
         else:
             atlas_pts = self.regViewer.status.atlasDots[self.regViewer.status.currentSliceNumber] # read dictionary, create dot object
             sample_pts = self.regViewer.status.sampleDots[self.regViewer.status.currentSliceNumber]
+            self._validate_dot_pairs(atlas_pts, sample_pts)
+            self.atlas_pts = atlas_pts
+            self.sample_pts = sample_pts
+            self._display_dot_pairs(atlas_pts, sample_pts)
+            if len(atlas_pts) >= 5:
+                self.updateTransform(
+                    self._native_points_to_display(atlas_pts),
+                    self._native_points_to_display(sample_pts),
+                )
 
+    def _validate_dot_pairs(self, atlas_pts, sample_pts):
+        for xyAtlas, xySample in zip(atlas_pts,sample_pts):
+            # check if dot coordinates are within boundary
+            if (xyAtlas[0] >=0) and (xyAtlas[0] < self.regViewer.atlas_resolution[0]) and (
+                xyAtlas[1] >=0) and (xyAtlas[1] < self.regViewer.atlas_resolution[1]) and (
+                xySample[0] >=0) and (xySample[0] < self.regViewer.atlas_resolution[0]) and (
+                xySample[1] >=0) and (xySample[1] < self.regViewer.atlas_resolution[1]):
+                pass
+            else:
+                raise IndexError("Registration coordinates out of boundary! \n"
+                                 "Check slide {} : atlasDots {}, sampleDots{}. \n"
+                                 "Must fulfill: [0=<i<{},0<=j<{}]".format(self.regViewer.status.currentSliceNumber,
+                                                                          xyAtlas,xySample,
+                                                                          self.regViewer.atlas_resolution[0],self.regViewer.atlas_resolution[1]))
 
+    def _clear_visible_dot_pairs(self):
+        left_scene = self.regViewer.widget.viewerLeft.scene
+        right_scene = self.regViewer.widget.viewerRight.scene
+        previous_left_block = left_scene.blockSignals(True)
+        previous_right_block = right_scene.blockSignals(True)
+        try:
+            for dot in self.regViewer.widget.viewerLeft.itemGroup:
+                left_scene.removeItem(dot)
+            for dot in self.regViewer.widget.viewerRight.itemGroup:
+                right_scene.removeItem(dot)
+            self.regViewer.widget.viewerLeft.itemGroup = []
+            self.regViewer.widget.viewerRight.itemGroup = []
+        finally:
+            left_scene.blockSignals(previous_left_block)
+            right_scene.blockSignals(previous_right_block)
+
+    def _display_dot_pairs(self, atlas_pts, sample_pts):
+        self._clear_visible_dot_pairs()
+        left_scene = self.regViewer.widget.viewerLeft.scene
+        right_scene = self.regViewer.widget.viewerRight.scene
+        previous_left_block = left_scene.blockSignals(True)
+        previous_right_block = right_scene.blockSignals(True)
+        try:
             for xyAtlas, xySample in zip(atlas_pts,sample_pts):
-                # check if dot coordinates are within boundary
-                if (xyAtlas[0] >=0) and (xyAtlas[0] < self.regViewer.atlas_resolution[0]) and (
-                    xyAtlas[1] >=0) and (xyAtlas[1] < self.regViewer.atlas_resolution[1]) and (
-                    xySample[0] >=0) and (xySample[0] < self.regViewer.atlas_resolution[0]) and (
-                    xySample[1] >=0) and (xySample[1] < self.regViewer.atlas_resolution[1]):
-                    pass
-                else:
-                    raise IndexError("Registration coordinates out of boundary! \n" 
-                                     "Check slide {} : atlasDots {}, sampleDots{}. \n"
-                                     "Must fulfill: [0=<i<{},0<=j<{}]".format(self.regViewer.status.currentSliceNumber,
-                                                                              xyAtlas,xySample,
-                                                                              self.regViewer.atlas_resolution[0],self.regViewer.atlas_resolution[1]))
-                
-                dotLeft = DotObject(self.regViewer.res_down[xyAtlas[0]], 
-                                    self.regViewer.res_down[xyAtlas[1]], 
-                                    self.regViewer.dotRR) # list to itemGroup
-                
-                dotRight = DotObject(self.regViewer.res_down[xySample[0]], 
-                                     self.regViewer.res_down[xySample[1]], 
-                                     self.regViewer.dotRR) # list to itemGroup
+                display_atlas = self.regViewer.native_to_display_point(xyAtlas)
+                display_sample = self.regViewer.native_to_display_point(xySample)
+                dotLeft = DotObject(
+                    display_atlas[0],
+                    display_atlas[1],
+                    self.regViewer.dotRR,
+                )
+                dotRight = DotObject(
+                    display_sample[0],
+                    display_sample[1],
+                    self.regViewer.dotRR,
+                )
                 
                 dotLeft.linkPairedDot(dotRight)
                 dotRight.linkPairedDot(dotLeft)
                 # add dots to scene
-                self.regViewer.widget.viewerLeft.scene.addItem(dotLeft)
-                self.regViewer.widget.viewerRight.scene.addItem(dotRight)
+                left_scene.addItem(dotLeft)
+                right_scene.addItem(dotRight)
                 # store dot to itemGroup
                 self.regViewer.widget.viewerLeft.itemGroup.append(dotLeft) # add dot to leftViewer
                 self.regViewer.widget.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
+        finally:
+            left_scene.blockSignals(previous_left_block)
+            right_scene.blockSignals(previous_right_block)
 
     def updateTransform(self,atlas_pts,sample_pts):
+        self.clearPredictedPreview()
         transform = fitGeoTrans(sample_pts,atlas_pts) # save transform for prediction
         self.rtransform = fitGeoTrans(atlas_pts,sample_pts)
-        self.sampleWarp = cv2.warpPerspective(self.sample,transform,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
-        self.sampleBlend = cv2.addWeighted(self.slice, 0.5, self.sampleWarp, 0.5, 0)
-
-        if self.regViewer.status.imageRGB is False:
-            self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_Grayscale8)
-            self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_Grayscale8)
-        else:
-            self.qWarp = QImage(self.sampleWarp.data,self.sampleWarp.shape[1],self.sampleWarp.shape[0],self.sampleWarp.strides[0],QImage.Format_BGR888)
-            self.qBlend = QImage(self.sampleBlend.data, self.sampleBlend.shape[1],self.sampleBlend.shape[0],self.sampleBlend.strides[0],QImage.Format_BGR888)
+        self.sampleWarp,self.sampleBlend,self.qWarp,self.qBlend = self._render_transform(transform)
 
         if not(self.regViewer.status.currentSliceNumber in self.regViewer.status.blendMode):
             self.regViewer.status.blendMode[self.regViewer.status.currentSliceNumber] = 1 # overlay
@@ -380,4 +434,164 @@ class AtlasModel():
         else:
             self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qWarp)) # all sample
 
-    
+    def applyPredictedTransform(self):
+        if not getattr(self, "slice_in_volume", True):
+            raise ValueError(
+                "Prediction is unavailable because the atlas slice extends "
+                "outside the atlas volume. Adjust the slice position or angles."
+            )
+        if self.predictor is None:
+            self.predictor = RegistrationTransformPredictor(
+                self.regViewer.regi_dict["model_path"]
+            )
+        native_transform = self.predictor.predict_transform(
+            self.sample_native,
+            self.reference_native,
+        )
+        display_transform = homography_to_display_space(
+            native_transform,
+            self._image_size(self.sample_native),
+            self._image_size(self.sample),
+            self._image_size(self.reference_native),
+            self._image_size(self.slice),
+        )
+        self.clearPredictedPreview()
+        self.predictedTransformNative = native_transform
+        self.predictedTransformDisplay = display_transform
+        self.predictedSliceNumber = self.regViewer.status.currentSliceNumber
+        (
+            self.predictedWarp,
+            self.predictedBlend,
+            self.qPredictedWarp,
+            self.qPredictedBlend,
+        ) = self._render_transform(display_transform)
+        self.regViewer.status.blendMode[self.predictedSliceNumber] = 1
+        self.showPredictedPreview()
+
+    def materializePredictedDots(self):
+        if not self.hasPredictedPreview():
+            return False
+
+        current_slice = self.regViewer.status.currentSliceNumber
+        sample_pts, atlas_pts = homography_to_registration_points(
+            self.predictedTransformNative,
+            self.sample_native.shape,
+            self.regViewer.atlas_resolution,
+        )
+        self._validate_dot_pairs(atlas_pts, sample_pts)
+        self.regViewer.status.atlasLocation[current_slice] = [
+            self.regViewer.status.x_angle,
+            self.regViewer.status.y_angle,
+            self.regViewer.status.current_z,
+        ]
+        self.regViewer.status.atlasDots[current_slice] = atlas_pts
+        self.regViewer.status.sampleDots[current_slice] = sample_pts
+        self.atlas_pts = atlas_pts
+        self.sample_pts = sample_pts
+        self._display_dot_pairs(atlas_pts, sample_pts)
+        self.regViewer.status.blendMode[current_slice] = 1
+        self.regViewer.status.saveRegistration()
+        self.updateTransform(
+            self._native_points_to_display(atlas_pts),
+            self._native_points_to_display(sample_pts),
+        )
+        self.regViewer.widget.updatePredictButton()
+        return True
+
+    def clearPredictedPreview(self, reset_view=False):
+        active_preview = (
+            self.predictedSliceNumber == self.regViewer.status.currentSliceNumber
+        )
+        self.predictedSliceNumber = None
+        self.predictedTransformNative = None
+        self.predictedTransformDisplay = None
+        for attr in [
+            "predictedWarp",
+            "predictedBlend",
+            "qPredictedWarp",
+            "qPredictedBlend",
+        ]:
+            if hasattr(self, attr):
+                delattr(self, attr)
+        if reset_view and active_preview:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.sliceQimg)
+            )
+
+    def hasPredictedPreview(self):
+        return (
+            self.predictedSliceNumber == self.regViewer.status.currentSliceNumber
+            and hasattr(self, "qPredictedBlend")
+            and hasattr(self, "qPredictedWarp")
+        )
+
+    def showPredictedPreview(self):
+        if not self.hasPredictedPreview():
+            return False
+
+        blend_mode = self.regViewer.status.blendMode.get(
+            self.regViewer.status.currentSliceNumber,
+            1,
+        )
+        if blend_mode == 0:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.sliceQimg)
+            )
+        elif blend_mode == 1:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.qPredictedBlend)
+            )
+        else:
+            self.regViewer.widget.viewerLeft.labelImg.setPixmap(
+                QPixmap.fromImage(self.qPredictedWarp)
+            )
+        return True
+
+    def showCurrentTransformPreview(self):
+        if self.showPredictedPreview():
+            return
+        self.updateDotPosition(mode='force')
+
+    @staticmethod
+    def _image_size(image):
+        return [image.shape[1], image.shape[0]]
+
+    def _render_transform(self, transform):
+        sample_warp = cv2.warpPerspective(
+            self.sample,
+            transform,
+            (self.regViewer.singleWindowSize[0], self.regViewer.singleWindowSize[1]),
+        )
+        sample_blend = cv2.addWeighted(self.slice, 0.5, sample_warp, 0.5, 0)
+
+        if self.regViewer.status.imageRGB is False:
+            q_warp = QImage(
+                sample_warp.data,
+                sample_warp.shape[1],
+                sample_warp.shape[0],
+                sample_warp.strides[0],
+                QImage.Format_Grayscale8,
+            )
+            q_blend = QImage(
+                sample_blend.data,
+                sample_blend.shape[1],
+                sample_blend.shape[0],
+                sample_blend.strides[0],
+                QImage.Format_Grayscale8,
+            )
+        else:
+            q_warp = QImage(
+                sample_warp.data,
+                sample_warp.shape[1],
+                sample_warp.shape[0],
+                sample_warp.strides[0],
+                QImage.Format_BGR888,
+            )
+            q_blend = QImage(
+                sample_blend.data,
+                sample_blend.shape[1],
+                sample_blend.shape[0],
+                sample_blend.strides[0],
+                QImage.Format_BGR888,
+            )
+        return sample_warp, sample_blend, q_warp, q_blend

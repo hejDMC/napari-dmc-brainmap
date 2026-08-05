@@ -1,5 +1,15 @@
-from qtpy.QtWidgets import QSlider,QWidget,QGridLayout,QLabel,QGraphicsItemGroup
-from qtpy.QtCore import Qt
+from qtpy.QtWidgets import (
+    QMessageBox,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+    QGridLayout,
+    QLabel,
+    QGraphicsItemGroup,
+)
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtGui import QIcon
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.GraphicViewers import ViewerLeft,ViewerRight
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle import ModeToggle
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
@@ -82,8 +92,103 @@ class MainWidget(QWidget):
     
     def createTransformToggle(self):
         self.toggle = ModeToggle()
-        self.layoutGrid.addWidget(self.toggle,1,2)
+        self.transform_controls = QWidget()
+        self.transform_controls.setFixedWidth(self.toggle.minimumWidth())
+        transform_controls_layout = QVBoxLayout()
+        transform_controls_layout.setContentsMargins(0, 0, 0, 0)
+        transform_controls_layout.setSpacing(4)
+        self.transform_controls.setLayout(transform_controls_layout)
+        transform_controls_layout.addWidget(self.toggle)
+        if "model_path" in self.regViewer.regi_dict:
+            self.createPredictButton()
+        self.layoutGrid.addWidget(self.transform_controls,1,2)
         # link click to buttonstate
+
+    def createPredictButton(self):
+        button_size = self.toggle.minimumWidth()
+        enabled_icon_path = self.regViewer.atlasModel.sharpy_dir.joinpath(
+            'sharpy_track',
+            'sharpy_track',
+            'images',
+            'predict_enabled.png',
+        )
+        disabled_icon_path = self.regViewer.atlasModel.sharpy_dir.joinpath(
+            'sharpy_track',
+            'sharpy_track',
+            'images',
+            'predict_disabled.png',
+        )
+        predict_icon = QIcon()
+        predict_icon.addFile(str(enabled_icon_path), QSize(), QIcon.Normal, QIcon.Off)
+        predict_icon.addFile(str(disabled_icon_path), QSize(), QIcon.Disabled, QIcon.Off)
+
+        self.predict_btn = QPushButton()
+        self.predict_btn.setIcon(predict_icon)
+        icon_size = max(button_size - 10, 1)
+        self.predict_btn.setIconSize(QSize(icon_size, icon_size))
+        self.predict_btn.setToolTip("Predict registration")
+        self.predict_btn.setFixedSize(button_size, button_size)
+        self.predict_btn.setStyleSheet(
+            "QPushButton {"
+            "background-color: white;"
+            "border: 1px solid rgb(120, 120, 120);"
+            "border-radius: 4px;"
+            "padding: 2px;"
+            "}"
+            "QPushButton:pressed {"
+            "background-color: rgb(230, 230, 230);"
+            "}"
+            "QPushButton:disabled {"
+            "background-color: white;"
+            "border: 1px solid rgb(180, 180, 180);"
+            "}"
+        )
+        self.predict_btn.clicked.connect(self.predict_action)
+        self.transform_controls.layout().addWidget(self.predict_btn)
+        self.updatePredictButton()
+
+    def updatePredictButton(self):
+        if not hasattr(self, "predict_btn"):
+            return
+
+        current_slice = self.regViewer.status.currentSliceNumber
+        has_dots = (
+            len(self.regViewer.status.atlasDots.get(current_slice, [])) > 0
+            or len(self.regViewer.status.sampleDots.get(current_slice, [])) > 0
+        )
+        preview_blocked = (
+            not self.toggle.isEnabled()
+            or self.regViewer.status.tMode == 1
+            or self.regViewer.widget.viewerLeft.itemGroup
+            or self.regViewer.widget.viewerRight.itemGroup
+        )
+        slice_out_of_volume = not getattr(
+            self.regViewer.atlasModel,
+            "slice_in_volume",
+            True,
+        )
+        self.predict_btn.setEnabled(
+            not has_dots and not preview_blocked and not slice_out_of_volume
+        )
+        if slice_out_of_volume:
+            self.predict_btn.setToolTip(
+                "Prediction unavailable: atlas slice extends outside the volume"
+            )
+        else:
+            self.predict_btn.setToolTip("Predict registration")
+
+    def predict_action(self):
+        self.predict_btn.setEnabled(False)
+        try:
+            self.regViewer.atlasModel.applyPredictedTransform()
+        except Exception as exc:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Prediction failed")
+            msg.setText(str(exc))
+            msg.exec()
+        finally:
+            self.updatePredictButton()
         
     
     def addDots(self):
@@ -116,6 +221,8 @@ class MainWidget(QWidget):
         # store dot to itemGroup
         self.viewerLeft.itemGroup.append(dotLeft) # add dot to leftViewer
         self.viewerRight.itemGroup.append(dotRight) # add dot to rightViewer
+        self.regViewer.atlasModel.clearPredictedPreview(reset_view=True)
+        self.updatePredictButton()
 
     
     def removeRecentDot(self):
@@ -130,6 +237,7 @@ class MainWidget(QWidget):
             # remove dots from itemGroup storage
             self.viewerLeft.itemGroup = self.viewerLeft.itemGroup[:-1]
             self.viewerRight.itemGroup = self.viewerRight.itemGroup[:-1]
+            self.updatePredictButton()
         
 
 

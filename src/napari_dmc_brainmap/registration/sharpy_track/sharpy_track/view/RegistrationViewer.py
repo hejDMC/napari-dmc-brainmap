@@ -8,14 +8,17 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.ModeToggle 
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.MainWidget import MainWidget
 import json
-import numpy as np
 from natsort import natsorted
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import AtlasModel
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.coordinates import (
+    display_to_native_point,
+    native_to_display_point,
+)
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.controller.status import StatusContainer
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.Tools import InterpolatePosition, AccuracyMeasurement, ShortcutsInfo
 
 class RegistrationViewer(QMainWindow):
-    def __init__(self, regViewerWidget, regi_dict) -> None:
+    def __init__(self, regViewerWidget, regi_dict, predictor=None) -> None:
         super().__init__()
         self.regViewerWidget = regViewerWidget
         self.app = regViewerWidget.viewer
@@ -29,7 +32,7 @@ class RegistrationViewer(QMainWindow):
         self.setCentralWidget(self.widget)
 
         # create atlasModel
-        self.atlasModel = AtlasModel(self)
+        self.atlasModel = AtlasModel(self, predictor=predictor)
         self.widget.viewerLeft.scene.changed.connect(lambda: self.atlasModel.updateDotPosition(mode="default"))
         self.widget.viewerRight.scene.changed.connect(lambda: self.atlasModel.updateDotPosition(mode="default"))
 
@@ -78,19 +81,21 @@ class RegistrationViewer(QMainWindow):
         else:
             self.dotRR = int(10 * self.scaleFactor)
         
-        # get resolution pixel mapping
-        low = np.arange(np.max(self.singleWindowSize))
-        low_up = (low/self.scaleFactor).astype(int)
-        self.res_up = {k:v for k,v in zip(low,low_up)}
-        self.res_x_range = np.arange(self.singleWindowSize[0])
-        self.res_y_range = np.arange(self.singleWindowSize[1])
+    def native_to_display_point(self, point):
+        """Map a native atlas ``[x, y]`` point to display coordinates."""
+        return native_to_display_point(
+            point,
+            self.atlas_resolution,
+            self.singleWindowSize,
+        )
 
-        high = np.arange(np.max(self.atlas_resolution))
-        high_down = (high*self.scaleFactor).astype(int)
-        self.res_down = {k:v for k,v in zip(high,high_down)}
-        # correct for res_down
-        for k,v in self.res_up.items():
-            self.res_down[v] = k
+    def display_to_native_point(self, point):
+        """Map a display ``[x, y]`` point to integer atlas coordinates."""
+        return display_to_native_point(
+            point,
+            self.atlas_resolution,
+            self.singleWindowSize,
+        )
     
 
     def wheelEvent(self,event):

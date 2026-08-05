@@ -2,9 +2,13 @@ from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QGraphicsView
 
 class QGraphicsViewMT(QGraphicsView):
+    #: Emitted when the mouse moves over the view.
     mouseMoved = Signal()
+    #: Emitted when the mouse enters the view.
     mouseEntered = Signal()
+    #: Emitted when the mouse leaves the view.
     mouseLeft = Signal()
+    #: Emitted when a mouse button is pressed in the view.
     mouseClicked = Signal()
     """
     Custom QGraphicsView with mouse tracking and enter/leave signals
