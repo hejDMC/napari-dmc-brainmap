@@ -362,7 +362,7 @@ class AtlasModel():
                 xySample[1] >=0) and (xySample[1] < self.regViewer.atlas_resolution[1]):
                 pass
             else:
-                raise IndexError("Registration coordinates out of boundary! \n" 
+                raise IndexError("Registration coordinates out of boundary! \n"
                                  "Check slide {} : atlasDots {}, sampleDots{}. \n"
                                  "Must fulfill: [0=<i<{},0<=j<{}]".format(self.regViewer.status.currentSliceNumber,
                                                                           xyAtlas,xySample,
