@@ -131,7 +131,7 @@ def test_split_to_list():
 
 
 
-def test_get_bregma():
+def test_get_bregma(monkeypatch):
     # Test case 1: Known atlas ID
     atlas_id = "allen_mouse_10um"
     expected_bregma = [540, 0, 570]
@@ -149,6 +149,15 @@ def test_get_bregma():
 
     # Test case 4: Unknown atlas ID
     atlas_id = "unknown_atlas"
+
+    def raise_invalid_atlas(requested_atlas_id):
+        assert requested_atlas_id == atlas_id
+        raise ValueError(f"{requested_atlas_id} is not a valid atlas name")
+
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.utils.atlas_utils.BrainGlobeAtlas",
+        raise_invalid_atlas,
+    )
     with pytest.raises(ValueError, match="not a valid atlas name"):
         get_bregma(atlas_id)
 
