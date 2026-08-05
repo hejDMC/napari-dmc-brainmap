@@ -38,6 +38,7 @@ class AtlasModel():
         self.atlas_pts = []
         self.sample_pts = []
         self.predictor = predictor
+        self.slice_in_volume = True
         self.predictedSliceNumber = None
         self.predictedTransformNative = None
         self.predictedTransformDisplay = None
@@ -152,6 +153,7 @@ class AtlasModel():
 
     def getSlice(self):
         if (self.regViewer.status.x_angle == 0) and (self.regViewer.status.y_angle == 0):
+            self.slice_in_volume = True
             self.simpleSlice() # update simple slice
         else:
             self.angleSlice() # update angled slice
@@ -231,11 +233,13 @@ class AtlasModel():
         # within-volume check
         outside_vol = np.argwhere((z_flat<0)|(z_flat>(self.xyz_dict['z'][1]-1))) # outside of volume index
         if outside_vol.size == 0: # if outside empty, inside of volume
+            self.slice_in_volume = True
             # index volume with z_mat and grid
             self.z_mat = z_mat # save AP plane for indexing structure information
             self.z_flat = z_flat # save current AP list to AtlasModel for getContourIndex
             self.slice = self.template[z_flat, self.r_grid_y, self.r_grid_x].reshape(self.xyz_dict['y'][1], self.xyz_dict['x'][1])
         else: # if not empty, show black image with warning
+            self.slice_in_volume = False
             self.slice = np.zeros((self.xyz_dict['y'][1], self.xyz_dict['x'][1]),dtype=np.uint8)
             cv2.putText(self.slice, "Slice out of volume!", (int(self.xyz_dict['x'][1]/3),int(self.xyz_dict['y'][1]/2)), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
     
@@ -431,6 +435,11 @@ class AtlasModel():
             self.regViewer.widget.viewerLeft.labelImg.setPixmap(QPixmap.fromImage(self.qWarp)) # all sample
 
     def applyPredictedTransform(self):
+        if not getattr(self, "slice_in_volume", True):
+            raise ValueError(
+                "Prediction is unavailable because the atlas slice extends "
+                "outside the atlas volume. Adjust the slice position or angles."
+            )
         if self.predictor is None:
             self.predictor = RegistrationTransformPredictor(
                 self.regViewer.regi_dict["model_path"]

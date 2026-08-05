@@ -15,6 +15,9 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.AtlasModel import (
     AtlasModel,
 )
+from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.MainWidget import (
+    MainWidget,
+)
 from napari_dmc_brainmap.registration import registration as registration_module
 
 
@@ -273,6 +276,52 @@ def test_atlas_model_predicts_native_and_renders_display_transform():
     assert model.predictedSliceNumber == 3
 
 
+def test_atlas_model_rejects_prediction_for_out_of_volume_slice():
+    class FakePredictor:
+        def predict_transform(self, sample, reference):
+            raise AssertionError("predictor must not receive an invalid atlas slice")
+
+    model = AtlasModel.__new__(AtlasModel)
+    model.predictor = FakePredictor()
+    model.slice_in_volume = False
+    model.sample_native = np.zeros((800, 1140), dtype=np.uint8)
+    model.reference_native = np.zeros((800, 1140), dtype=np.uint8)
+
+    with np.testing.assert_raises_regex(ValueError, "outside the atlas volume"):
+        model.applyPredictedTransform()
+
+
+def test_predict_button_is_disabled_for_out_of_volume_slice():
+    class FakeButton:
+        def setEnabled(self, enabled):
+            self.enabled = enabled
+
+        def setToolTip(self, tooltip):
+            self.tooltip = tooltip
+
+    widget = SimpleNamespace(
+        predict_btn=FakeButton(),
+        toggle=SimpleNamespace(isEnabled=lambda: True),
+        viewerLeft=SimpleNamespace(itemGroup=[]),
+        viewerRight=SimpleNamespace(itemGroup=[]),
+    )
+    widget.regViewer = SimpleNamespace(
+        atlasModel=SimpleNamespace(slice_in_volume=False),
+        status=SimpleNamespace(
+            currentSliceNumber=0,
+            atlasDots={},
+            sampleDots={},
+            tMode=0,
+        ),
+        widget=widget,
+    )
+
+    MainWidget.updatePredictButton(widget)
+
+    assert widget.predict_btn.enabled is False
+    assert "outside the volume" in widget.predict_btn.tooltip
+
+
 def test_atlas_model_preserves_clean_native_reference_for_prediction():
     status = SimpleNamespace(
         x_angle=0.0,
@@ -305,6 +354,7 @@ def test_atlas_model_preserves_clean_native_reference_for_prediction():
     assert not np.shares_memory(model.reference_native, model.slice)
     assert np.count_nonzero(model.reference_native) == 0
     assert np.count_nonzero(model.slice) > 0
+    assert model.slice_in_volume
 
 
 def test_atlas_model_preserves_native_sample_for_prediction():

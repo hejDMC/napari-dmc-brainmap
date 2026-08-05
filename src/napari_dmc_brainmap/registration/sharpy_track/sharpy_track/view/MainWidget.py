@@ -162,7 +162,20 @@ class MainWidget(QWidget):
             or self.regViewer.widget.viewerLeft.itemGroup
             or self.regViewer.widget.viewerRight.itemGroup
         )
-        self.predict_btn.setEnabled(not has_dots and not preview_blocked)
+        slice_out_of_volume = not getattr(
+            self.regViewer.atlasModel,
+            "slice_in_volume",
+            True,
+        )
+        self.predict_btn.setEnabled(
+            not has_dots and not preview_blocked and not slice_out_of_volume
+        )
+        if slice_out_of_volume:
+            self.predict_btn.setToolTip(
+                "Prediction unavailable: atlas slice extends outside the volume"
+            )
+        else:
+            self.predict_btn.setToolTip("Predict registration")
 
     def predict_action(self):
         self.predict_btn.setEnabled(False)
