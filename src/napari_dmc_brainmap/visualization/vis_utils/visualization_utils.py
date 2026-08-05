@@ -8,6 +8,22 @@ from pathlib import Path
 from bg_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 
+SEABORN_STYLES = {"white", "dark", "whitegrid", "darkgrid", "ticks"}
+
+
+def normalize_seaborn_style(style: str) -> str:
+    """Validate and return a supported Seaborn style."""
+    if style not in SEABORN_STYLES:
+        valid_styles = ", ".join(sorted(SEABORN_STYLES))
+        raise ValueError(f"style must be one of {valid_styles}")
+    return style
+
+
+def deduplicate_preserve_order(items: List[Any]) -> List[Any]:
+    """Remove duplicate items while preserving their first-seen order."""
+    return list(dict.fromkeys(items))
+
+
 def get_descendants(tgt_list: List[str], atlas: BrainGlobeAtlas) -> List[str]:
     """
     Retrieve all descendant regions for each target in the target list.
@@ -25,7 +41,7 @@ def get_descendants(tgt_list: List[str], atlas: BrainGlobeAtlas) -> List[str]:
         if not descendents:  # if no descendents found, return tgt
             descendents = [tgt]
         tgt_layer_list += descendents
-    return tgt_layer_list
+    return deduplicate_preserve_order(tgt_layer_list)
 
 def get_ancestors(tgt_list: List[str], atlas: BrainGlobeAtlas) -> List[str]:
     """

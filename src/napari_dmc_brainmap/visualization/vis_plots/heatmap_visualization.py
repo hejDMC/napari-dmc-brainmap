@@ -16,8 +16,13 @@ mpl.rcParams['svg.fonttype'] = 'none'
 from matplotlib.patches import Rectangle
 from napari_dmc_brainmap.utils.general_utils import split_strings_layers, split_to_list
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma
-from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import resort_df, \
-    get_unique_folder, get_descendants, get_ancestors
+from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import (
+    get_ancestors,
+    get_descendants,
+    get_unique_folder,
+    normalize_seaborn_style,
+    resort_df,
+)
 from napari_dmc_brainmap.utils.color_manager import ColorManager
 from napari.utils.notifications import show_info
 class HeatmapVisualization:
@@ -352,7 +357,7 @@ class HeatmapVisualization:
             tgt_list = get_ancestors(self.tgt_list, self.atlas)
         else:
             tgt_list = self.tgt_list
-        sns.set(style=self.plotting_params["style"])
+        sns.set(style=normalize_seaborn_style(self.plotting_params["style"]))
         mask_cbar = 'binary_r' if self.plotting_params["style"] != 'white' else 'binary'
 
         # Determine color range for heatmap

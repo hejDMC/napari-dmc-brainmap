@@ -13,8 +13,11 @@ mpl.rcParams['font.family'] = 'sans-serif'
 mpl.rcParams['font.sans-serif'] = 'Arial'
 mpl.rcParams['svg.fonttype'] = 'none'
 from napari_dmc_brainmap.utils.general_utils import split_to_list
-from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import resort_df, \
-    get_unique_folder
+from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import (
+    get_unique_folder,
+    normalize_seaborn_style,
+    resort_df,
+)
 from napari_dmc_brainmap.utils.color_manager import ColorManager
 from napari.utils.notifications import show_info
 
@@ -248,7 +251,7 @@ class BarplotVisualization:
 
         # Step 4: Create Plot Canvas
         mpl_widget = FigureCanvas(Figure(figsize=self.plotting_params['figsize']))
-        sns.set(style=self.plotting_params["style"])
+        sns.set(style=normalize_seaborn_style(self.plotting_params["style"]))
         static_ax = mpl_widget.figure.subplots()
         # Step 6: Plot Data Using Seaborn
         self._plot_data(static_ax=static_ax, data=tgt_data_to_plot,
@@ -482,4 +485,3 @@ class BarplotVisualization:
         params_fn = save_folder.joinpath(f'{self.plotting_params["save_name"]}.json')
         with open(params_fn, 'w') as fn:
             json.dump(self.plotting_params, fn, indent=4)
-
