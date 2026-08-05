@@ -215,11 +215,16 @@ class BrainsectionVisualization:
                     if self.data_dict[item][(self.data_dict[item]['type'] == 1) &
                                             (self.data_dict[item]['neuron_id'] == n_id)][self.orient_mapping['z_plot'][0]].between(target_z[0],target_z[1]).any():
                             scw_filt_ids.append(n_id)
-                plot_dict[item] = self.data_dict[item][self.data_dict[item]['neuron_id'].isin(scw_filt_ids)]
+                plot_dict[item] = self.data_dict[item].loc[
+                    self.data_dict[item]['neuron_id'].isin(scw_filt_ids)
+                ].copy()
 
             else:
-                plot_dict[item] = self.data_dict[item][(self.data_dict[item][self.orient_mapping['z_plot'][0]] >= target_z[0])
-                                              & (self.data_dict[item][self.orient_mapping['z_plot'][0]] <= target_z[1])]
+                section_mask = (
+                    (self.data_dict[item][self.orient_mapping['z_plot'][0]] >= target_z[0])
+                    & (self.data_dict[item][self.orient_mapping['z_plot'][0]] <= target_z[1])
+                )
+                plot_dict[item] = self.data_dict[item].loc[section_mask].copy()
             if item == 'genes' and self.plotting_params['color_brain_genes'] == 'voronoi':
                 # calculate colors according to number of cluster_ids in brain regions
                     annot_data = self.brainsection_plotter.plot_brain_schematic_voronoi(plot_dict[item], slice_idx,
@@ -232,12 +237,16 @@ class BrainsectionVisualization:
                 # Filter and adjust based on hemisphere
                 if self.plotting_params['unilateral'] == 'left':
                     # Retain only left hemisphere values
-                    plot_dict[item] = plot_dict[item][plot_dict[item]['ml_coords'] > bregma_rl]
+                    plot_dict[item] = plot_dict[item].loc[
+                        plot_dict[item]['ml_coords'] > bregma_rl
+                    ].copy()
                     # Adjust ML coordinates to make left hemisphere relative
-                    plot_dict[item].loc[:, 'ml_coords'] -= bregma_rl
+                    plot_dict[item]['ml_coords'] = plot_dict[item]['ml_coords'] - bregma_rl
                 else:  # plotting_params['unilateral'] == 'right'
                     # Retain only right hemisphere values
-                    plot_dict[item] = plot_dict[item][plot_dict[item]['ml_coords'] < bregma_rl]
+                    plot_dict[item] = plot_dict[item].loc[
+                        plot_dict[item]['ml_coords'] < bregma_rl
+                    ].copy()
 
                 # Reset index after filtering
                 plot_dict[item] = plot_dict[item].reset_index(drop=True)
@@ -750,7 +759,6 @@ class BrainsectionVisualization:
         params_fn = save_folder.joinpath(f'{self.plotting_params["save_name"]}.json')
         with open(params_fn, 'w') as fn:
             json.dump(self.plotting_params, fn, indent=4)
-
 
 
 

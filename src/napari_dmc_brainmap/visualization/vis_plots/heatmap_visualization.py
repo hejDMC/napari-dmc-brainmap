@@ -208,6 +208,7 @@ class HeatmapVisualization:
 
         interval_labels = self.plotting_params["interval_labels"]
         intervals = self.plotting_params["intervals"]
+        df = df.copy()
         df['bin'] = pd.cut(df['ap_mm'], intervals, labels=interval_labels)
 
         return df

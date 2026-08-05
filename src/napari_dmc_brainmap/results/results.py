@@ -19,6 +19,7 @@ mpl.rcParams['svg.fonttype'] = 'none'
 
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.color_manager import ColorManager
+from napari_dmc_brainmap.utils.dataframe_utils import clip_negative_first_row
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import split_to_list
 from napari_dmc_brainmap.utils.params_utils import load_params
@@ -467,7 +468,7 @@ class ResultsWidget(QWidget):
             }
 
             static_ax = mpl_widget.figure.subplots(1, 2)
-            df.iloc[0][df.iloc[0] < 0] = 0
+            df = clip_negative_first_row(df)
             if is_merge:
                 df = pd.DataFrame(df.mean(axis=0)).transpose()
             c_range = np.linspace(0.2, 1, len(df.columns))

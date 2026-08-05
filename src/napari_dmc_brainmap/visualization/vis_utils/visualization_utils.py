@@ -112,6 +112,7 @@ def resort_df(tgt_data_to_plot: pd.DataFrame, tgt_list: List[str], index_sort: b
     Returns:
         pd.DataFrame: Resort dataframe.
     """
+    tgt_data_to_plot = tgt_data_to_plot.copy()
     # function to resort brain areas from alphabetic to tgt_list sorting
     # create list of len brain areas
     if not index_sort:

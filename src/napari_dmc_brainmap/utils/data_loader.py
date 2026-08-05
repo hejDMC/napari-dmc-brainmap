@@ -59,7 +59,7 @@ class DataLoader:
                 if results_data is None:
                     continue
                 if self.data_type in ["optic_fiber", "neuropixels_probe"]:
-                    results_data = results_data[results_data['inside_brain']]
+                    results_data = results_data.loc[results_data['inside_brain']].copy()
                 results_data['ml_mm'] *= -1  # Convert negative values for the left hemisphere
                 results_data['animal_id'] = animal_id
                 results_data['channel'] = f"{animal_id}_{channel}" if (
@@ -76,7 +76,9 @@ class DataLoader:
             if self.atlas.metadata['name'] == 'allen_mouse':
                 results_data_merged = self._clean_results_df(results_data_merged)
             if self.hemisphere in ['ipsi', 'contra']:
-                results_data_merged = results_data_merged[results_data_merged['ipsi_contra'] == self.hemisphere]
+                results_data_merged = results_data_merged.loc[
+                    results_data_merged['ipsi_contra'] == self.hemisphere
+                ].copy()
 
         return results_data_merged.reset_index(drop=True)
 
@@ -97,6 +99,7 @@ class DataLoader:
         Returns:
             pd.DataFrame: Filtered DataFrame containing only target regions.
         """
+        working_df = df.copy()
         ids = []
         for reg in tgt_list:
             if not reg == 'NA':
@@ -111,11 +114,12 @@ class DataLoader:
 
         if 'NA' in tgt_list and use_na:
             ids.append(-42)
-            df.loc[~df.structure_id.isin(ids), 'structure_id'] = -42
+            working_df.loc[~working_df.structure_id.isin(ids), 'structure_id'] = -42
 
-        condition = df['structure_id'].isin(ids)
-        tgt_data = df[~condition] if negative else df[condition]
-        tgt_data.loc[:, 'tgt_name'] = tgt_data['structure_id'].map(lambda s: self._get_tgt_name(s, tgt_list))
+        condition = working_df['structure_id'].isin(ids)
+        selected_condition = ~condition if negative else condition
+        tgt_data = working_df.loc[selected_condition].copy()
+        tgt_data['tgt_name'] = tgt_data['structure_id'].map(lambda s: self._get_tgt_name(s, tgt_list))
         return tgt_data.reset_index(drop=True)
 
     def _get_tgt_name(self, structure_id: int, tgt_list: List[str]) -> str:
@@ -221,6 +225,7 @@ class DataLoader:
         if 'injection_site' not in df.columns or df.empty:
             raise ValueError("The dataframe must contain a non-empty 'injection_site' column.")
 
+        df = df.copy()
         injection_site = df['injection_site'].iloc[0]
         df['ipsi_contra'] = 'ipsi'
 
