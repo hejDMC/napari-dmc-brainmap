@@ -35,7 +35,7 @@ dependencies = [
     "opencv-python==4.9.0.80",
     "pandas==2.3.3",
     "qtpy==2.4.1",
-    "scikit-image==0.22.0",
+    "scikit-image==0.26.0",
     "scikit-learn==1.6.1",
     "scikit-spatial==7.2.0",
     "seaborn==0.12.2",

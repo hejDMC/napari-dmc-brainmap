@@ -26,6 +26,77 @@ def _map_points(transform, points):
     return cv2.perspectiveTransform(points, transform).reshape(-1, 2)
 
 
+def test_atlas_model_fits_forward_and_reverse_transforms(monkeypatch):
+    atlas_points = np.array(
+        [[2, 3], [14, 2], [13, 15], [1, 12]],
+        dtype=np.float32,
+    )
+    sample_points = np.array(
+        [[0, 0], [10, 0], [10, 10], [0, 10]],
+        dtype=np.float32,
+    )
+    forward_transform = np.array(
+        [[1, 0, 2], [0, 1, 3], [0, 0, 1]],
+        dtype=np.float64,
+    )
+    reverse_transform = np.array(
+        [[1, 0, -2], [0, 1, -3], [0, 0, 1]],
+        dtype=np.float64,
+    )
+    fit_calls = []
+
+    def fake_fit(source, destination):
+        fit_calls.append(
+            (
+                np.asarray(source).copy(),
+                np.asarray(destination).copy(),
+            )
+        )
+        if len(fit_calls) == 1:
+            return forward_transform
+        return reverse_transform
+
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.registration.sharpy_track.sharpy_track."
+        "model.AtlasModel.fitGeoTrans",
+        fake_fit,
+    )
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.registration.sharpy_track.sharpy_track."
+        "model.AtlasModel.QPixmap",
+        SimpleNamespace(fromImage=lambda image: image),
+    )
+    rendered = []
+    displayed = []
+    model = AtlasModel.__new__(AtlasModel)
+    model.clearPredictedPreview = lambda: None
+    model._render_transform = lambda transform: (
+        rendered.append(transform),
+        None,
+        "forward-warp",
+        "forward-blend",
+    )
+    model.regViewer = SimpleNamespace(
+        status=SimpleNamespace(currentSliceNumber=0, blendMode={0: 1}),
+        widget=SimpleNamespace(
+            viewerLeft=SimpleNamespace(
+                labelImg=SimpleNamespace(setPixmap=displayed.append)
+            )
+        ),
+    )
+
+    model.updateTransform(atlas_points, sample_points)
+
+    assert len(fit_calls) == 2
+    np.testing.assert_array_equal(fit_calls[0][0], sample_points)
+    np.testing.assert_array_equal(fit_calls[0][1], atlas_points)
+    np.testing.assert_array_equal(fit_calls[1][0], atlas_points)
+    np.testing.assert_array_equal(fit_calls[1][1], sample_points)
+    np.testing.assert_array_equal(rendered[0], forward_transform)
+    np.testing.assert_array_equal(model.rtransform, reverse_transform)
+    assert displayed == ["forward-blend"]
+
+
 def test_offsets_to_homography_identity():
     transform = offsets_to_homography(np.zeros((4, 2)), (10, 20))
     expected = np.eye(3, dtype=np.float32)

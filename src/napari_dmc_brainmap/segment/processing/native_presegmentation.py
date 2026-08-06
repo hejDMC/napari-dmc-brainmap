@@ -13,6 +13,11 @@ from skimage.morphology import remove_small_objects
 RGB_SAMPLE_INDEX = {"cy3": 0, "green": 1, "dapi": 2}
 
 
+def _maximum_removed_area(minimum_area: int) -> int:
+    """Translate the minimum area to keep to an inclusive removal limit."""
+    return max(minimum_area - 1, 0)
+
+
 def load_presegmentation_image(
     image_path: Path,
     channel: str,
@@ -152,7 +157,7 @@ def segment_preprocessed_image(
     )
     segmented = remove_small_objects(
         filled,
-        min_size=minimum_area,
+        max_size=_maximum_removed_area(minimum_area),
         connectivity=1,
     )
     return segmented[0].astype(np.uint8) * 255
