@@ -26,7 +26,7 @@ def test_load_single_channel_tiff_preserves_intensities(
 
     loaded = segmenter.load_image(image_path, chan="cy3")
 
-    expected = np.stack((source_image, source_image)).astype(np.float32)
+    expected = source_image[np.newaxis, ...].astype(np.float32)
     assert loaded.dtype == np.float32
     np.testing.assert_array_equal(loaded, expected)
 
@@ -51,6 +51,6 @@ def test_load_rgb_uint8_tiff_selects_requested_sample_channel(
     loaded = segmenter.load_image(image_path, chan=channel)
 
     selected_channel = source_image[..., sample_index]
-    expected = np.stack((selected_channel, selected_channel)).astype(np.float32)
+    expected = selected_channel[np.newaxis, ...].astype(np.float32)
     assert loaded.dtype == np.float32
     np.testing.assert_array_equal(loaded, expected)

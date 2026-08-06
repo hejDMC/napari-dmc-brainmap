@@ -18,7 +18,7 @@ def load_presegmentation_image(
     channel: str,
     single_channel: bool,
 ) -> np.ndarray:
-    """Load a grayscale or RGB TIFF as the duplicated ZYX stack used today."""
+    """Load a grayscale or RGB TIFF as a singleton-Z float32 stack."""
     image = tifffile.imread(image_path)
     if single_channel:
         if image.ndim != 2:
@@ -41,10 +41,7 @@ def load_presegmentation_image(
                 f"{supported}"
             ) from error
 
-    duplicated = np.empty((2, *selected.shape), dtype=np.float32)
-    duplicated[0] = selected
-    duplicated[1] = selected
-    return duplicated
+    return selected[np.newaxis, ...].astype(np.float32, copy=True)
 
 
 def normalize_intensity(
@@ -145,7 +142,7 @@ def segment_preprocessed_image(
     hole_sizes: Sequence[int],
     minimum_area: int,
 ) -> np.ndarray:
-    """Detect dots and return the first duplicated slice as a uint8 mask."""
+    """Detect dots and return the singleton Z slice as a uint8 mask."""
     response = -(sigma**2) * gaussian_laplace(image, sigma)
     binary = response > cutoff
     filled = _fill_holes_by_size(
