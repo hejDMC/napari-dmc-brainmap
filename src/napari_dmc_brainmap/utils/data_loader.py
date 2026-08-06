@@ -202,7 +202,7 @@ class DataLoader:
         for index, row in results_descriptor.iterrows():
             swc_fn = results_dir.joinpath(row['swc_file'])
             cols = ["id", "type", "ml_coords", "ap_coords", "dv_coords", "radius", "parent"]
-            swc_df = pd.read_csv(swc_fn, comment="#", delim_whitespace=True, names=cols)
+            swc_df = pd.read_csv(swc_fn, comment="#", sep=r"\s+", names=cols)
             swc_df['neuron_id'] = row['swc_file'].split('.')[0]
             swc_df['group_id'] = row['group']
             swc_df['animal_id'] = animal_id

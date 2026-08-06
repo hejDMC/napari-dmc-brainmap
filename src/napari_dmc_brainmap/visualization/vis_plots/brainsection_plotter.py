@@ -271,7 +271,12 @@ class BrainsectionPlotter:
         Returns:
             pd.DataFrame: Normalized density data.
         """
-        df_pivot = df.pivot_table(index='acronym', columns=['animal_id', 'left_right'], aggfunc='count').fillna(0)[
+        df_pivot = df.pivot_table(
+            index='acronym',
+            columns=['animal_id', 'left_right'],
+            aggfunc='count',
+            observed=False,
+        ).fillna(0)[
             'ap_coords']
         new_columns = pd.MultiIndex.from_product([animal_list, ['left', 'right']], names=['animal_id', 'left_right'])
         df_pivot = df_pivot.reindex(columns=new_columns, fill_value=0)
@@ -549,8 +554,6 @@ class BrainsectionPlotter:
         mask = mask1 | mask2
 
         return mask
-
-
 
 
 

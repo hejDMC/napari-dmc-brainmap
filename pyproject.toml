@@ -33,7 +33,7 @@ dependencies = [
     "natsort==8.4.0",
     "numpy==1.26.4",
     "opencv-python==4.9.0.80",
-    "pandas==2.0.1",
+    "pandas==2.3.3",
     "qtpy==2.4.1",
     "scikit-image==0.22.0",
     "scikit-learn==1.6.1",

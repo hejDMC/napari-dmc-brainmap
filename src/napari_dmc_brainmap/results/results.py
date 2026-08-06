@@ -538,7 +538,7 @@ class ResultsWidget(QWidget):
                     x_bin_labels = results_data.groupby('x')[x_key[0]].mean()
                     y_bin_labels = results_data.groupby('y')[y_key[0]].mean()
                     pivot_df = results_data.pivot_table(values='gene_expression', index='y', columns='x', aggfunc='mean',
-                                                        dropna=False)
+                                                        dropna=False, observed=False)
                     pivot_df.index = pivot_df.index.map(round(y_bin_labels, 2))
                     pivot_df.columns = pivot_df.columns.map(round(x_bin_labels, 2))
                     if y_key[0] == 'ap_mm':
