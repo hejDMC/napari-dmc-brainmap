@@ -20,6 +20,8 @@ generated technical documentation is published on
 
 DMC-BrainMap is a plugin for [napari](https://napari.org/stable/). There are two recommended installation paths, depending on whether you want to use the released plugin or develop the code.
 
+DMC-BrainMap supports Python 3.11 through 3.13. On macOS, Apple Silicon is required; Intel Macs are not supported.
+
 #### Users
 
 For reproducible regular use, first install napari by following the [napari installation guide](https://napari.org/dev/getting_started/installation.html). Then install DMC-BrainMap from napari's graphical plugin manager:
@@ -75,8 +77,8 @@ Sync the environment:
 uv sync
 ```
 
-This creates the project environment, installs Python 3.10 as required by the
-project, installs napari and all required dependencies, and installs
+This creates the project environment with a compatible Python version, installs
+napari and all required dependencies, and installs
 `napari-dmc-brainmap` from the local checkout. Optional prediction support is
 installed only when the `prediction` extra is selected as described below.
 
