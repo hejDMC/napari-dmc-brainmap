@@ -6,8 +6,10 @@ def test_available_atlases_uses_v3_listing_api(monkeypatch) -> None:
         dropdown_utils,
         "get_all_atlases_lastversions",
         lambda: {
+            "admba_3d_e11_5_mouse_16um": "3.0",
             "allen_mouse_25um": "1.2",
             "example_mouse_100um": "1.0",
+            "allen_mouse_10um": "3.0",
             "whs_sd_rat_39um": "1.1",
         },
     )
@@ -15,6 +17,8 @@ def test_available_atlases_uses_v3_listing_api(monkeypatch) -> None:
     available = dropdown_utils.get_available_atlases()
 
     assert available == {
+        "allen_mouse_10um": "3.0",
+        "admba_3d_e11_5_mouse_16um": "3.0",
         "allen_mouse_25um": "1.2",
         "whs_sd_rat_39um": "1.1",
         "example_mouse_100um": "1.0",
