@@ -302,11 +302,15 @@ class BrainsectionPlotter:
         Returns:
             pd.DataFrame: Normalized density dataframe.
         """
+        normalized = df_density.copy()
         scaler = MinMaxScaler(feature_range=(0.1, 1.0))
-        dens = np.append(df_density['density'].to_numpy(), 0)  # Add zero for scaling
-        dens_norm = scaler.fit_transform(dens.reshape(-1, 1))
-        df_density['density'] = dens_norm[:-1]  # Remove the added zero
-        return df_density
+        dens = np.append(
+            normalized['density'].to_numpy(),
+            0,
+        )  # Add zero for scaling
+        dens_norm = scaler.fit_transform(dens.reshape(-1, 1)).ravel()
+        normalized['density'] = dens_norm[:-1]  # Remove the added zero
+        return normalized
 
     def _sort_and_extract_brain_areas(self, df: pd.DataFrame, plot_type: Optional[str] = None) -> List[List[str]]:
         """
@@ -391,7 +395,6 @@ class BrainsectionPlotter:
         #     xdim //= 2
 
         matrix_shape = (ydim, xdim)
-        matrix = np.zeros(matrix_shape)
 
         points = df[[orient_mapping['x_plot'], orient_mapping['y_plot']]].to_numpy()
         if len(points) < 4:
@@ -410,9 +413,8 @@ class BrainsectionPlotter:
         nearest_point_index = np.argmin(cdist(grid_points, points), axis=1)
 
 
-        matrix.ravel()[:] = nearest_point_index
-        matrix = matrix.reshape(matrix_shape).astype('int')
-        matrix = np.vectorize(lambda x: int(df.loc[x, 'clr_id']))(matrix)
+        color_ids = df['clr_id'].to_numpy(dtype=np.intp)
+        matrix = color_ids[nearest_point_index].reshape(matrix_shape)
 
         color_dict = {
             clr_id: tuple(df.loc[df['clr_id'] == clr_id, 'voronoi_colors'].iloc[0])
@@ -554,7 +556,6 @@ class BrainsectionPlotter:
         mask = mask1 | mask2
 
         return mask
-
 
 
 
