@@ -29,7 +29,7 @@ from napari_dmc_brainmap.utils.data_loader import DataLoader
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
 from napari_dmc_brainmap.results.results_helpers.results_creator import ResultsCreator
 from napari_dmc_brainmap.results.results_helpers.results_quantifier import ResultsQuantifier
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 import json
 import numpy as np
 

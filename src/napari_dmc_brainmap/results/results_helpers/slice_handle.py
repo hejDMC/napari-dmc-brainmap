@@ -8,7 +8,7 @@ from napari.utils.notifications import show_info
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 
 class SliceHandle():
     """
@@ -210,7 +210,7 @@ class SliceHandle():
         if len(volIndex_list) == 0:
             return None
         else:
-            # transfer xyz coordinates to convention used by atlas (bg_atlasapi)
+            # Transfer xyz coordinates to the BrainGlobe atlas convention.
             volIndex_list = [xyz_atlas_transform(v, self.regi_dict, self.atlas.space.axes_description) for v in volIndex_list]
             id_list = []
             name_list = []

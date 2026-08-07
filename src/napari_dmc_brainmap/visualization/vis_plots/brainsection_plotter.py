@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter
 from scipy.spatial.distance import cdist
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, get_xyz
 from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import get_descendants, match_lists
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 
 class BrainsectionPlotter:
@@ -556,7 +556,6 @@ class BrainsectionPlotter:
         mask = mask1 | mask2
 
         return mask
-
 
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Dict, List, Tuple, Union
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.atlas_cache import load_annotation_bool
 from napari_dmc_brainmap.utils.atlas_utils import coord_mm_transform

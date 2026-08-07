@@ -12,11 +12,11 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
 )
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
-from napari_dmc_brainmap.utils.atlas_cache import load_reference_8bit
+from napari_dmc_brainmap.utils.atlas_cache import load_template_8bit
 
 from importlib.resources import files
 from pathlib import Path
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 
 
 class AtlasModel():
@@ -47,11 +47,11 @@ class AtlasModel():
 
     def loadTemplate(self):
         print('checking template volume...')
-        self.template = load_reference_8bit(self.atlas, notify=print)
+        self.template = load_template_8bit(self.atlas, notify=print)
         if not np.issubdtype(self.template.dtype, np.uint8):
-            print(f"Data type for reference volume: {self.template.dtype}")
+            print(f"Data type for template volume: {self.template.dtype}")
             print("8-bit / 16-bit grayscale volume is required.")
-            print("Reference volume cannot be correctly loaded to RegistrationViewer!")
+            print("Template volume cannot be correctly loaded to RegistrationViewer!")
         
         ori_trans_dict = {"coronal": (0,1,2),
                           "horizontal": (1,0,2),

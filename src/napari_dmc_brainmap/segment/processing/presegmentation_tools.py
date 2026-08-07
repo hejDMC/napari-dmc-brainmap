@@ -6,7 +6,7 @@ import cv2
 import tifffile
 from typing import List, Tuple, Union
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.segment.processing.atlas_utils import loadAnnotBool, angleSlice
 from napari_dmc_brainmap.segment.processing.native_presegmentation import (

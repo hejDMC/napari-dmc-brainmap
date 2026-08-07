@@ -5,7 +5,7 @@ import matplotlib.cm as cm
 import pandas as pd
 from typing import List, Any, Tuple
 from pathlib import Path
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 
 SEABORN_STYLES = {"white", "dark", "whitegrid", "darkgrid", "ticks"}

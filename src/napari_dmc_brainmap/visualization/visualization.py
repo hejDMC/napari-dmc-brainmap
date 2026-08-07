@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from napari_dmc_brainmap.utils.general_utils import split_to_list
 from napari_dmc_brainmap.utils.params_utils import load_params
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari_dmc_brainmap.utils.gui_utils import ProgressBar, check_input_path
 from napari_dmc_brainmap.utils.data_loader import DataLoader
 from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import get_descendants

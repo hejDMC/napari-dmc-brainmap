@@ -3,7 +3,7 @@ from qtpy.QtWidgets import QMainWindow, QMenu, QFileDialog, QApplication
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.MainWidget import MainWidget
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma
-from napari_dmc_brainmap.utils.atlas_cache import load_reference_8bit
+from napari_dmc_brainmap.utils.atlas_cache import load_template_8bit
 
 import numpy as np
 import cv2
@@ -11,7 +11,7 @@ import json
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QPixmap,QImage
 from napari.utils.notifications import show_info
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 
 
 # todo merge this with atlas model
@@ -63,11 +63,11 @@ class ProbeVisualizer(QMainWindow):
         
     def loadTemplate(self):
         show_info('checking template volume...')
-        self.template = load_reference_8bit(self.atlas, notify=show_info)
+        self.template = load_template_8bit(self.atlas, notify=show_info)
         if not np.issubdtype(self.template.dtype, np.uint8):
-            show_info(f"Data type for reference volume: {self.template.dtype}")
+            show_info(f"Data type for template volume: {self.template.dtype}")
             show_info("8-bit / 16-bit grayscale volume is required.")
-            show_info("Reference volume cannot be correctly loaded to ProbeVisualizer!")
+            show_info("Template volume cannot be correctly loaded to ProbeVisualizer!")
 
 
         

@@ -5,7 +5,7 @@ import pandas as pd
 from natsort import natsorted
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, coord_mm_transform
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 
 class DataLoader:

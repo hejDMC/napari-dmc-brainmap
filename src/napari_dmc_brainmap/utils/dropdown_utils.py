@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict
 
-from bg_atlasapi import utils, descriptors
+from brainglobe_atlasapi.list_atlases import get_all_atlases_lastversions
 from skimage import filters as filters
 
 
@@ -15,10 +15,7 @@ def get_available_atlases() -> Dict[str, str]:
     Returns:
         Dict[str, str]: A dictionary where keys and values are atlas names and versions.
     """
-    available_atlases = utils.conf_from_url(
-        descriptors.remote_url_base.format("last_versions.conf")
-    )
-    available_atlases = dict(available_atlases["atlases"])
+    available_atlases = get_all_atlases_lastversions()
 
     # Move "example_mouse_100um" to the back of the list
     available_atlases = {k: available_atlases[k] for k in available_atlases if k != 'example_mouse_100um'} \

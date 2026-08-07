@@ -68,7 +68,7 @@ def test_cache_path_is_keyed_by_atlas_version_and_resolution(
     assert len({first, second, third}) == 3
 
 
-def test_reference_derivative_uses_app_cache_and_is_reused(
+def test_template_derivative_uses_app_cache_and_is_reused(
     tmp_path: Path,
 ) -> None:
     atlas_root = tmp_path / "brainglobe" / "example_v1.2"
@@ -79,13 +79,13 @@ def test_reference_derivative_uses_app_cache_and_is_reused(
     cache_root = tmp_path / "app-cache"
     messages = []
 
-    converted = atlas_cache.load_reference_8bit(
+    converted = atlas_cache.load_template_8bit(
         atlas,
         cache_root,
         notify=messages.append,
     )
     atlas.template.fill(0)
-    cached = atlas_cache.load_reference_8bit(
+    cached = atlas_cache.load_template_8bit(
         atlas,
         cache_root,
         notify=messages.append,
@@ -98,7 +98,7 @@ def test_reference_derivative_uses_app_cache_and_is_reused(
     np.testing.assert_array_equal(cached, converted)
     assert (
         atlas_cache.atlas_cache_dir(atlas, cache_root)
-        / "reference_8bit.npy"
+        / "template_8bit.npy"
     ).exists()
     assert messages == [
         "creating 8-bit template volume...",
@@ -107,23 +107,23 @@ def test_reference_derivative_uses_app_cache_and_is_reused(
     assert list(atlas_root.iterdir()) == [sentinel]
 
 
-def test_incompatible_reference_cache_is_regenerated(tmp_path: Path) -> None:
+def test_incompatible_template_cache_is_regenerated(tmp_path: Path) -> None:
     atlas = _fake_atlas(tmp_path / "brainglobe" / "example_v1.2")
     cache_root = tmp_path / "app-cache"
     cache_path = (
         atlas_cache.atlas_cache_dir(atlas, cache_root)
-        / "reference_8bit.npy"
+        / "template_8bit.npy"
     )
     np.save(cache_path, np.zeros((1,), dtype=np.uint8))
 
-    regenerated = atlas_cache.load_reference_8bit(atlas, cache_root)
+    regenerated = atlas_cache.load_template_8bit(atlas, cache_root)
 
     assert regenerated.shape == atlas.shape
     assert regenerated.dtype == np.dtype(np.uint8)
     np.testing.assert_array_equal(np.load(cache_path), regenerated)
 
 
-def test_reference_loader_prefers_v3_template_attribute(tmp_path: Path) -> None:
+def test_template_loader_uses_v3_template_attribute(tmp_path: Path) -> None:
     class TemplateOnlyAtlas:
         atlas_name = "future_atlas_25um"
         local_version = (3, 0)
@@ -132,11 +132,7 @@ def test_reference_loader_prefers_v3_template_attribute(tmp_path: Path) -> None:
         template = np.arange(8, dtype=np.uint16).reshape((2, 2, 2))
         shape = template.shape
 
-        @property
-        def reference(self):
-            raise AssertionError("the deprecated reference alias was accessed")
-
-    converted = atlas_cache.load_reference_8bit(
+    converted = atlas_cache.load_template_8bit(
         TemplateOnlyAtlas(),
         tmp_path / "app-cache",
     )
@@ -203,7 +199,7 @@ def test_registration_template_loader_uses_shared_cache(
 
     monkeypatch.setattr(
         "napari_dmc_brainmap.registration.sharpy_track.sharpy_track."
-        "model.AtlasModel.load_reference_8bit",
+        "model.AtlasModel.load_template_8bit",
         load_template,
     )
 
@@ -234,7 +230,7 @@ def test_probe_template_loader_uses_shared_cache(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "napari_dmc_brainmap.results.probe_vis.probe_vis.view."
-        "ProbeVisualizer.load_reference_8bit",
+        "ProbeVisualizer.load_template_8bit",
         load_template,
     )
 

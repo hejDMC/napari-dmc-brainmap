@@ -106,21 +106,19 @@ def _save_array(cache_path: Path, array: np.ndarray) -> None:
 
 
 def _atlas_template(atlas: Any) -> np.ndarray:
-    """Return the v3 template or the v1/v2 reference fallback."""
-    template = getattr(atlas, "template", None)
-    if template is None:
-        template = atlas.reference
-    return np.asarray(template)
+    """Return the BrainGlobe v3 template volume."""
+    return np.asarray(atlas.template)
 
 
-def load_reference_8bit(
+def load_template_8bit(
     atlas: Any,
     cache_root: Path | None = None,
     notify: Callable[[str], None] | None = None,
 ) -> np.ndarray:
     """Load or create the plugin's uint8 atlas-template derivative."""
     expected_shape = tuple(int(value) for value in atlas.shape)
-    cache_path = atlas_cache_dir(atlas, cache_root) / "reference_8bit.npy"
+    cache_dir = atlas_cache_dir(atlas, cache_root)
+    cache_path = cache_dir / "template_8bit.npy"
     cached = _load_valid_array(cache_path, expected_shape, np.dtype(np.uint8))
     if cached is not None:
         if notify is not None:
