@@ -230,7 +230,7 @@ class ProbeVisualizer(QMainWindow):
         self.probe_list = [] # get voxel coordinates
         self.probe_axis = [] # get primary probe axis
         for p in self.probeDict.keys():
-            self.probe_list.append(np.array(self.probeDict[p]['Voxel'],dtype=np.uint16))
+            self.probe_list.append(np.asarray(self.probeDict[p]['Voxel'], dtype=np.intp))
             if self.probeDict[p]['axis'] == "AP":
                 self.probe_axis.append(0)
             elif self.probeDict[p]['axis'] == "DV":

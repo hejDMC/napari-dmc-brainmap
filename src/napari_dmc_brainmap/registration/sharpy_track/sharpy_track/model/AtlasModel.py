@@ -247,7 +247,7 @@ class AtlasModel():
         # check image grayscale or RGB, only check first image, assume all grayscale/all RGB
         image_0 = cv2.imread(os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[0]),cv2.IMREAD_UNCHANGED)
         if len(image_0.shape) == 2: # gray scale [0-255]
-            self.imgStack = np.full((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1]),-1,dtype=np.uint8) # adaptive imgStack dimension
+            self.imgStack = np.empty((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1]),dtype=np.uint8) # adaptive imgStack dimension
             # copy slices to stack
             for i in range(self.regViewer.status.sliceNum):
                 full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])
@@ -256,7 +256,7 @@ class AtlasModel():
 
         else: # 3 channel RGB/BGR or 4 channel RGBA
             self.regViewer.status.imageRGB = True
-            self.imgStack = np.full((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1],3),-1,dtype=np.uint8) # for RGBA also just keep RGB channels in stack
+            self.imgStack = np.empty((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1],3),dtype=np.uint8) # for RGBA also just keep RGB channels in stack
             # copy slices to stack
             for i in range(self.regViewer.status.sliceNum):
                 full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])

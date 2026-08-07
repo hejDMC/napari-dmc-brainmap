@@ -26,6 +26,56 @@ def _map_points(transform, points):
     return cv2.perspectiveTransform(points, transform).reshape(-1, 2)
 
 
+def test_atlas_model_get_stack_loads_grayscale_images(tmp_path):
+    image = np.arange(12, dtype=np.uint8).reshape(3, 4)
+    image_path = tmp_path / "grayscale.tif"
+    assert cv2.imwrite(str(image_path), image)
+
+    status = SimpleNamespace(
+        folderPath=tmp_path,
+        imgFileName=[image_path.name],
+        sliceNum=1,
+        imageRGB=False,
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(status=status)
+    model.regi_dict = {
+        "xyz_dict": {"y": ("si", 3), "x": ("rl", 4)}
+    }
+
+    model.getStack()
+
+    assert model.imgStack.dtype == np.uint8
+    assert model.imgStack.shape == (1, 3, 4)
+    np.testing.assert_array_equal(model.imgStack[0], image)
+    assert status.imageRGB is False
+
+
+def test_atlas_model_get_stack_loads_color_images(tmp_path):
+    image = np.arange(36, dtype=np.uint8).reshape(3, 4, 3)
+    image_path = tmp_path / "color.tif"
+    assert cv2.imwrite(str(image_path), image)
+
+    status = SimpleNamespace(
+        folderPath=tmp_path,
+        imgFileName=[image_path.name],
+        sliceNum=1,
+        imageRGB=False,
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(status=status)
+    model.regi_dict = {
+        "xyz_dict": {"y": ("si", 3), "x": ("rl", 4)}
+    }
+
+    model.getStack()
+
+    assert model.imgStack.dtype == np.uint8
+    assert model.imgStack.shape == (1, 3, 4, 3)
+    np.testing.assert_array_equal(model.imgStack[0], image)
+    assert status.imageRGB is True
+
+
 def test_atlas_model_fits_forward_and_reverse_transforms(monkeypatch):
     atlas_points = np.array(
         [[2, 3], [14, 2], [13, 15], [1, 12]],

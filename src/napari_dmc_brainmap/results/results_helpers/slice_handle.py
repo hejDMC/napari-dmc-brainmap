@@ -153,11 +153,12 @@ class SliceHandle():
         y_angle = self.regData['atlasLocation'][slice_n][1]
         x_max = self.regi_dict['xyz_dict']['x'][1]
         y_max = self.regi_dict['xyz_dict']['y'][1]
+        z_max = self.regi_dict['xyz_dict']['z'][1]
         z_coord = coord_mm_transform([self.regData['atlasLocation'][slice_n][2]], [self.bregma[self.z_idx]],
                                   [self.atlas.space.resolution[self.z_idx]], mm_to_coord=True)
 
         if (x_angle == 0) and (y_angle == 0):  # flat plane
-            z_plane = np.full((y_max, x_max), z_coord, dtype=np.uint16)
+            z_plane = np.full((y_max, x_max), z_coord, dtype=np.intp)
 
         else:  # angled plane
             x_shift = int(np.tan(np.deg2rad(x_angle)) * x_max/2)
@@ -170,6 +171,12 @@ class SliceHandle():
             vec_n = np.cross(vec_1, vec_2)
             z_plane = (-vec_n[1] * (self.grid[:, :, 0] - center[1]) - vec_n[2] * (self.grid[:, :, 1] - center[2])) / \
                        vec_n[0] + center[0]
+
+        if not np.all(np.isfinite(z_plane)) or np.any((z_plane < 0) | (z_plane >= z_max)):
+            raise ValueError(
+                f"Atlas z-plane for slice {slice_n!r} falls outside "
+                f"volume bounds [0, {z_max - 1}]"
+            )
 
         return z_plane
 
