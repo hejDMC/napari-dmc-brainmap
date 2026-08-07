@@ -38,7 +38,7 @@ def loadAnnotBool(atlas: str) -> np.ndarray:
         and 255 indicates inside the brain.
     """
     show_info('checking for annot_bool volume...')
-    return load_annotation_bool(BrainGlobeAtlas(atlas))
+    return load_annotation_bool(BrainGlobeAtlas(atlas), notify=show_info)
 
 
 def angleSlice(

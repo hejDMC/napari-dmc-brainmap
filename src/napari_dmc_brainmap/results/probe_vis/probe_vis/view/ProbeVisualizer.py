@@ -63,7 +63,7 @@ class ProbeVisualizer(QMainWindow):
         
     def loadTemplate(self):
         show_info('checking template volume...')
-        self.template = load_reference_8bit(self.atlas)
+        self.template = load_reference_8bit(self.atlas, notify=show_info)
         if not np.issubdtype(self.template.dtype, np.uint8):
             show_info(f"Data type for reference volume: {self.template.dtype}")
             show_info("8-bit / 16-bit grayscale volume is required.")

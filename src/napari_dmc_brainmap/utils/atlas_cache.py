@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -115,12 +116,15 @@ def _atlas_template(atlas: Any) -> np.ndarray:
 def load_reference_8bit(
     atlas: Any,
     cache_root: Path | None = None,
+    notify: Callable[[str], None] | None = None,
 ) -> np.ndarray:
     """Load or create the plugin's uint8 atlas-template derivative."""
     expected_shape = tuple(int(value) for value in atlas.shape)
     cache_path = atlas_cache_dir(atlas, cache_root) / "reference_8bit.npy"
     cached = _load_valid_array(cache_path, expected_shape, np.dtype(np.uint8))
     if cached is not None:
+        if notify is not None:
+            notify("loading template volume...")
         return cached
 
     template = _atlas_template(atlas)
@@ -129,6 +133,8 @@ def load_reference_8bit(
     if template.dtype != np.dtype(np.uint16):
         return template
 
+    if notify is not None:
+        notify("creating 8-bit template volume...")
     minimum = template.min()
     maximum = template.max()
     if maximum == minimum:
@@ -146,15 +152,22 @@ def load_reference_8bit(
 def load_annotation_bool(
     atlas: Any,
     cache_root: Path | None = None,
+    notify: Callable[[str], None] | None = None,
 ) -> np.ndarray:
     """Load or create the plugin's uint8 binary annotation derivative."""
     expected_shape = tuple(int(value) for value in atlas.shape)
     cache_path = atlas_cache_dir(atlas, cache_root) / "annot_bool.npy"
     cached = _load_valid_array(cache_path, expected_shape, np.dtype(np.uint8))
     if cached is not None:
+        if notify is not None:
+            notify("loading annot_bool volume...")
         return cached
 
+    if notify is not None:
+        notify("... local version not found, loading annotation volume...")
     annotation = np.asarray(atlas.annotation)
+    if notify is not None:
+        notify("... creating annot_bool version...")
     annotation_bool = (annotation > 0).astype(np.uint8) * 255
     _save_array(cache_path, annotation_bool)
     return annotation_bool

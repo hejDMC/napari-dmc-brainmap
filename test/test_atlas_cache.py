@@ -77,10 +77,19 @@ def test_reference_derivative_uses_app_cache_and_is_reused(
     sentinel.write_text("unchanged", encoding="utf-8")
     atlas = _fake_atlas(atlas_root)
     cache_root = tmp_path / "app-cache"
+    messages = []
 
-    converted = atlas_cache.load_reference_8bit(atlas, cache_root)
+    converted = atlas_cache.load_reference_8bit(
+        atlas,
+        cache_root,
+        notify=messages.append,
+    )
     atlas.template.fill(0)
-    cached = atlas_cache.load_reference_8bit(atlas, cache_root)
+    cached = atlas_cache.load_reference_8bit(
+        atlas,
+        cache_root,
+        notify=messages.append,
+    )
 
     assert converted.dtype == np.dtype(np.uint8)
     assert converted.shape == atlas.shape
@@ -91,6 +100,10 @@ def test_reference_derivative_uses_app_cache_and_is_reused(
         atlas_cache.atlas_cache_dir(atlas, cache_root)
         / "reference_8bit.npy"
     ).exists()
+    assert messages == [
+        "creating 8-bit template volume...",
+        "loading template volume...",
+    ]
     assert list(atlas_root.iterdir()) == [sentinel]
 
 
@@ -149,48 +162,86 @@ def test_load_annot_bool_never_writes_to_brainglobe_directory(
         lambda *args, **kwargs: app_cache,
     )
     monkeypatch.setattr(atlas_utils, "BrainGlobeAtlas", lambda name: atlas)
+    messages = []
+    monkeypatch.setattr(atlas_utils, "show_info", messages.append)
 
     annotation_bool = atlas_utils.loadAnnotBool("example_mouse_25um")
+    cached_annotation_bool = atlas_utils.loadAnnotBool("example_mouse_25um")
 
     np.testing.assert_array_equal(
         annotation_bool,
         (atlas.annotation > 0).astype(np.uint8) * 255,
     )
+    np.testing.assert_array_equal(cached_annotation_bool, annotation_bool)
     assert annotation_bool.dtype == np.dtype(np.uint8)
     assert (
         atlas_cache.atlas_cache_dir(atlas, app_cache) / "annot_bool.npy"
     ).exists()
+    assert messages == [
+        "checking for annot_bool volume...",
+        "... local version not found, loading annotation volume...",
+        "... creating annot_bool version...",
+        "checking for annot_bool volume...",
+        "loading annot_bool volume...",
+    ]
     assert list(atlas_root.iterdir()) == [sentinel]
 
 
 def test_registration_template_loader_uses_shared_cache(
     monkeypatch,
+    capsys,
 ) -> None:
     model = object.__new__(AtlasModel)
     model.atlas = object()
     model.regi_dict = {"orientation": "horizontal"}
     template = np.arange(24, dtype=np.uint8).reshape((2, 3, 4))
+
+    def load_template(atlas, notify=None):
+        assert notify is not None
+        notify("loading template volume...")
+        return template
+
     monkeypatch.setattr(
         "napari_dmc_brainmap.registration.sharpy_track.sharpy_track."
         "model.AtlasModel.load_reference_8bit",
-        lambda atlas: template,
+        load_template,
     )
 
     model.loadTemplate()
 
     np.testing.assert_array_equal(model.template, template.transpose(1, 0, 2))
+    assert capsys.readouterr().out.splitlines() == [
+        "checking template volume...",
+        "loading template volume...",
+    ]
 
 
 def test_probe_template_loader_uses_shared_cache(monkeypatch) -> None:
     visualizer = ProbeVisualizer.__new__(ProbeVisualizer)
     visualizer.atlas = object()
     template = np.arange(8, dtype=np.uint8).reshape((2, 2, 2))
+    messages = []
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.results.probe_vis.probe_vis.view."
+        "ProbeVisualizer.show_info",
+        messages.append,
+    )
+
+    def load_template(atlas, notify=None):
+        assert notify is not None
+        notify("loading template volume...")
+        return template
+
     monkeypatch.setattr(
         "napari_dmc_brainmap.results.probe_vis.probe_vis.view."
         "ProbeVisualizer.load_reference_8bit",
-        lambda atlas: template,
+        load_template,
     )
 
     visualizer.loadTemplate()
 
     np.testing.assert_array_equal(visualizer.template, template)
+    assert messages == [
+        "checking template volume...",
+        "loading template volume...",
+    ]
