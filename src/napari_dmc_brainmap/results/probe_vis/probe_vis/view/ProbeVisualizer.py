@@ -3,17 +3,15 @@ from qtpy.QtWidgets import QMainWindow, QMenu, QFileDialog, QApplication
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.MainWidget import MainWidget
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma
+from napari_dmc_brainmap.utils.atlas_cache import load_reference_8bit
 
 import numpy as np
 import cv2
 import json
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QPixmap,QImage
-from pathlib import Path
-
 from napari.utils.notifications import show_info
 from bg_atlasapi import BrainGlobeAtlas
-import os
 
 
 # todo merge this with atlas model
@@ -64,37 +62,12 @@ class ProbeVisualizer(QMainWindow):
 
         
     def loadTemplate(self):
-        brainglobe_dir = Path.home() / ".brainglobe"
-        atlas_name_general  = f"{self.params_dict['atlas_info']['atlas']}_v*"
-        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # glob returns generator object, need to exhaust it in list, then take out
-
-        # for any atlas else, in this case test with zebrafish atlas
         show_info('checking template volume...')
-        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy')): # when directory has 8-bit template volume, load it
-            show_info('loading template volume...')
-            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'))
-
-        else: # when saved template not found
-            # check if template volume from brainglobe is already 8-bit
-            self.template = self.atlas.reference
-            if np.issubdtype(self.template.dtype,np.uint16): # check if template is 16-bit
-                show_info('creating 8-bit template volume...')
-                # rescale intensity
-                lim_16_min = self.template.min()
-                lim_16_max = self.template.max()
-                self.template = self.template - lim_16_min # adjust brightness and downsample to 8-bit
-                self.template = self.template / (lim_16_max-lim_16_min) * 255
-                self.template = self.template.astype(np.uint8)
-                # save to 8-bit npy file
-                np.save(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'), self.template) # save volume for next time loading
-            
-            elif np.issubdtype(self.template.dtype,np.uint8): # if 8-bit, no need for downsample
-                pass
-            else: # other nparray.dtype
-                show_info("Data type for reference volume: {}".format(self.template.dtype))
-                show_info("at : {}".format(os.path.join(brainglobe_dir,atlas_names_local,'reference.tiff')))
-                show_info("8-bit / 16-bit grayscale volume is required.")
-                show_info("Reference volume cannot be correctly loaded to ProbeVisualizer!")
+        self.template = load_reference_8bit(self.atlas)
+        if not np.issubdtype(self.template.dtype, np.uint8):
+            show_info(f"Data type for reference volume: {self.template.dtype}")
+            show_info("8-bit / 16-bit grayscale volume is required.")
+            show_info("Reference volume cannot be correctly loaded to ProbeVisualizer!")
 
 
         

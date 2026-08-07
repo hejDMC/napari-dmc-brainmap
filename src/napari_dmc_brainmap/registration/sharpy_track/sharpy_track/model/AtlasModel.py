@@ -1,4 +1,4 @@
-import cv2, os, glob
+import cv2
 import numpy as np
 from qtpy.QtGui import QImage, QPixmap
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.DotObject import DotObject
@@ -12,6 +12,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
 )
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
+from napari_dmc_brainmap.utils.atlas_cache import load_reference_8bit
 
 from importlib.resources import files
 from pathlib import Path
@@ -45,37 +46,12 @@ class AtlasModel():
 
 
     def loadTemplate(self):
-        brainglobe_dir = Path.home() / ".brainglobe"
-        atlas_name_general  = f"{self.regi_dict['atlas']}_v*"
-        atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[0] # glob returns generator object, need to exhaust it in list, then take out
-
-        # for any atlas else, in this case test with zebrafish atlas
         print('checking template volume...')
-        if os.path.isfile(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy')): # when directory has 8-bit template volume, load it
-            print('loading template volume...')
-            self.template = np.load(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'))
-
-        else: # when saved template not found
-            # check if template volume from brainglobe is already 8-bit
-            self.template = self.atlas.reference
-            if np.issubdtype(self.template.dtype,np.uint16): # check if template is 16-bit
-                print('creating 8-bit template volume...')
-                # rescale intensity
-                lim_16_min = self.template.min()
-                lim_16_max = self.template.max()
-                self.template = self.template - lim_16_min # adjust brightness and downsample to 8-bit
-                self.template = self.template / (lim_16_max-lim_16_min) * 255
-                self.template = self.template.astype(np.uint8)
-                # save to 8-bit npy file
-                np.save(os.path.join(brainglobe_dir,atlas_names_local,'reference_8bit.npy'), self.template) # save volume for next time loading
-            
-            elif np.issubdtype(self.template.dtype,np.uint8): # if 8-bit, no need for downsample
-                pass
-            else: # other nparray.dtype
-                print("Data type for reference volume: {}".format(self.template.dtype))
-                print("at : {}".format(os.path.join(brainglobe_dir,atlas_names_local,'reference.tiff')))
-                print("8-bit / 16-bit grayscale volume is required.")
-                print("Reference volume cannot be correctly loaded to RegistrationViewer!")
+        self.template = load_reference_8bit(self.atlas)
+        if not np.issubdtype(self.template.dtype, np.uint8):
+            print(f"Data type for reference volume: {self.template.dtype}")
+            print("8-bit / 16-bit grayscale volume is required.")
+            print("Reference volume cannot be correctly loaded to RegistrationViewer!")
         
         ori_trans_dict = {"coronal": (0,1,2),
                           "horizontal": (1,0,2),
@@ -245,13 +221,15 @@ class AtlasModel():
     
     def getStack(self):
         # check image grayscale or RGB, only check first image, assume all grayscale/all RGB
-        image_0 = cv2.imread(os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[0]),cv2.IMREAD_UNCHANGED)
+        folder_path = Path(self.regViewer.status.folderPath)
+        image_0_path = folder_path / self.regViewer.status.imgFileName[0]
+        image_0 = cv2.imread(str(image_0_path), cv2.IMREAD_UNCHANGED)
         if len(image_0.shape) == 2: # gray scale [0-255]
             self.imgStack = np.empty((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1]),dtype=np.uint8) # adaptive imgStack dimension
             # copy slices to stack
             for i in range(self.regViewer.status.sliceNum):
-                full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])
-                img_data = cv2.imread(full_path,cv2.IMREAD_GRAYSCALE)
+                full_path = folder_path / self.regViewer.status.imgFileName[i]
+                img_data = cv2.imread(str(full_path), cv2.IMREAD_GRAYSCALE)
                 self.imgStack[i,:,:] = img_data
 
         else: # 3 channel RGB/BGR or 4 channel RGBA
@@ -259,8 +237,8 @@ class AtlasModel():
             self.imgStack = np.empty((self.regViewer.status.sliceNum,self.regi_dict['xyz_dict']['y'][1],self.regi_dict['xyz_dict']['x'][1],3),dtype=np.uint8) # for RGBA also just keep RGB channels in stack
             # copy slices to stack
             for i in range(self.regViewer.status.sliceNum):
-                full_path = os.path.join(self.regViewer.status.folderPath,self.regViewer.status.imgFileName[i])
-                img_data = cv2.imread(full_path,cv2.IMREAD_UNCHANGED)
+                full_path = folder_path / self.regViewer.status.imgFileName[i]
+                img_data = cv2.imread(str(full_path), cv2.IMREAD_UNCHANGED)
                 self.imgStack[i,:,:,:] = img_data[:,:,:3] # load first 3 channels of sample image to stack
 
         print(self.regViewer.status.sliceNum, "Slice(s) loaded")
