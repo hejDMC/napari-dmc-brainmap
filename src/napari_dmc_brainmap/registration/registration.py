@@ -29,7 +29,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
 )
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.view.RegistrationViewer import RegistrationViewer
 from napari_dmc_brainmap.visualization.vis_plots.brainsection_plotter import BrainsectionPlotter
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 
 
 def get_schematic_plotting_params(schematic_widget, regi_dict: Dict) -> Dict:

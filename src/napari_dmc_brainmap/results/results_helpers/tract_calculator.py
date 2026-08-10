@@ -122,6 +122,8 @@ class TractCalculator:
         y_idx, x_idx = self.atlas.space.index_pairs[primary_axis_idx]
         x = (line_object.point[x_idx] + lamb * line_object.direction[x_idx]).astype(int)
         y = (line_object.point[y_idx] + lamb * line_object.direction[y_idx]).astype(int)
+        x = np.clip(x, 0, self.atlas.shape[x_idx] - 1)
+        y = np.clip(y, 0, self.atlas.shape[y_idx] - 1)
 
         if primary_axis_idx == 0:
             a, b, c = z, y, x
@@ -129,9 +131,6 @@ class TractCalculator:
             a, b, c = y, z, x
         else:
             a, b, c = y, x, z
-
-        x[x >= self.atlas.shape[x_idx]] = self.atlas.shape[x_idx] - 1
-        y[y >= self.atlas.shape[y_idx]] = self.atlas.shape[y_idx] - 1
         return a, b, c
 
     def _get_certainty_list(self, probe_tract: pd.DataFrame, col_names: List[str]) -> List[float]:
@@ -217,7 +216,7 @@ class TractCalculator:
             else:
                 confidence_list.append(np.sqrt((((within_sphere[struct_else] - np.tile(np.array([c1, c2, c3]), (
                 np.sum(struct_else), 1)))) ** 2).sum(axis=1)).min() * atlas_resolution_um)
-        confidence_list = np.array(confidence_list, dtype=np.uint8)
+        confidence_list = np.asarray(confidence_list, dtype=np.float32)
         return confidence_list
 
     def _check_probe_insert(

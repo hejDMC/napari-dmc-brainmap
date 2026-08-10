@@ -26,6 +26,127 @@ def _map_points(transform, points):
     return cv2.perspectiveTransform(points, transform).reshape(-1, 2)
 
 
+def test_atlas_model_get_stack_loads_grayscale_images(tmp_path):
+    image = np.arange(12, dtype=np.uint8).reshape(3, 4)
+    image_path = tmp_path / "grayscale.tif"
+    assert cv2.imwrite(str(image_path), image)
+
+    status = SimpleNamespace(
+        folderPath=tmp_path,
+        imgFileName=[image_path.name],
+        sliceNum=1,
+        imageRGB=False,
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(status=status)
+    model.regi_dict = {
+        "xyz_dict": {"y": ("si", 3), "x": ("rl", 4)}
+    }
+
+    model.getStack()
+
+    assert model.imgStack.dtype == np.uint8
+    assert model.imgStack.shape == (1, 3, 4)
+    np.testing.assert_array_equal(model.imgStack[0], image)
+    assert status.imageRGB is False
+
+
+def test_atlas_model_get_stack_loads_color_images(tmp_path):
+    image = np.arange(36, dtype=np.uint8).reshape(3, 4, 3)
+    image_path = tmp_path / "color.tif"
+    assert cv2.imwrite(str(image_path), image)
+
+    status = SimpleNamespace(
+        folderPath=tmp_path,
+        imgFileName=[image_path.name],
+        sliceNum=1,
+        imageRGB=False,
+    )
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(status=status)
+    model.regi_dict = {
+        "xyz_dict": {"y": ("si", 3), "x": ("rl", 4)}
+    }
+
+    model.getStack()
+
+    assert model.imgStack.dtype == np.uint8
+    assert model.imgStack.shape == (1, 3, 4, 3)
+    np.testing.assert_array_equal(model.imgStack[0], image)
+    assert status.imageRGB is True
+
+
+def test_atlas_model_fits_forward_and_reverse_transforms(monkeypatch):
+    atlas_points = np.array(
+        [[2, 3], [14, 2], [13, 15], [1, 12]],
+        dtype=np.float32,
+    )
+    sample_points = np.array(
+        [[0, 0], [10, 0], [10, 10], [0, 10]],
+        dtype=np.float32,
+    )
+    forward_transform = np.array(
+        [[1, 0, 2], [0, 1, 3], [0, 0, 1]],
+        dtype=np.float64,
+    )
+    reverse_transform = np.array(
+        [[1, 0, -2], [0, 1, -3], [0, 0, 1]],
+        dtype=np.float64,
+    )
+    fit_calls = []
+
+    def fake_fit(source, destination):
+        fit_calls.append(
+            (
+                np.asarray(source).copy(),
+                np.asarray(destination).copy(),
+            )
+        )
+        if len(fit_calls) == 1:
+            return forward_transform
+        return reverse_transform
+
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.registration.sharpy_track.sharpy_track."
+        "model.AtlasModel.fitGeoTrans",
+        fake_fit,
+    )
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.registration.sharpy_track.sharpy_track."
+        "model.AtlasModel.QPixmap",
+        SimpleNamespace(fromImage=lambda image: image),
+    )
+    rendered = []
+    displayed = []
+    model = AtlasModel.__new__(AtlasModel)
+    model.clearPredictedPreview = lambda: None
+    model._render_transform = lambda transform: (
+        rendered.append(transform),
+        None,
+        "forward-warp",
+        "forward-blend",
+    )
+    model.regViewer = SimpleNamespace(
+        status=SimpleNamespace(currentSliceNumber=0, blendMode={0: 1}),
+        widget=SimpleNamespace(
+            viewerLeft=SimpleNamespace(
+                labelImg=SimpleNamespace(setPixmap=displayed.append)
+            )
+        ),
+    )
+
+    model.updateTransform(atlas_points, sample_points)
+
+    assert len(fit_calls) == 2
+    np.testing.assert_array_equal(fit_calls[0][0], sample_points)
+    np.testing.assert_array_equal(fit_calls[0][1], atlas_points)
+    np.testing.assert_array_equal(fit_calls[1][0], atlas_points)
+    np.testing.assert_array_equal(fit_calls[1][1], sample_points)
+    np.testing.assert_array_equal(rendered[0], forward_transform)
+    np.testing.assert_array_equal(model.rtransform, reverse_transform)
+    assert displayed == ["forward-blend"]
+
+
 def test_offsets_to_homography_identity():
     transform = offsets_to_homography(np.zeros((4, 2)), (10, 20))
     expected = np.eye(3, dtype=np.float32)

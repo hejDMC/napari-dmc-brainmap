@@ -1,7 +1,8 @@
 import numpy as np
 from typing import Dict, List, Tuple, Union
-from bg_atlasapi import config, BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
+from napari_dmc_brainmap.utils.atlas_cache import load_annotation_bool
 from napari_dmc_brainmap.utils.atlas_utils import coord_mm_transform
 
 
@@ -36,28 +37,8 @@ def loadAnnotBool(atlas: str) -> np.ndarray:
         np.ndarray: A binary annotation volume where 0 indicates outside the brain
         and 255 indicates inside the brain.
     """
-    brainglobe_dir = config.get_brainglobe_dir()
-    atlas_name_general = f"{atlas}_v*"
-    atlas_names_local = list(brainglobe_dir.glob(atlas_name_general))[
-        0]  # glob returns generator object, need to exhaust it in list, then take out
-    annot_bool_dir = brainglobe_dir.joinpath(atlas_names_local, 'annot_bool.npy')
-    # for any atlas else, in this case test with zebrafish atlas
     show_info('checking for annot_bool volume...')
-    if annot_bool_dir.exists():  # when directory has 8-bit template volume, load it
-        show_info('loading annot_bool volume...')
-        annot_bool = np.load(annot_bool_dir)
-
-    else:  # when saved template not found
-        # check if template volume from brainglobe is already 8-bit
-        show_info('... local version not found, loading annotation volume...')
-        annot = BrainGlobeAtlas(atlas).annotation
-
-        show_info('... creating annot_bool version...')
-
-        annot_bool = np.where(annot>0, 255, 0)  # 0, outside brain, 255 inside brain
-        np.save(annot_bool_dir, annot_bool)
-
-    return annot_bool
+    return load_annotation_bool(BrainGlobeAtlas(atlas), notify=show_info)
 
 
 def angleSlice(

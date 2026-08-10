@@ -19,7 +19,7 @@ from napari_dmc_brainmap.utils.atlas_utils import get_xyz
 from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox
 from magicgui import magicgui
 from magicgui.widgets import FunctionGui
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.gui_utils import check_input_path
 

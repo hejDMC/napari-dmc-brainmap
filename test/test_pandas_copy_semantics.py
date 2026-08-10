@@ -9,6 +9,12 @@ from napari_dmc_brainmap.utils.dataframe_utils import clip_negative_first_row
 from napari_dmc_brainmap.visualization.vis_plots.brainsection_visualization import (
     BrainsectionVisualization,
 )
+from napari_dmc_brainmap.visualization.vis_plots.brainsection_plotter import (
+    BrainsectionPlotter,
+)
+from napari_dmc_brainmap.visualization.vis_plots.barplot_visualization import (
+    BarplotVisualization,
+)
 from napari_dmc_brainmap.visualization.vis_plots.heatmap_visualization import (
     HeatmapVisualization,
 )
@@ -37,6 +43,13 @@ class _AtlasStub:
 def _setting_with_copy_is_error():
     with warnings.catch_warnings():
         warnings.simplefilter("error", pd.errors.SettingWithCopyWarning)
+        yield
+
+
+@contextmanager
+def _future_warning_is_error():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
         yield
 
 
@@ -176,3 +189,140 @@ def test_clip_negative_first_row_is_copy_on_write_safe():
 
     assert source.to_numpy().tolist() == [[-2.0, 3.0], [-4.0, 5.0]]
     assert result.to_numpy().tolist() == [[0.0, 3.0], [-4.0, 5.0]]
+
+
+def test_swc_loader_accepts_mixed_whitespace_without_future_warning(
+    monkeypatch,
+    tmp_path,
+):
+    results_dir = tmp_path / "swc-results"
+    results_dir.mkdir()
+    pd.DataFrame(
+        {"swc_file": ["neuron.swc"], "group": ["control"]}
+    ).to_csv(results_dir / "animal-1_swc.csv", index=False)
+    (results_dir / "neuron.swc").write_text(
+        "# id type x y z radius parent\n"
+        "1  1  10 20 30 2 -1\n"
+        "2\t3\t11\t21\t31\t1\t1\n",
+        encoding="utf-8",
+    )
+
+    loader = object.__new__(DataLoader)
+    loader.input_path = tmp_path
+    loader.data_type = "swc"
+    loader.bregma = [0, 0, 0]
+    loader.atlas = SimpleNamespace(
+        space=SimpleNamespace(resolution=[1, 1, 1])
+    )
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.utils.data_loader.get_info",
+        lambda *args, **kwargs: results_dir,
+    )
+    monkeypatch.setattr(
+        "napari_dmc_brainmap.utils.data_loader.coord_mm_transform",
+        lambda coordinates, *args: coordinates,
+    )
+
+    with _future_warning_is_error():
+        result = loader._load_swc_data("animal-1", "green")
+
+    coordinate_columns = [
+        "id",
+        "type",
+        "ml_coords",
+        "ap_coords",
+        "dv_coords",
+    ]
+    assert result[coordinate_columns].to_dict("list") == {
+        "id": [1, 2],
+        "type": [1, 3],
+        "ml_coords": [10, 11],
+        "ap_coords": [20, 21],
+        "dv_coords": [30, 31],
+    }
+    assert result["neuron_id"].tolist() == ["neuron", "neuron"]
+    assert result["group_id"].tolist() == ["control", "control"]
+
+
+def test_heatmap_pivot_preserves_unobserved_bins():
+    heatmap = object.__new__(HeatmapVisualization)
+    heatmap.plotting_params = {
+        "gene": "",
+        "descendants": False,
+    }
+    heatmap.tgt_list = ["VTA"]
+    source = pd.DataFrame(
+        {
+            "tgt_name": ["VTA"],
+            "animal_id": ["animal-1"],
+            "bin": pd.Categorical(
+                ["front"],
+                categories=["front", "back"],
+                ordered=True,
+            ),
+            "ap_coords": [1],
+        }
+    )
+
+    with _future_warning_is_error():
+        result = heatmap._create_pivot_table(source)
+
+    assert result["ap_coords", "animal-1", "front"].tolist() == [1]
+    assert result["ap_coords", "animal-1", "back"].tolist() == [0]
+
+
+def test_grouped_barplot_uses_new_stack_without_changing_output():
+    barplot = object.__new__(BarplotVisualization)
+    barplot.plotting_params = {
+        "groups": "channel",
+        "gene_list": [],
+        "absolute_numbers": "percentage_selection",
+    }
+    barplot.tgt_list = ["VTA"]
+    barplot.animal_list = ["animal-1"]
+    barplot.df = pd.DataFrame(
+        {
+            "tgt_name": ["VTA", "VTA"],
+            "animal_id": ["animal-1", "animal-1"],
+            "channel": ["green", "red"],
+            "ap_mm": [1.0, 2.0],
+        }
+    )
+    barplot.df_all = barplot.df
+
+    with _future_warning_is_error():
+        result = barplot.calculate_plot().reset_index(drop=True)
+
+    expected = pd.DataFrame(
+        {
+            "tgt_name": ["VTA", "VTA"],
+            "groups": ["green", "red"],
+            "percent": [50.0, 50.0],
+            "animal_id": ["animal-1", "animal-1"],
+        }
+    )
+    pd.testing.assert_frame_equal(result, expected)
+
+
+def test_density_pivot_preserves_unobserved_animal_side_pairs():
+    plotter = object.__new__(BrainsectionPlotter)
+    source = pd.DataFrame(
+        {
+            "acronym": ["VTA", "VTA"],
+            "animal_id": ["animal-1", "animal-2"],
+            "left_right": pd.Categorical(
+                ["left", "right"],
+                categories=["left", "right"],
+            ),
+            "ap_coords": [10, 20],
+        }
+    )
+
+    with _future_warning_is_error():
+        result = plotter._calculate_density_pivot(
+            source,
+            ["animal-1", "animal-2"],
+        )
+
+    density = result.set_index("left_right")["density"].to_dict()
+    assert density == {1: 0.5, 0: 0.5}

@@ -16,7 +16,7 @@ mpl.rcParams['font.family'] = 'sans-serif'
 mpl.rcParams['font.sans-serif'] = 'Arial'
 mpl.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari_dmc_brainmap.utils.color_manager import ColorManager
 from napari_dmc_brainmap.utils.general_utils import split_to_list
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma, get_orient_map, get_xyz
@@ -759,6 +759,5 @@ class BrainsectionVisualization:
         params_fn = save_folder.joinpath(f'{self.plotting_params["save_name"]}.json')
         with open(params_fn, 'w') as fn:
             json.dump(self.plotting_params, fn, indent=4)
-
 
 

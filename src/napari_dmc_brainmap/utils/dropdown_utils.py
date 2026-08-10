@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict
 
-from bg_atlasapi import utils, descriptors
+from brainglobe_atlasapi.list_atlases import get_all_atlases_lastversions
 from skimage import filters as filters
 
 
@@ -10,20 +10,33 @@ def get_available_atlases() -> Dict[str, str]:
     Get the available BrainGlobe atlases.
 
     This function fetches the available atlases from the BrainGlobe's configuration URL
-    and rearranges the list to move "example_mouse_100um" to the end.
+    and rearranges the list to make "allen_mouse_10um" the default and move
+    "example_mouse_100um" to the end.
 
     Returns:
         Dict[str, str]: A dictionary where keys and values are atlas names and versions.
     """
-    available_atlases = utils.conf_from_url(
-        descriptors.remote_url_base.format("last_versions.conf")
-    )
-    available_atlases = dict(available_atlases["atlases"])
+    available_atlases = get_all_atlases_lastversions()
 
-    # Move "example_mouse_100um" to the back of the list
-    available_atlases = {k: available_atlases[k] for k in available_atlases if k != 'example_mouse_100um'} \
-                        | {k: available_atlases[k] for k in ['example_mouse_100um'] if k in available_atlases}
-    return available_atlases
+    preferred_atlas = "allen_mouse_10um"
+    example_atlas = "example_mouse_100um"
+
+    ordered_atlases = {
+        name: available_atlases[name]
+        for name in (preferred_atlas,)
+        if name in available_atlases
+    }
+    ordered_atlases.update(
+        {
+            name: version
+            for name, version in available_atlases.items()
+            if name not in (preferred_atlas, example_atlas)
+        }
+    )
+    if example_atlas in available_atlases:
+        ordered_atlases[example_atlas] = available_atlases[example_atlas]
+
+    return ordered_atlases
 
 
 def get_atlas_dropdown() -> Enum:

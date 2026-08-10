@@ -2,7 +2,7 @@ from typing import List, Union, Dict, Tuple
 
 import numpy as np
 from napari.utils.notifications import show_info
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 
 
 def get_bregma(atlas_id: str) -> List[int]:

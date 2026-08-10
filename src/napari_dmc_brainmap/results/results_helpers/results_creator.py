@@ -4,13 +4,32 @@ from natsort import natsorted
 import cv2
 from sklearn.preprocessing import minmax_scale
 from matplotlib import path
-from typing import List, Union, Generator
+from typing import Generator, List, Sequence, Union
 from pathlib import Path
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.results.results_helpers.tract_calculator import TractCalculator
 from napari_dmc_brainmap.results.results_helpers.slice_handle import SliceHandle
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import get_animal_id, create_regi_dict
+
+
+def _scale_positions(
+    positions: Sequence[float],
+    source_max: int,
+    target_max: int,
+) -> np.ndarray:
+    """Scale pixel positions between image sizes without changing the input."""
+    anchored_positions = np.concatenate(
+        (
+            np.asarray(positions, dtype=np.float64),
+            np.asarray((0, source_max), dtype=np.float64),
+        )
+    )
+    scaled = minmax_scale(
+        anchored_positions,
+        feature_range=(0, target_max),
+    )
+    return np.ceil(scaled[:-2]).astype(np.intp)
 
 
 class ResultsCreator:
@@ -221,15 +240,16 @@ class ResultsCreator:
         x_low -= 1
 
         segment_data = pd.read_csv(segment_dir.joinpath(im))
-        y_pos = list(segment_data['Position Y'])
-        x_pos = list(segment_data['Position X'])
-        # append mix max values for rescaling
-        y_pos.append(0)
-        y_pos.append(y_im)
-        x_pos.append(0)
-        x_pos.append(x_im)
-        y_scaled = np.ceil(minmax_scale(y_pos, feature_range=(0, y_low)))[:-2].astype(int)
-        x_scaled = np.ceil(minmax_scale(x_pos, feature_range=(0, x_low)))[:-2].astype(int)
+        y_scaled = _scale_positions(
+            segment_data['Position Y'].to_numpy(),
+            y_im,
+            y_low,
+        )
+        x_scaled = _scale_positions(
+            segment_data['Position X'].to_numpy(),
+            x_im,
+            x_low,
+        )
         if self.seg_type == 'injection_site':
             for n in segment_data['idx_shape'].unique():
                 n_idx = segment_data.index[segment_data['idx_shape'] == n].tolist()

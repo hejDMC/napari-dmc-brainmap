@@ -14,10 +14,12 @@ def fitGeoTrans(src: Union[List[int], np.ndarray],
     src = np.float32(src)
     dst = np.float32(dst)
     if 'projective' ==mode:
-        # tform = findProjectiveTransform(src, dst)
-        # tform = tform.params
-        tform_x = ProjectiveTransform()
-        tform_x.estimate(src, dst)
+        tform_x = ProjectiveTransform.from_estimate(src, dst)
+        if not tform_x:
+            raise ValueError(
+                "Could not estimate a projective transformation from the "
+                "provided points"
+            )
         tform_x = tform_x.params
     else:
         raise Exception("Unsupported transformation")

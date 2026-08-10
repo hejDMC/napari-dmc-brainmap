@@ -3,18 +3,19 @@ import pandas as pd
 from pathlib import Path
 import json
 import cv2
+import tifffile
 from typing import List, Tuple, Union
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from aicsimageio import AICSImage
-from skimage.morphology import remove_small_objects
-from skimage.measure import label, regionprops
-from aicssegmentation.core.pre_processing_utils import intensity_normalization, image_smoothing_gaussian_slice_by_slice
-from aicssegmentation.core.seg_dot import dot_3d
-from aicssegmentation.core.utils import hole_filling
-from aicsimageio.writers import OmeTiffWriter
-from bg_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi import BrainGlobeAtlas
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.segment.processing.atlas_utils import loadAnnotBool, angleSlice
+from napari_dmc_brainmap.segment.processing.native_presegmentation import (
+    find_mask_centroids,
+    load_presegmentation_image,
+    normalize_intensity,
+    segment_preprocessed_image,
+    smooth_slices,
+)
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.atlas_utils import get_bregma
 
@@ -239,18 +240,11 @@ class CellsSegmenter(PreSegmenter):
             np.ndarray: Loaded image as a NumPy array.
         """
 
-        reader = AICSImage(str(image_path))
-        img = reader.data.astype(np.float32)
-        if self.cells_params["single_channel"]:
-            img_struct = img[0, 0, 0, :, :].copy()
-        else: # for RGB images
-            chan_dict = {
-                'cy3': 0,
-                'green': 1,
-                'dapi': 2
-            }
-            img_struct = img[0, 0, 0, :, :, chan_dict[chan]].copy()
-        return np.array([img_struct, img_struct])  # Duplicate layer stack
+        return load_presegmentation_image(
+            image_path,
+            channel=chan,
+            single_channel=self.cells_params["single_channel"],
+        )
 
     def save_mask_image(self, segmentation: np.ndarray, mask_save_fn: Path) -> None:
         """
@@ -260,8 +254,8 @@ class CellsSegmenter(PreSegmenter):
             segmentation (np.ndarray): Segmentation mask.
             mask_save_fn (Path): File path to save the mask.
         """
-        writer = OmeTiffWriter()
-        writer.save(segmentation[0], str(mask_save_fn))
+        mask = segmentation[0] if segmentation.ndim == 3 else segmentation
+        tifffile.imwrite(mask_save_fn, mask)
 
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """
@@ -273,8 +267,14 @@ class CellsSegmenter(PreSegmenter):
         Returns:
             np.ndarray: Preprocessed image.
         """
-        image = intensity_normalization(image, scaling_param=self.preseg_params["intensity_norm"])
-        return image_smoothing_gaussian_slice_by_slice(image, sigma=self.preseg_params["gaussian_smoothing_sigma"])
+        normalized = normalize_intensity(
+            image,
+            scaling_param=self.preseg_params["intensity_norm"],
+        )
+        return smooth_slices(
+            normalized,
+            sigma=self.preseg_params["gaussian_smoothing_sigma"],
+        )
 
     def segment_image(self, image: np.ndarray) -> np.ndarray:
         """
@@ -286,15 +286,13 @@ class CellsSegmenter(PreSegmenter):
         Returns:
             np.ndarray: Segmentation mask.
         """
-        response = dot_3d(image, log_sigma=self.preseg_params["dot_3d_sigma"])
-        bw = response > self.preseg_params["dot_3d_cutoff"]
-        bw_filled = hole_filling(bw, self.preseg_params["hole_min_max"][0], self.preseg_params["hole_min_max"][1], True)
-        seg = remove_small_objects(bw_filled, min_size=self.preseg_params["minArea"], connectivity=1)
-
-        seg = seg > 0
-        seg = seg.astype(np.uint8)
-        seg[seg > 0] = 255
-        return seg[0]
+        return segment_preprocessed_image(
+            image,
+            sigma=self.preseg_params["dot_3d_sigma"],
+            cutoff=self.preseg_params["dot_3d_cutoff"],
+            hole_sizes=self.preseg_params["hole_min_max"],
+            minimum_area=self.preseg_params["minArea"],
+        )
 
     def find_centroids(self, segmented_image: np.ndarray) -> np.ndarray:
         """
@@ -306,19 +304,7 @@ class CellsSegmenter(PreSegmenter):
         Returns:
             np.ndarray: Centroid coordinates.
         """
-        # Label the image to find individual segmented regions
-        label_img = label(segmented_image)
-
-        # Get properties of segmented regions, particularly the centroids
-        regions = regionprops(label_img)
-
-        # Extract centroids
-        centroids = np.zeros((len(regions), 2))
-        for idx, props in enumerate(regions):
-            centroids[idx, 0] = props.centroid[0]  # Y-coordinate
-            centroids[idx, 1] = props.centroid[1]  # X-coordinate
-
-        return centroids
+        return find_mask_centroids(segmented_image)
 
     def segment_cells(self, image_path: Path, save_path: Path, mask_save_fn: Path, chan: str, seg_im_suffix: str) -> None:
         """

@@ -144,11 +144,13 @@ class BarplotVisualization:
         """
         if self.plotting_params["groups"] in ["channel", "ipsi_contra", "hcr"]:
             return df.pivot_table(index='tgt_name', columns=['animal_id', self.plotting_params["groups"]],
-                                  aggfunc='count').fillna(0)
+                                  aggfunc='count', observed=False).fillna(0)
         elif self.plotting_params["gene_list"]:
             return pd.DataFrame(df.groupby('tgt_name')[self.plotting_params["gene_list"]].mean().fillna(0))
         else:
-            return df.pivot_table(index='tgt_name', columns=['animal_id'], aggfunc='count').fillna(0)
+            return df.pivot_table(
+                index='tgt_name', columns=['animal_id'], aggfunc='count', observed=False
+            ).fillna(0)
 
     def _handle_missing_areas(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -213,7 +215,7 @@ class BarplotVisualization:
                 dummy_df = pd.DataFrame(
                     (df['ap_mm'][animal_id] / len(self.df_all[self.df_all['animal_id'] == animal_id])) * 100)
             if self.plotting_params["groups"] in ["channel", "ipsi_contra", "hcr"]:
-                dummy_df = dummy_df.stack().reset_index()
+                dummy_df = dummy_df.stack(future_stack=True).reset_index()
                 dummy_df.rename(columns={self.plotting_params["groups"]: "groups", 0: 'percent'}, inplace=True)
             else:
                 dummy_df.rename(columns={animal_id: "percent"}, inplace=True)

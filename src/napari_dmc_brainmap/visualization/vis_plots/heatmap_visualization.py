@@ -228,7 +228,8 @@ class HeatmapVisualization:
         pivot_kwargs = {
             'index': index,
             'columns': columns,
-            'aggfunc': aggfunc
+            'aggfunc': aggfunc,
+            'observed': False,
         }
         df_pivot = df.pivot_table(values=self.plotting_params.get('gene') if self.plotting_params['gene'] else None,
                                   **pivot_kwargs).fillna(0)

@@ -329,7 +329,8 @@ def initialize_presegcells_widget():
                                 tooltip='hole min/max parameters (COMMA SEPARATED) for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
               minArea=dict(widget_type='LineEdit', label='min. area',
                            value='3',
-                           tooltip='min area parameter for rab5a model from aics-segmentation; https://github.com/AllenInstitute/aics-segmentation'),
+                           tooltip='minimum connected-component area to keep, in 2D pixels; '
+                                   'smaller objects are removed'),
               start_end_im=dict(widget_type='LineEdit', label='image range to presegment', value='',
                                 tooltip='if you only want to segment a subset of images enter COMMA SEPARATED indices '
                                         'of the first and last image to presegment, e.g. 0,10'),
@@ -963,4 +964,3 @@ class SegmentWidget(QWidget):
         msg_box.setText(msg)
         msg_box.setWindowTitle("Operation successful!")
         msg_box.exec_()
-
