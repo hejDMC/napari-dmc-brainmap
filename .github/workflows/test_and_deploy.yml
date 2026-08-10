@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -94,3 +95,4 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
+          use_oidc: true

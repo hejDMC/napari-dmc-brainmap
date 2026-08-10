@@ -3,18 +3,19 @@
 *DMC-BrainMap is an end-to-end tool for multi-feature brain mapping across species.*  
 This [napari](https://napari.org/stable/) plugin was generated with [Cookiecutter](https://github.com/cookiecutter/cookiecutter) using napari's [cookiecutter-napari-plugin](https://github.com/napari/cookiecutter-napari-plugin) template.
 
-[![License BSD-3](https://img.shields.io/pypi/l/napari-dmc-brainmap.svg?color=green)](https://github.com/hejDMC/napari-dmc-brainmap/raw/main/LICENSE)
+[![Tests](https://github.com/hejDMC/napari-dmc-brainmap/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)](https://github.com/hejDMC/napari-dmc-brainmap/actions/workflows/test_and_deploy.yml?query=branch%3Amain)
 [![PyPI](https://img.shields.io/pypi/v/napari-dmc-brainmap.svg?color=green)](https://pypi.org/project/napari-dmc-brainmap)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-dmc-brainmap.svg?color=green)](https://python.org)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-dmc-brainmap)](https://napari-hub.org/plugins/napari-dmc-brainmap)
-[![Documentation Status](https://readthedocs.org/projects/napari-dmc-brainmap/badge/?version=main)](https://napari-dmc-brainmap.readthedocs.io/en/main/?badge=main)
+[![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-dmc-brainmap)](https://napari-hub.org/plugins/napari-dmc-brainmap.html)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://napari-dmc-brainmap.readthedocs.io/en/latest/)
+[![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green)](https://github.com/hejDMC/napari-dmc-brainmap/blob/main/LICENSE.txt)
 
 
 ## Quick start
 User guides and tutorials are available in the
 [project wiki](https://github.com/hejDMC/napari-dmc-brainmap/wiki). The
 generated technical documentation is published on
-[Read the Docs](https://napari-dmc-brainmap.readthedocs.io/en/main/).
+[Read the Docs](https://napari-dmc-brainmap.readthedocs.io/en/latest/).
 
 ### Installation
 
@@ -49,7 +50,7 @@ python -m pip install "torch>=2.12.0" --index-url https://download.pytorch.org/w
 ```
 
 See the
-[prediction-assisted registration guide](https://napari-dmc-brainmap.readthedocs.io/en/main/registration_prediction.html)
+[prediction-assisted registration guide](https://napari-dmc-brainmap.readthedocs.io/en/latest/registration_prediction.html)
 for model download, setup, usage, and quality-control guidance.
 
 After installation, open DMC-BrainMap from the napari plugin menu:
@@ -145,8 +146,8 @@ animal_id-2
 
 ## Documentation
 
-- [Technical documentation](https://napari-dmc-brainmap.readthedocs.io/en/main/)
-- [Prediction-assisted registration](https://napari-dmc-brainmap.readthedocs.io/en/main/registration_prediction.html)
+- [Technical documentation](https://napari-dmc-brainmap.readthedocs.io/en/latest/)
+- [Prediction-assisted registration](https://napari-dmc-brainmap.readthedocs.io/en/latest/registration_prediction.html)
 - [User guides and tutorials](https://github.com/hejDMC/napari-dmc-brainmap/wiki)
 
 ## Seeking help or contributing

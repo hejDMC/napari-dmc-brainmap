@@ -13,7 +13,7 @@ registration workflow.
 DMC-BrainMap supports prediction-assisted registration with the
 [DMC-BrainMap Registration Predictor](https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor).
 The
-[prediction-assisted registration guide](https://napari-dmc-brainmap.readthedocs.io/en/main/registration_prediction.html)
+[prediction-assisted registration guide](https://napari-dmc-brainmap.readthedocs.io/en/latest/registration_prediction.html)
 documents the supported checkpoint, PyTorch installation, model selection,
 prediction workflow, limitations, and required quality control.
 
