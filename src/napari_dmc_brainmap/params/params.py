@@ -58,7 +58,9 @@ def initialize_widget() -> FunctionGui:
                                   choices=['coronal', 'sagittal', 'horizontal'],
                                   value='coronal',
                                   tooltip='Select the brain slicing orientation.'),
-              atlas=dict(label='Reference Atlas',
+              atlas=dict(widget_type='ComboBox',
+                         label='Reference Atlas',
+                         choices=get_atlas_dropdown(),
                          tooltip='Select the reference atlas for registration.'),
               call_button=False)
     def params_widget(input_path: Path,
@@ -67,7 +69,7 @@ def initialize_widget() -> FunctionGui:
                       group: str,
                       chans_imaged: list,
                       section_orient: str,
-                      atlas: get_atlas_dropdown()):
+                      atlas: str):
         """
         Create the params widget for collecting experimental parameter inputs.
 
