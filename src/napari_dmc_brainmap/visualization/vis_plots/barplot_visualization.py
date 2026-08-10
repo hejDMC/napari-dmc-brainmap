@@ -317,15 +317,18 @@ class BarplotVisualization:
         bar_palette = self._check_color_palette(self.plotting_params["bar_palette"])
         scatter_palette = self._check_color_palette(self.plotting_params["scatter_palette"], bar=False)
         if self.plotting_params["groups"] == '' and not self.plotting_params['gene_list']:
+            category_var = y_var if plot_orient == 'h' else x_var
             sns.barplot(
                 ax=static_ax,
                 x=x_var,
                 y=y_var,
                 data=data,
+                hue=category_var,
                 palette=bar_palette,
                 capsize=.1,
                 errorbar=None,
-                orient=plot_orient)
+                orient=plot_orient,
+                legend=False)
             if self.plotting_params["scatter_hue"]:
                 sns.swarmplot(
                     ax=static_ax,
@@ -356,19 +359,28 @@ class BarplotVisualization:
             y_var (str): Y-axis variable.
             plot_orient (str): Plot orientation ('h' for horizontal, 'v' for vertical).
         """
-        palette = self.color_manager.create_color_palette([], self.plotting_params, "bar_palette", df=data, hue_id='genes') if len(self.plotting_params['gene_list']) > 1 else self.plotting_params["bar_palette"]
-        if len(self.plotting_params['gene_list']) == 1:
-            palette = self._check_color_palette(palette.values())
+        multiple_genes = len(self.plotting_params['gene_list']) > 1
+        if multiple_genes:
+            palette = self.color_manager.create_color_palette(
+                [], self.plotting_params, "bar_palette", df=data, hue_id='genes'
+            )
+            hue = 'genes'
+            legend = 'auto'
+        else:
+            palette = self._check_color_palette(self.plotting_params["bar_palette"])
+            hue = y_var if plot_orient == 'h' else x_var
+            legend = False
         sns.barplot(
                 ax=static_ax,
                 x=x_var,
                 y=y_var,
                 data=data,
-                hue='genes' if len(self.plotting_params['gene_list']) > 1 else None,
+                hue=hue,
                 palette=palette,
                 capsize=.1,
                 errorbar=None,
-                orient=plot_orient
+                orient=plot_orient,
+                legend=legend
             )
 
     def _plot_group_data(
