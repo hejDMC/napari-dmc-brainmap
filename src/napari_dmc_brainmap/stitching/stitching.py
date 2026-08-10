@@ -4,21 +4,34 @@ DMC-BrainMap widget for stitching .tif files.
 2024 - FJ, XC
 """
 
-from qtpy.QtCore import Signal
-from qtpy.QtWidgets import QPushButton, QWidget, QVBoxLayout, QMessageBox, QProgressBar
+from collections.abc import Iterator, Sequence
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import numpy as np
+import tifffile as tiff
+from magicgui import magicgui
+from magicgui.widgets import FunctionGui
 from napari import Viewer
 from napari.qt.threading import thread_worker
 from napari.utils.notifications import show_info
-from magicgui import magicgui
-from magicgui.widgets import FunctionGui
 from natsort import natsorted
-import json
-import tifffile as tiff
-import numpy as np
-from pathlib import Path
-from typing import List, Dict, Tuple
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import (
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from napari_dmc_brainmap.stitching.stitching_tools import stitch_stack, stitch_folder
+from napari_dmc_brainmap.stitching.layout import (
+    TILE_OVERLAP_PX,
+    TILE_SIZE_PX,
+    StitchLayout,
+    describe_layout,
+)
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
 from napari_dmc_brainmap.utils.params_utils import clean_params_dict, update_params_dict
@@ -64,9 +77,29 @@ def do_stitching(input_path: Path,
         for f in filter_list:
             stitch_dir = get_info(input_path, 'stitched', channel=f, create_dir=True, only_dir=True)
             if stitch_tiles:
-                process_stitch_folder(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track)
+                process_stitch_folder(
+                    input_path,
+                    in_obj,
+                    f,
+                    stitch_dir,
+                    animal_id,
+                    obj,
+                    params_dict,
+                    resolution,
+                    direct_sharpy_track,
+                )
             else:
-                process_stitch_stack(input_path, in_obj, f, stitch_dir, animal_id, obj, params_dict, resolution, direct_sharpy_track)
+                process_stitch_stack(
+                    input_path,
+                    in_obj,
+                    f,
+                    stitch_dir,
+                    animal_id,
+                    obj,
+                    params_dict,
+                    resolution,
+                    direct_sharpy_track,
+                )
             progress_value += progress_step
             yield int(progress_value)
 
@@ -83,7 +116,7 @@ def process_stitch_folder(input_path: Path,
                           params_dict: Dict,
                           resolution: Tuple[int, int],
                           direct_sharpy_track: bool,
-                          overlap: int = 205) -> None:
+                          overlap: int = TILE_OVERLAP_PX) -> None:
     """
     Process stitching for a folder of tiles.
 
@@ -107,16 +140,24 @@ def process_stitch_folder(input_path: Path,
 
     for section in section_dirs:
         stitched_path = stitch_dir.joinpath(f'{section.parts[-1]}_stitched.tif')
+        downsampled_path = False
         if direct_sharpy_track:
             sharpy_chans = params_dict['sharpy_track_params']['channels']
             if f in sharpy_chans:
                 sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                sharpy_im_dir = sharpy_dir.joinpath(f'{section.parts[-1]}_downsampled.tif')
-                stitch_folder(section, overlap, stitched_path, params_dict, f, sharpy_im_dir, resolution=resolution)
-            else:
-                stitch_folder(section, overlap, stitched_path, params_dict, f, resolution=resolution)
-        else:
-            stitch_folder(section, overlap, stitched_path, params_dict, f, resolution=resolution)
+                downsampled_path = sharpy_dir.joinpath(
+                    f'{section.parts[-1]}_downsampled.tif'
+                )
+        layout = stitch_folder(
+            section,
+            overlap,
+            stitched_path,
+            params_dict,
+            f,
+            downsampled_path,
+            resolution=resolution,
+        )
+        _report_layout(layout, section.parts[-1])
 
 
 def process_stitch_stack(input_path: Path,
@@ -128,7 +169,7 @@ def process_stitch_stack(input_path: Path,
                          params_dict: Dict,
                          resolution: Tuple[int, int],
                          direct_sharpy_track: bool,
-                         overlap: int = 205) -> None:
+                         overlap: int = TILE_OVERLAP_PX) -> None:
     """
     Process stitching for a stack of tiles.
 
@@ -145,59 +186,168 @@ def process_stitch_stack(input_path: Path,
         overlap (int, optional): Overlap for stitching tiles. Defaults to 205.
     """
     in_chan = in_obj.joinpath(f'{obj}_{f}_1')
-    stack = natsorted([im.parts[-1] for im in in_chan.glob('*.tif') if not im.name.startswith('._')])
-    whole_stack = load_tile_stack(in_chan, stack)
+    stack = natsorted(
+        [
+            image.parts[-1]
+            for image in in_chan.glob('*.tif')
+            if not image.name.startswith('._')
+        ]
+    )
+    stage_positions = load_embedded_stage_positions(in_chan, stack)
+    regions = split_stage_position_regions(stage_positions)
+    tile_pages = iter_tile_pages(in_chan, stack)
 
-    meta_json_where = in_obj.joinpath(f'{obj}_meta_1', 'regions_pos.json')
-    with open(meta_json_where, 'r') as data:
-        img_meta = json.load(data)
-
-    region_n = len(img_meta)
-    for rn in range(region_n):
-        pos_list = img_meta['region_' + str(rn)]
+    for rn, pos_list in enumerate(regions):
+        section_stack = load_tile_section(tile_pages, len(pos_list))
         stitched_path = stitch_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_stitched.tif')
+        downsampled_path = False
         if direct_sharpy_track:
             sharpy_chans = params_dict['sharpy_track_params']['channels']
             if f in sharpy_chans:
-                sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
-                sharpy_im_dir = sharpy_dir.joinpath(f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif')
-                stitch_stack(pos_list, whole_stack, overlap, stitched_path, params_dict, f, resolution=resolution, downsampled_path=sharpy_im_dir)
-            else:
-                stitch_stack(pos_list, whole_stack, overlap, stitched_path, params_dict, f, resolution=resolution)
-        else:
-            stitch_stack(pos_list, whole_stack, overlap, stitched_path, params_dict, f, resolution=resolution)
-        whole_stack = np.delete(whole_stack, [np.arange(len(pos_list))], axis=0)
+                sharpy_dir = get_info(
+                    input_path,
+                    'sharpy_track',
+                    channel=f,
+                    create_dir=True,
+                    only_dir=True,
+                )
+                downsampled_path = sharpy_dir.joinpath(
+                    f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif'
+                )
+        layout = stitch_stack(
+            pos_list,
+            section_stack,
+            overlap,
+            stitched_path,
+            params_dict,
+            f,
+            downsampled_path=downsampled_path,
+            resolution=resolution,
+        )
+        _report_layout(
+            layout,
+            f'{animal_id}_{obj}_{rn + 1}',
+        )
+
+    try:
+        next(tile_pages)
+    except StopIteration:
+        return
+    raise ValueError("TIFF stack contains more tile pages than its stage metadata.")
 
 
-def load_tile_stack(in_chan: Path, stack: List[str], c_size: int = 2048) -> np.ndarray:
-    """
-    Load a stack of tiles from the specified input channel.
+def _embedded_position(page: tiff.TiffPage) -> Tuple[float, float]:
+    tag = page.tags.get('MicroManagerMetadata')
+    if tag is None or not isinstance(tag.value, dict):
+        raise KeyError("MicroManagerMetadata")
 
-    Parameters:
-        in_chan (Path): Input path containing tiles.
-        stack (List[str]): List of tile file names.
-        c_size (int, optional): Size of the tiles. Default is 2048.
+    metadata = tag.value
+    coordinate_keys = (
+        ('XPosition_um_Intended', 'YPosition_um_Intended'),
+        ('XPositionUm', 'YPositionUm'),
+        ('XPosition_um', 'YPosition_um'),
+    )
+    for x_key, y_key in coordinate_keys:
+        if x_key in metadata and y_key in metadata:
+            return float(metadata[x_key]), float(metadata[y_key])
+    raise KeyError("embedded XY stage positions")
 
-    Returns:
-    np.ndarray: Loaded stack of images as a numpy array.
-    """
-    tif_meta = tiff.read_ndtiff_index(in_chan.joinpath("NDTiff.index"))
-    page_count = 0
-    for _ in tif_meta:
-        page_count += 1
 
-    whole_stack = np.zeros((page_count, c_size, c_size), dtype=np.uint16)
-    page_count = 0
-    for stk in stack:
-        with tiff.TiffFile(in_chan.joinpath(stk)) as tif:
+def load_embedded_stage_positions(
+    in_chan: Path,
+    stack: Sequence[str],
+) -> List[Tuple[float, float]]:
+    """Load intended XY coordinates from TIFF pages, with NDTiff fallback."""
+    positions: List[Tuple[float, float]] = []
+    try:
+        for stack_file in stack:
+            with tiff.TiffFile(in_chan.joinpath(stack_file)) as tif:
+                positions.extend(_embedded_position(page) for page in tif.pages)
+    except (KeyError, TypeError, ValueError):
+        positions = []
+
+    if positions:
+        return positions
+
+    index_path = in_chan.joinpath("NDTiff.index")
+    if index_path.exists():
+        for axes, *_ in tiff.read_ndtiff_index(index_path):
+            if 'pos_x' not in axes or 'pos_y' not in axes:
+                raise ValueError("NDTiff.index does not contain XY positions.")
+            positions.append((float(axes['pos_x']), float(axes['pos_y'])))
+    if not positions:
+        raise ValueError(
+            "No XY stage positions were found in the TIFF metadata or "
+            "NDTiff.index."
+        )
+    return positions
+
+
+def split_stage_position_regions(
+    positions: Sequence[Tuple[float, float]],
+    *,
+    boundary_factor: float = 3.0,
+) -> List[List[Tuple[float, float]]]:
+    """Split sequential stage positions at moves much larger than tile spacing."""
+    if not positions:
+        raise ValueError("No stage positions were provided.")
+    if len(positions) == 1:
+        return [list(positions)]
+
+    points = np.asarray(positions, dtype=float)
+    movements = np.linalg.norm(np.diff(points[:, :2], axis=0), axis=1)
+    positive_movements = movements[movements > np.finfo(float).eps]
+    if not len(positive_movements):
+        raise ValueError("Stage positions do not describe a tile grid.")
+    # Region-to-region jumps are intentionally excluded from the typical
+    # within-grid movement estimate by using the lower quartile.
+    tile_spacing = float(np.quantile(positive_movements, 0.25))
+    boundaries = np.flatnonzero(movements > tile_spacing * boundary_factor) + 1
+    starts = np.concatenate(([0], boundaries))
+    ends = np.concatenate((boundaries, [len(positions)]))
+    return [list(positions[start:end]) for start, end in zip(starts, ends)]
+
+
+def iter_tile_pages(
+    in_chan: Path,
+    stack: Sequence[str],
+) -> Iterator[np.ndarray]:
+    """Yield TIFF tile pixels sequentially without loading the full acquisition."""
+    for stack_file in stack:
+        with tiff.TiffFile(in_chan.joinpath(stack_file)) as tif:
             for page in tif.pages:
-                image = page.asarray()
-                try:
-                    whole_stack[page_count, :, :] = image
-                except ValueError:
-                    show_info("Tile:{} data corrupted. Setting tile pixels value to 0".format(page_count))
-                page_count += 1
-    return whole_stack
+                yield page.asarray()
+
+
+def load_tile_section(
+    tile_pages: Iterator[np.ndarray],
+    tile_count: int,
+    c_size: int = TILE_SIZE_PX,
+) -> np.ndarray:
+    """Load one region of sequential TIFF pages into memory."""
+    section = np.zeros((tile_count, c_size, c_size), dtype=np.uint16)
+    for tile_index in range(tile_count):
+        try:
+            image = next(tile_pages)
+        except StopIteration as error:
+            raise ValueError(
+                "TIFF stack ended before all stage positions were filled."
+            ) from error
+        if image.shape != (c_size, c_size):
+            show_info(
+                f"Tile:{tile_index} data corrupted or has an unexpected "
+                "shape. Setting tile pixels to 0."
+            )
+            continue
+        section[tile_index] = image
+    return section
+
+
+def _report_layout(
+    layout: StitchLayout,
+    section: str,
+) -> None:
+    print(describe_layout(layout, section))
 
 
 def initialize_widget() -> FunctionGui:
@@ -403,7 +553,13 @@ class StitchingWidget(QWidget):
         params_dict = update_params_dict(input_path, params_dict)  # Update params.json with stitching info
         filter_list = params_dict["general"]["chans_imaged"]
 
-        stitching_worker = do_stitching(input_path, filter_list, params_dict, stitch_tiles, direct_sharpy_track)
+        stitching_worker = do_stitching(
+            input_path,
+            filter_list,
+            params_dict,
+            stitch_tiles,
+            direct_sharpy_track,
+        )
         stitching_worker.yielded.connect(self._update_progress)
         stitching_worker.started.connect(lambda: self.btn.setText("Stitching Images..."))  # Update button text
         stitching_worker.returned.connect(self._show_success_message)
