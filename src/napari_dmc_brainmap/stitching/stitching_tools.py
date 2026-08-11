@@ -1,11 +1,24 @@
-from pathlib import Path
-import tifffile
-import numpy as np
 import json
+from pathlib import Path
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
+
 import cv2
-from skimage.exposure import rescale_intensity
-from typing import List, Tuple, Optional, Dict, Union
+import numpy as np
+import tifffile
 from napari.utils.notifications import show_info
+from skimage.exposure import rescale_intensity
+
+from napari_dmc_brainmap.stitching.layout import (
+    TILE_OVERLAP_PX,
+    TILE_SIZE_PX,
+    StitchLayout,
+    layout_from_grid_metadata,
+    layout_from_stage_positions,
+)
+from napari_dmc_brainmap.stitching.tiff_output import (
+    compressed_stitch_canvas,
+    write_tiff_atomically,
+)
 
 
 def load_meta(section_dir: Path) -> Dict:
@@ -24,149 +37,105 @@ def load_meta(section_dir: Path) -> Dict:
     return meta_data
 
 
-def get_size_json(pos_list: List[Tuple[int, int]]) -> Tuple[int, int]:
-    """
-    Calculate the width and height of the grid from a list of positions.
+def get_atlas_padding(
+    shape: Tuple[int, int],
+    resolution: Optional[Tuple[int, int]],
+) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    """Return symmetric ``((top, bottom), (left, right))`` atlas padding."""
+    if not resolution:
+        return (0, 0), (0, 0)
 
-    Parameters:
-        pos_list (List[Tuple[int, int]]): List of positions as tuples of (x, y).
+    height, width = shape
+    target_x, target_y = resolution
+    target_ratio = target_x / target_y
+    ratio = width / height
 
-    Returns:
-        Tuple[int, int]: Width and height of the grid.
-    """
-    pos = np.array(pos_list)
-    pos_x = pos[:, 0]
-    height = np.sum(np.abs(np.diff(pos_x).astype(int)) < 13) + 1
-    width = int(len(pos_x) / height)
-    return width, height
+    if ratio == target_ratio:
+        return (0, 0), (0, 0)
+    if ratio < target_ratio:
+        destination_width = round(height / target_y * target_x)
+        if destination_width % 2:
+            destination_width += 1
+        horizontal = (destination_width - width) // 2
+        return (0, 0), (horizontal, horizontal)
 
-
-def map_loc(width: int, height: int) -> Dict[int, int]:
-    """
-    Generate a mapping of tile locations for constructing a stitched image.
-
-    Parameters:
-        width (int): Width of the grid.
-        height (int): Height of the grid.
-
-    Returns:
-        Dict[int, int]: Dictionary mapping original tile indices to new locations.
-    """
-    total = int(width * height)
-    new_loc = np.array([])
-
-    if height % 2 == 0:  # even number of rows
-        snake = 0  # natural row scanning direction
-        range_max = total
-        for i in range(height):
-            if snake == 0:  # left to right
-                this_row = np.arange(range_max - width, range_max, 1)
-                new_loc = np.concatenate((new_loc, this_row))
-                range_max = range_max - width - 1
-                snake += 1
-            else:
-                this_row = np.arange(range_max, range_max - width, -1)
-                new_loc = np.concatenate((new_loc, this_row))
-                range_max = range_max - width + 1
-                snake -= 1
-    else:  # odd number of rows
-        snake = 1  # reversed row scanning direction
-        range_max = total - 1
-        for i in range(height):
-            if snake == 1:  # right to left
-                this_row = np.arange(range_max, range_max - width, -1)
-                new_loc = np.concatenate((new_loc, this_row))
-                range_max = range_max - width + 1
-                snake -= 1
-            else:
-                this_row = np.arange(range_max - width, range_max, 1)
-                new_loc = np.concatenate((new_loc, this_row))
-                range_max = range_max - width - 1
-                snake += 1
-
-    return {i: int(new_loc[i]) for i in range(total)}
+    destination_height = round(width / target_x * target_y)
+    if destination_height % 2:
+        destination_height += 1
+    vertical = (destination_height - height) // 2
+    return (vertical, vertical), (0, 0)
 
 
-def get_canvas(width: int,
-               height: int,
-               overlap: int = 205,
-               c_size: int = 2048) -> Tuple[np.ndarray, Dict[int, int]]:
-    """
-    Create a blank canvas and generate a tile location map for stitching.
+def fill_layout_canvas(
+    stitch_canvas: np.ndarray,
+    layout: StitchLayout,
+    tile_loader: Callable[[int], Optional[np.ndarray]],
+    *,
+    overlap: int = TILE_OVERLAP_PX,
+    c_size: int = TILE_SIZE_PX,
+    offset: Tuple[int, int] = (0, 0),
+) -> np.ndarray:
+    """Place tiles using rigid grid cells and deterministic row-major writes."""
+    stride = c_size - overlap
+    offset_y, offset_x = offset
 
-    Parameters:
-        width (int): Width of the grid.
-        height (int): Height of the grid.
-        overlap (int, optional): Overlap between tiles. Defaults to 205.
-        c_size (int, optional): Size of each tile. Defaults to 2048.
+    for placement in sorted(
+        layout.placements,
+        key=lambda tile: (tile.row, tile.column),
+    ):
+        image = tile_loader(placement.source_index)
+        if image is None or image.shape != (c_size, c_size):
+            show_info(
+                "Tile:{} data corrupted or has an unexpected shape. "
+                "Leaving its grid cell empty.".format(placement.source_index)
+            )
+            continue
 
-    Returns:
-        Tuple[np.ndarray, Dict[int, int]]: Tuple containing the blank canvas and location map.
-    """
-    canvas_w = int(c_size * width) - int(overlap * (width - 1))
-    canvas_h = int(c_size * height) - int(overlap * (height - 1))
-    stitch_canvas = np.zeros((canvas_h, canvas_w), np.uint16)
-    loc_map = map_loc(width, height)
-    return stitch_canvas, loc_map
+        top = offset_y + placement.row * stride
+        left = offset_x + placement.column * stride
+        stitch_canvas[top:top + c_size, left:left + c_size] = image
 
-def fill_canvas(width: int,
-                height: int,
-                stitch_canvas: np.ndarray,
-                loc_map: Dict[int, int],
-                data_dict: Dict,
-                overlap: int = 205,
-                c_size: int = 2048,
-                stack: bool = True) -> np.ndarray:
-    """
-    Fill the stitching canvas with image tiles.
-
-    Parameters:
-        width (int): Width of the grid.
-        height (int): Height of the grid.
-        stitch_canvas (np.ndarray): The canvas to be filled.
-        loc_map (Dict[int, int]): Mapping of tile locations.
-        data_dict (Dict): Dictionary containing image data.
-        overlap (int, optional): Overlap between tiles. Defaults to 205.
-        c_size (int, optional): Size of each tile. Defaults to 2048.
-        stack (bool, optional): Whether to use a stack or individual sections. Defaults to True.
-
-    Returns:
-        np.ndarray: Filled stitching canvas.
-    """
-    if stack:
-        whole_stack = data_dict['whole_stack']
-    else:
-        section_dir = data_dict['section_dir']
-        data_list = data_dict['data_list']
-
-    for j in range(height):
-        for i in range(width):
-            d_left, d_up = (0, 0)
-            if stack:
-                img = whole_stack[loc_map[int(width * j) + i]]
-            else:
-                img = cv2.imread(str(section_dir.joinpath(data_list[loc_map[int(width * j) + i]])), cv2.IMREAD_ANYDEPTH)
-
-            d_left = int(overlap * i) if i > 0 else 0
-            d_up = int(overlap * j) if j > 0 else 0
-
-            try:
-                stitch_canvas[
-                    int(j * c_size) - d_up:int((j + 1) * c_size) - d_up,
-                    int(i * c_size) - d_left:int((i + 1) * c_size) - d_left
-                ] = img
-            except:
-                show_info("Image damaged during stitching.")
     return stitch_canvas
 
 
-def stitch_stack(pos_list: List[Tuple[int, int]], whole_stack: np.ndarray, overlap: int, stitched_path: str,
-                 params: dict, chan: str, downsampled_path: Optional[Path] = False,
-                 resolution: Optional[Tuple[int, int]] = False) -> None:
+def _output_geometry(
+    layout: StitchLayout,
+    resolution: Optional[Tuple[int, int]],
+    *,
+    overlap: int,
+    c_size: int,
+) -> tuple[Tuple[int, int], Tuple[int, int]]:
+    base_shape = (
+        c_size * layout.height - overlap * (layout.height - 1),
+        c_size * layout.width - overlap * (layout.width - 1),
+    )
+    vertical_padding, horizontal_padding = get_atlas_padding(
+        base_shape,
+        resolution,
+    )
+    output_shape = (
+        base_shape[0] + sum(vertical_padding),
+        base_shape[1] + sum(horizontal_padding),
+    )
+    return output_shape, (vertical_padding[0], horizontal_padding[0])
+
+
+def stitch_stack(
+    pos_list: Sequence[Sequence[float]],
+    whole_stack: np.ndarray,
+    overlap: int,
+    stitched_path: str,
+    params: dict,
+    chan: str,
+    downsampled_path: Optional[Path] = False,
+    resolution: Optional[Tuple[int, int]] = False,
+    *,
+    c_size: int = TILE_SIZE_PX,
+) -> StitchLayout:
     """
     Stitch a stack of images into a single image.
     Parameters:
-        pos_list (List[Tuple[int, int]]): List of positions as tuples of (x, y).
+        pos_list: Sequential XY stage positions.
         whole_stack (np.ndarray): Stack of images to be stitched.
         overlap (int): Overlap between tiles.
         stitched_path(str): Path to save the stitched image.
@@ -175,23 +144,51 @@ def stitch_stack(pos_list: List[Tuple[int, int]], whole_stack: np.ndarray, overl
         downsampled_path (Optional[Path]): Path to save the downsampled image (optional).
         resolution (Optional[Tuple[int, int]]): Resolution for padding (optional).
     """
-    width, height = get_size_json(pos_list)
-    pop_img = int(width * height)
-    stitch_canvas, loc_map = get_canvas(width, height, overlap=overlap)
-    data_dict = {'whole_stack': whole_stack}
-    stitch_canvas = fill_canvas(width, height, stitch_canvas, loc_map, data_dict, overlap=overlap, stack=True)
-    stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
+    layout = layout_from_stage_positions(pos_list)
+    if len(whole_stack) < layout.tile_count:
+        raise ValueError(
+            f"Expected {layout.tile_count} tiles, found {len(whole_stack)}."
+        )
+    output_shape, offset = _output_geometry(
+        layout,
+        resolution,
+        overlap=overlap,
+        c_size=c_size,
+    )
+    with compressed_stitch_canvas(stitched_path, output_shape) as stitch_canvas:
+        fill_layout_canvas(
+            stitch_canvas,
+            layout,
+            lambda source_index: whole_stack[source_index],
+            overlap=overlap,
+            c_size=c_size,
+            offset=offset,
+        )
+        stitch_canvas.flush()
 
-    tifffile.imwrite(stitched_path, stitch_canvas)
+        if downsampled_path:
+            contrast_tuple = tuple(params['sharpy_track_params'][chan])
+            im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
+            write_tiff_atomically(
+                downsampled_path,
+                im_ds,
+                photometric="rgb",
+                metadata=None,
+            )
+    return layout
 
-    if downsampled_path:
-        contrast_tuple = tuple(params['sharpy_track_params'][chan])
-        im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
-        tifffile.imwrite(downsampled_path, im_ds)
 
-
-def stitch_folder(section_dir: Path, overlap: int, stitched_path: Path, params: dict, chan: str,
-                  downsampled_path: Optional[Path] = False, resolution: Optional[Tuple[int, int]] = False) -> None:
+def stitch_folder(
+    section_dir: Path,
+    overlap: int,
+    stitched_path: Path,
+    params: dict,
+    chan: str,
+    downsampled_path: Optional[Path] = False,
+    resolution: Optional[Tuple[int, int]] = False,
+    *,
+    c_size: int = TILE_SIZE_PX,
+) -> StitchLayout:
     """
     Stitch images from a folder into a single image.
     Parameters:
@@ -204,23 +201,46 @@ def stitch_folder(section_dir: Path, overlap: int, stitched_path: Path, params: 
         resolution (Optional[Tuple[int, int]]): Resolution for padding (optional).
     """
     meta_data = load_meta(section_dir)
-    data_list = [meta_data['Prefix'] + "_MMStack_" + d['Label'] + '.ome.tif' for d in meta_data['StagePositions']]
+    stage_positions = meta_data['StagePositions']
+    layout = layout_from_grid_metadata(stage_positions)
+    data_list = [
+        meta_data['Prefix'] + "_MMStack_" + position['Label'] + '.ome.tif'
+        for position in stage_positions
+    ]
+    output_shape, offset = _output_geometry(
+        layout,
+        resolution,
+        overlap=overlap,
+        c_size=c_size,
+    )
 
-    width = max([i['GridCol'] for i in meta_data['StagePositions']]) + 1
-    height = max([i['GridRow'] for i in meta_data['StagePositions']]) + 1
+    def load_tile(source_index: int) -> Optional[np.ndarray]:
+        return cv2.imread(
+            str(section_dir.joinpath(data_list[source_index])),
+            cv2.IMREAD_ANYDEPTH,
+        )
 
-    stitch_canvas, loc_map = get_canvas(width, height, overlap=overlap)
-    data_dict = {'section_dir': section_dir, 'data_list': data_list}
-    stitch_canvas = fill_canvas(width, height, stitch_canvas, loc_map, data_dict, overlap=overlap, stack=False)
+    with compressed_stitch_canvas(stitched_path, output_shape) as stitch_canvas:
+        fill_layout_canvas(
+            stitch_canvas,
+            layout,
+            load_tile,
+            overlap=overlap,
+            c_size=c_size,
+            offset=offset,
+        )
+        stitch_canvas.flush()
 
-    stitch_canvas = padding_for_atlas(stitch_canvas, resolution)
-
-    tifffile.imwrite(stitched_path, stitch_canvas)
-
-    if downsampled_path:
-        contrast_tuple = tuple(params['sharpy_track_params'][chan])
-        im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
-        tifffile.imwrite(downsampled_path, im_ds)
+        if downsampled_path:
+            contrast_tuple = tuple(params['sharpy_track_params'][chan])
+            im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
+            write_tiff_atomically(
+                downsampled_path,
+                im_ds,
+                photometric="rgb",
+                metadata=None,
+            )
+    return layout
 
 def downsample_image(input_tiff: Union[str, np.ndarray],
                      size_tuple: Tuple[int, int],
@@ -254,26 +274,7 @@ def padding_for_atlas(input_array: np.ndarray, resolution: Optional[Tuple[int, i
     Returns:
         np.ndarray: Padded image as a NumPy array.
     """
-    if resolution:
-        x, y = resolution
-        tgt_ratio = x / y
-        h, w = input_array.shape
-        ratio = w / h
-        if ratio == tgt_ratio:
-            output_array = input_array
-        elif ratio < tgt_ratio:
-            dest_w = round(h / y * x)
-            if (dest_w % 2) != 0:
-                dest_w += 1
-            d_w = int((dest_w - w) / 2)
-            output_array = np.pad(input_array, ((0, 0), (d_w, d_w)), 'constant', constant_values=0)
-        else:
-            dest_h = round(w / x * y)
-            if (dest_h % 2) != 0:
-                dest_h += 1
-            d_h = int((dest_h - h) / 2)
-            output_array = np.pad(input_array, ((d_h, d_h), (0, 0)), 'constant', constant_values=0)
-    else:
-        output_array = input_array
-
-    return output_array
+    padding = get_atlas_padding(input_array.shape, resolution)
+    if padding == ((0, 0), (0, 0)):
+        return input_array
+    return np.pad(input_array, padding, 'constant', constant_values=0)

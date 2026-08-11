@@ -85,3 +85,19 @@ def test_representative_widget_defaults_are_preserved(monkeypatch):
     params_widget.native.close()
     segment_widget.native.close()
     visualization_widget.native.close()
+
+
+def test_sharpy_cy3_default_matches_direct_stitching():
+    preprocessing_widget = preprocessing.PreprocessingWidget()
+    stitching_widget = stitching.initialize_widget()
+    cy3_contrast = next(
+        widget
+        for widget in preprocessing_widget.sharpy_widget
+        if widget.label == "Set contrast limits for cy3"
+    )
+
+    assert cy3_contrast.value == "50,500"
+    assert stitching_widget.contrast_cy3.value == "50,500"
+
+    preprocessing_widget.close()
+    stitching_widget.native.close()

@@ -9,10 +9,9 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 import numpy as np
-from platformdirs import user_cache_path
 
+from napari_dmc_brainmap.utils.cache_paths import app_cache_root
 
-APP_NAME = "napari-dmc-brainmap"
 CACHE_SCHEMA_VERSION = "v1"
 
 
@@ -59,7 +58,7 @@ def atlas_cache_dir(
     cache_root: Path | None = None,
 ) -> Path:
     """Return the versioned cache directory for a specific atlas."""
-    root = cache_root or user_cache_path(APP_NAME, appauthor=False)
+    root = Path(cache_root) if cache_root is not None else app_cache_root()
     cache_dir = (
         Path(root)
         / "atlases"
