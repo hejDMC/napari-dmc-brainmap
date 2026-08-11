@@ -10,7 +10,7 @@ from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import
     ProbeVisualizer,
 )
 from napari_dmc_brainmap.segment.processing import atlas_utils
-from napari_dmc_brainmap.utils import atlas_cache
+from napari_dmc_brainmap.utils import atlas_cache, cache_paths
 
 
 def _fake_atlas(
@@ -153,7 +153,7 @@ def test_load_annot_bool_never_writes_to_brainglobe_directory(
     atlas = _fake_atlas(atlas_root)
     app_cache = tmp_path / "app-cache"
     monkeypatch.setattr(
-        atlas_cache,
+        cache_paths,
         "user_cache_path",
         lambda *args, **kwargs: app_cache,
     )

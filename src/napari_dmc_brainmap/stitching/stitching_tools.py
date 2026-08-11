@@ -15,6 +15,10 @@ from napari_dmc_brainmap.stitching.layout import (
     layout_from_grid_metadata,
     layout_from_stage_positions,
 )
+from napari_dmc_brainmap.stitching.tiff_output import (
+    compressed_stitch_canvas,
+    write_tiff_atomically,
+)
 
 
 def load_meta(section_dir: Path) -> Dict:
@@ -94,14 +98,13 @@ def fill_layout_canvas(
     return stitch_canvas
 
 
-def _open_output_canvas(
-    stitched_path: Union[str, Path],
+def _output_geometry(
     layout: StitchLayout,
     resolution: Optional[Tuple[int, int]],
     *,
     overlap: int,
     c_size: int,
-) -> tuple[np.memmap, Tuple[int, int]]:
+) -> tuple[Tuple[int, int], Tuple[int, int]]:
     base_shape = (
         c_size * layout.height - overlap * (layout.height - 1),
         c_size * layout.width - overlap * (layout.width - 1),
@@ -114,13 +117,7 @@ def _open_output_canvas(
         base_shape[0] + sum(vertical_padding),
         base_shape[1] + sum(horizontal_padding),
     )
-    canvas = tifffile.memmap(
-        stitched_path,
-        shape=output_shape,
-        dtype=np.uint16,
-        photometric="minisblack",
-    )
-    return canvas, (vertical_padding[0], horizontal_padding[0])
+    return output_shape, (vertical_padding[0], horizontal_padding[0])
 
 
 def stitch_stack(
@@ -152,14 +149,13 @@ def stitch_stack(
         raise ValueError(
             f"Expected {layout.tile_count} tiles, found {len(whole_stack)}."
         )
-    stitch_canvas, offset = _open_output_canvas(
-        stitched_path,
+    output_shape, offset = _output_geometry(
         layout,
         resolution,
         overlap=overlap,
         c_size=c_size,
     )
-    try:
+    with compressed_stitch_canvas(stitched_path, output_shape) as stitch_canvas:
         fill_layout_canvas(
             stitch_canvas,
             layout,
@@ -173,9 +169,12 @@ def stitch_stack(
         if downsampled_path:
             contrast_tuple = tuple(params['sharpy_track_params'][chan])
             im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
-            tifffile.imwrite(downsampled_path, im_ds)
-    finally:
-        del stitch_canvas
+            write_tiff_atomically(
+                downsampled_path,
+                im_ds,
+                photometric="rgb",
+                metadata=None,
+            )
     return layout
 
 
@@ -208,8 +207,7 @@ def stitch_folder(
         meta_data['Prefix'] + "_MMStack_" + position['Label'] + '.ome.tif'
         for position in stage_positions
     ]
-    stitch_canvas, offset = _open_output_canvas(
-        stitched_path,
+    output_shape, offset = _output_geometry(
         layout,
         resolution,
         overlap=overlap,
@@ -222,7 +220,7 @@ def stitch_folder(
             cv2.IMREAD_ANYDEPTH,
         )
 
-    try:
+    with compressed_stitch_canvas(stitched_path, output_shape) as stitch_canvas:
         fill_layout_canvas(
             stitch_canvas,
             layout,
@@ -236,9 +234,12 @@ def stitch_folder(
         if downsampled_path:
             contrast_tuple = tuple(params['sharpy_track_params'][chan])
             im_ds = downsample_image(stitch_canvas, resolution, contrast_tuple)
-            tifffile.imwrite(downsampled_path, im_ds)
-    finally:
-        del stitch_canvas
+            write_tiff_atomically(
+                downsampled_path,
+                im_ds,
+                photometric="rgb",
+                metadata=None,
+            )
     return layout
 
 def downsample_image(input_tiff: Union[str, np.ndarray],

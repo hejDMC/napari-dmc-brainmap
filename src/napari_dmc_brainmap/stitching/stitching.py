@@ -14,7 +14,7 @@ from magicgui import magicgui
 from magicgui.widgets import FunctionGui
 from napari import Viewer
 from napari.qt.threading import thread_worker
-from napari.utils.notifications import show_info
+from napari.utils.notifications import show_error, show_info
 from natsort import natsorted
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -132,6 +132,12 @@ def process_stitch_folder(input_path: Path,
         direct_sharpy_track (bool): Whether to create SHARPy-track data directly.
         overlap (int, optional): Overlap for stitching tiles. Defaults to 205.
     """
+    _validate_output_directory(
+        stitch_dir,
+        input_path,
+        "stitched",
+        f,
+    )
     in_chan = in_obj.joinpath(f)
     section_list = natsorted([s.parts[-1] for s in in_chan.iterdir() if s.is_dir() and not s.name.startswith('._')])
     section_list_new = [f"{animal_id}_{obj}_{str(k + 1)}" for k, ss in enumerate(section_list)]
@@ -145,6 +151,12 @@ def process_stitch_folder(input_path: Path,
             sharpy_chans = params_dict['sharpy_track_params']['channels']
             if f in sharpy_chans:
                 sharpy_dir = get_info(input_path, 'sharpy_track', channel=f, create_dir=True, only_dir=True)
+                _validate_output_directory(
+                    sharpy_dir,
+                    input_path,
+                    "sharpy_track",
+                    f,
+                )
                 downsampled_path = sharpy_dir.joinpath(
                     f'{section.parts[-1]}_downsampled.tif'
                 )
@@ -185,6 +197,12 @@ def process_stitch_stack(input_path: Path,
         direct_sharpy_track (bool): Whether to create SHARPy-track data directly.
         overlap (int, optional): Overlap for stitching tiles. Defaults to 205.
     """
+    _validate_output_directory(
+        stitch_dir,
+        input_path,
+        "stitched",
+        f,
+    )
     in_chan = in_obj.joinpath(f'{obj}_{f}_1')
     stack = natsorted(
         [
@@ -210,6 +228,12 @@ def process_stitch_stack(input_path: Path,
                     channel=f,
                     create_dir=True,
                     only_dir=True,
+                )
+                _validate_output_directory(
+                    sharpy_dir,
+                    input_path,
+                    "sharpy_track",
+                    f,
                 )
                 downsampled_path = sharpy_dir.joinpath(
                     f'{animal_id}_{obj}_{str(rn + 1)}_downsampled.tif'
@@ -348,6 +372,22 @@ def _report_layout(
     section: str,
 ) -> None:
     print(describe_layout(layout, section))
+
+
+def _validate_output_directory(
+    directory: Path,
+    input_path: Path,
+    folder: str,
+    channel: str,
+) -> None:
+    """Reject stitching output redirected outside its expected directory."""
+    expected = (input_path / folder / channel).resolve(strict=False)
+    actual = Path(directory).resolve(strict=False)
+    if actual != expected:
+        raise ValueError(
+            "Refusing to write stitching output outside its expected "
+            f"directory. Expected: {expected}. Received: {actual}."
+        )
 
 
 def initialize_widget() -> FunctionGui:
@@ -538,6 +578,12 @@ class StitchingWidget(QWidget):
         """
         self.progress_signal.emit(value)
 
+    def _show_failure_message(self, error: BaseException) -> None:
+        """Report a stitching failure and restore the widget controls."""
+        show_error(f"Stitching stopped: {error}")
+        self.btn.setText("Stitch Images")
+        self.progress_signal.emit(0)
+
     def _do_stitching(self) -> None:
         """
         Initiate the stitching process based on user-configured parameters.
@@ -563,4 +609,5 @@ class StitchingWidget(QWidget):
         stitching_worker.yielded.connect(self._update_progress)
         stitching_worker.started.connect(lambda: self.btn.setText("Stitching Images..."))  # Update button text
         stitching_worker.returned.connect(self._show_success_message)
+        stitching_worker.errored.connect(self._show_failure_message)
         stitching_worker.start()

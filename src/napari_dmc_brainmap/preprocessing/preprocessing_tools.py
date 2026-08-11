@@ -90,14 +90,20 @@ def load_stitched_images(input_path: Union[str, Path], chan: str, image: str) ->
         "Ensure images have the '_stitched.tif' suffix and are single-channel 16-bit."
         "Please restart the preprocessing widget to continue.")
     try:
-        img = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)  # Load in grayscale mode
+        return tifffile.memmap(im_fn, mode="r")
+    except (OSError, TypeError, ValueError):
+        # Compressed TIFF data cannot be memory-mapped. Keep the existing
+        # readers as compatibility fallbacks for compressed and unusual TIFFs.
+        pass
+
+    try:
+        img = cv2.imread(str(im_fn), cv2.IMREAD_ANYDEPTH)
         if img is None:
             raise ValueError("cv2.imread returned None")
         return img
     except Exception as e:
         print(f"[INFO] OpenCV failed: {e}\nFalling back to tifffile...")
-        img = tifffile.imread(str(im_fn))
-        return img
+        return tifffile.imread(im_fn)
 
 
 def downsample_and_adjust_contrast(

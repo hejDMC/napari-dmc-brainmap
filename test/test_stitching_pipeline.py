@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 import tifffile
 
 from napari_dmc_brainmap.stitching.layout import (
@@ -14,6 +15,7 @@ from napari_dmc_brainmap.stitching.stitching import (
     split_stage_position_regions,
 )
 from napari_dmc_brainmap.stitching import stitching
+from napari_dmc_brainmap.stitching import tiff_output
 from napari_dmc_brainmap.stitching.stitching_tools import (
     downsample_image,
     padding_for_atlas,
@@ -26,6 +28,43 @@ def _tiles(count: int, size: int = 3) -> np.ndarray:
     return np.stack(
         [np.full((size, size), index + 1, dtype=np.uint16) for index in range(count)]
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_stitching_scratch(monkeypatch, tmp_path):
+    scratch_root = tmp_path / "app-cache" / "stitching" / "scratch"
+    scratch_root.mkdir(parents=True)
+    monkeypatch.setattr(
+        tiff_output,
+        "stitching_scratch_root",
+        lambda: scratch_root,
+    )
+
+
+def test_stack_workflow_rejects_output_inside_raw_directory(tmp_path):
+    input_path = tmp_path / "animal"
+    raw_directory = input_path / "raw"
+    raw_directory.mkdir(parents=True)
+    sentinel = raw_directory / "source-data"
+    sentinel.write_text("unchanged", encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="Refusing to write stitching output outside its expected",
+    ):
+        stitching.process_stitch_stack(
+            input_path,
+            raw_directory / "obj3",
+            "cy3",
+            raw_directory,
+            "animal",
+            "obj3",
+            {},
+            (1140, 800),
+            False,
+        )
+
+    assert sentinel.read_text(encoding="utf-8") == "unchanged"
 
 
 def _legacy_canvas(
@@ -186,6 +225,9 @@ def test_stack_stitching_preserves_legacy_pixels_dtype_and_input(tmp_path):
     assert actual.dtype == np.uint16
     np.testing.assert_array_equal(actual, expected)
     np.testing.assert_array_equal(tiles, original)
+    with tifffile.TiffFile(output_path) as tif:
+        assert tif.pages[0].tags["Compression"].value in (8, 32946)
+        assert tif.pages[0].tags["Predictor"].value == 2
 
 
 def test_stack_stitching_builds_padding_into_output_file(tmp_path):

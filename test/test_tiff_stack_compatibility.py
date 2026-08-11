@@ -104,3 +104,51 @@ def test_tifffile_fallback_loads_compressed_uint16_without_mutation(
     assert loaded.shape == expected.shape
     assert loaded.dtype == expected.dtype
     np.testing.assert_array_equal(loaded, expected)
+
+
+def test_uncompressed_stitched_image_uses_read_only_memory_map(
+    tmp_path, monkeypatch
+):
+    image_dir = tmp_path / "stitched" / "green"
+    image_dir.mkdir(parents=True)
+    image_path = image_dir / "section_1_stitched.tif"
+    expected = np.arange(120, dtype=np.uint16).reshape(10, 12) * 100
+    tifffile.imwrite(image_path, expected, photometric="minisblack")
+
+    def fail_if_called(*_):
+        raise AssertionError("OpenCV should not load a memory-mappable TIFF")
+
+    monkeypatch.setattr(preprocessing_tools.cv2, "imread", fail_if_called)
+
+    loaded = preprocessing_tools.load_stitched_images(
+        tmp_path, "green", "section_1"
+    )
+
+    assert isinstance(loaded, np.memmap)
+    assert loaded.flags.writeable is False
+    np.testing.assert_array_equal(loaded, expected)
+
+
+def test_downsampling_from_memory_map_matches_fully_loaded_image(tmp_path):
+    image_dir = tmp_path / "stitched" / "green"
+    image_dir.mkdir(parents=True)
+    image_path = image_dir / "section_1_stitched.tif"
+    expected = np.arange(80 * 120, dtype=np.uint16).reshape(80, 120)
+    tifffile.imwrite(image_path, expected, photometric="minisblack")
+
+    mapped = preprocessing_tools.load_stitched_images(
+        tmp_path, "green", "section_1"
+    )
+    fully_loaded = tifffile.imread(image_path)
+    params = {"downsampling": 4, "green": []}
+
+    mapped_result = preprocessing_tools.downsample_and_adjust_contrast(
+        mapped, params, "downsampling", "green"
+    )
+    loaded_result = preprocessing_tools.downsample_and_adjust_contrast(
+        fully_loaded, params, "downsampling", "green"
+    )
+
+    assert mapped_result.dtype == loaded_result.dtype
+    assert mapped_result.shape == loaded_result.shape
+    np.testing.assert_array_equal(mapped_result, loaded_result)
