@@ -389,8 +389,13 @@ class RegistrationWidget(QWidget):
         self.reg_viewer.widget.viewerLeft.scene.changed.disconnect()
         self.reg_viewer.widget.viewerRight.scene.changed.disconnect()
 
-        if not self.reg_viewer.interpolatePositionAct.isEnabled():
-            self.reg_viewer.interpolatePositionPage.close()
+        interpolate_position_page = getattr(
+            self.reg_viewer,
+            "interpolatePositionPage",
+            None,
+        )
+        if interpolate_position_page is not None:
+            interpolate_position_page.close()
         
         if not self.reg_viewer.measurementAct.isEnabled():
             self.reg_viewer.measurementPage.close()
