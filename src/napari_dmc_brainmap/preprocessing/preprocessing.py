@@ -221,7 +221,7 @@ class PreprocessingWidget(QWidget):
         self.sharpy_widget = create_general_widget('SHARPy', ['dapi', 'green', 'n3', 'cy3', 'cy5'], contrast_limits={
             'dapi': '50,1000',
             'green': '50,300',
-            'cy3': '50,2000',
+            'cy3': '50,500',
             'n3': '50,500',
             'cy5': '50,500'
         })
