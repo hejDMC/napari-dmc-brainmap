@@ -1,5 +1,6 @@
 include LICENSE.txt
 include README.md
+include CHANGELOG.md
 
 include src/napari_dmc_brainmap/utils/xkcd.json
 include src/napari_dmc_brainmap/registration/sharpy_track/sharpy_track/images/empty.png
