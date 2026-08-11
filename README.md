@@ -4,6 +4,7 @@
 This [napari](https://napari.org/stable/) plugin was generated with [Cookiecutter](https://github.com/cookiecutter/cookiecutter) using napari's [cookiecutter-napari-plugin](https://github.com/napari/cookiecutter-napari-plugin) template.
 
 [![Tests](https://github.com/hejDMC/napari-dmc-brainmap/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)](https://github.com/hejDMC/napari-dmc-brainmap/actions/workflows/test_and_deploy.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/hejDMC/napari-dmc-brainmap/branch/main/graph/badge.svg)](https://app.codecov.io/gh/hejDMC/napari-dmc-brainmap)
 [![PyPI](https://img.shields.io/pypi/v/napari-dmc-brainmap.svg?color=green)](https://pypi.org/project/napari-dmc-brainmap)
 [![Python 3.11 | 3.12 | 3.13](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-dmc-brainmap)](https://napari-hub.org/plugins/napari-dmc-brainmap.html)
