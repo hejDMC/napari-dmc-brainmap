@@ -190,9 +190,10 @@ class RegistrationViewer(QMainWindow):
         self.menuBar().addMenu(self.helpMenu)
     
     def interpolatePositionPageOpen(self):
+        interpolate_position_page = InterpolatePosition(self)
+        interpolate_position_page.show()
+        self.interpolatePositionPage = interpolate_position_page
         self.interpolatePositionAct.setEnabled(False)
-        self.interpolatePositionPage = InterpolatePosition(self)
-        self.interpolatePositionPage.show()
     
     def measurementPageOpen(self):
         self.measurementAct.setEnabled(False)

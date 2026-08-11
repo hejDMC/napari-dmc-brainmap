@@ -3,6 +3,13 @@ import matplotlib.pyplot as plt
 from qtpy.QtGui import QPixmap,QImage
 
 
+def _canvas_to_rgb_array(canvas):
+    """Render a Matplotlib canvas as an owned, contiguous RGB array."""
+    canvas.draw()
+    rgba = np.asarray(canvas.buffer_rgba())
+    return np.ascontiguousarray(rgba[..., :3])
+
+
 class HelperModel():
     def __init__(self,regViewer):
         self.regViewer = regViewer
@@ -53,10 +60,8 @@ class HelperModel():
                       labels=[self.z_mm_ant_str,"0 mm",self.z_mm_pos_str],fontsize=7)
         
         # fig.tight_layout(pad=0)
-        fig.canvas.draw()
-        img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        self.img0 = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        plt.close()
+        self.img0 = _canvas_to_rgb_array(fig.canvas)
+        plt.close(fig)
     
 
     def update_illustration(self):
@@ -89,10 +94,8 @@ class HelperModel():
                                 "facecolor":"yellow",
                                 "lw": 0.5})
         # fig.tight_layout(pad=0)
-        fig.canvas.draw()
-        img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        self.img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        plt.close()
+        self.img = _canvas_to_rgb_array(fig.canvas)
+        plt.close(fig)
         # update image in QLabel
         h,w,_ = self.img.shape
         previewimg_update = QImage(self.img.data, w, h, 3 * w, QImage.Format_RGB888)
