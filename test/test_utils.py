@@ -97,6 +97,43 @@ def test_update_params_dict(tmp_path):
         assert json.load(f) == new_params
 
 
+def test_update_params_dict_can_replace_nested_section(tmp_path):
+    input_path = tmp_path / "animal_id"
+    input_path.mkdir()
+    existing_params = {
+        "general": {"animal_id": "animal_id", "group": "control"},
+        "rgb_params": {
+            "contrast_mode": "automatic",
+            "green": [100, 900],
+            "automatic_ranges": {"green": [100, 900]},
+            "automatic_profiles": {"green": "balanced_cells"},
+        },
+    }
+    with open(input_path / "params.json", "w") as f:
+        json.dump(existing_params, f)
+
+    manual_params = {
+        "general": {"animal_id": "animal_id"},
+        "rgb_params": {
+            "channels": ["green"],
+            "contrast_mode": "manual",
+            "contrast_adjustment": True,
+            "downsampling": 3,
+            "green": [50, 1000],
+        },
+    }
+    updated = update_params_dict(
+        input_path,
+        manual_params,
+        replace_sections=("rgb_params",),
+    )
+
+    assert updated["general"]["group"] == "control"
+    assert updated["rgb_params"] == manual_params["rgb_params"]
+    assert "automatic_ranges" not in updated["rgb_params"]
+    assert "automatic_profiles" not in updated["rgb_params"]
+
+
 
 
 def test_split_to_list():
