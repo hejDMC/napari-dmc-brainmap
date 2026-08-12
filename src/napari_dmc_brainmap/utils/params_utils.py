@@ -1,6 +1,6 @@
 import json
 import pathlib
-from typing import Dict
+from typing import Dict, Sequence
 from mergedeep import merge
 from napari.utils.notifications import show_info
 
@@ -76,7 +76,12 @@ def clean_params_dict(params_dict: Dict, key: str) -> Dict:
     return params_dict
 
 
-def update_params_dict(input_path: pathlib.Path, params_dict: Dict, create: bool = False) -> Dict:
+def update_params_dict(
+    input_path: pathlib.Path,
+    params_dict: Dict,
+    create: bool = False,
+    replace_sections: Sequence[str] = (),
+) -> Dict:
     """
     Update the `params.json` file with the specified dictionary.
 
@@ -84,6 +89,9 @@ def update_params_dict(input_path: pathlib.Path, params_dict: Dict, create: bool
         input_path (pathlib.Path): Path to the directory where `params.json` should be located.
         params_dict (Dict): The dictionary to update the `params.json` file with.
         create (bool, optional): Whether to create the `params.json` file if it does not exist. Defaults to False.
+        replace_sections (Sequence[str], optional): Top-level sections to
+            replace instead of deep-merging. Sections absent from
+            ``params_dict`` are left unchanged.
 
     Returns:
         Dict: The updated params dictionary.
@@ -103,6 +111,9 @@ def update_params_dict(input_path: pathlib.Path, params_dict: Dict, create: bool
         show_info("params.json exists -- overriding existing values")
         with open(params_fn) as fn:
             params_dict_old = json.load(fn)
+        for section in replace_sections:
+            if section in params_dict:
+                params_dict_old.pop(section, None)
         params_dict_new = merge(params_dict_old, params_dict)
 
         with open(params_fn, 'w') as fn:

@@ -94,7 +94,11 @@ def do_preprocessing(
             yield int(progress_value)
 
         preprocessing_params = clean_params_dict(preprocessing_params, "operations")
-        update_params_dict(input_path, preprocessing_params)
+        update_params_dict(
+            input_path,
+            preprocessing_params,
+            replace_sections=('rgb_params',),
+        )
     else:
         show_info("No preprocessing operations selected. Expand the respective windows and tick the checkbox.")
 
