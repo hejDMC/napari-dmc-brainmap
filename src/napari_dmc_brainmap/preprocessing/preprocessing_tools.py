@@ -129,8 +129,17 @@ def downsample_and_adjust_contrast(
         size_tuple = (math.floor(image.shape[1] / scale_factor), math.floor(image.shape[0] / scale_factor))
         image = cv2.resize(image, size_tuple)
 
-    if params[contrast_key]:
-        contrast_tuple = tuple(params[contrast_key])
+    contrast_limits = params.get(contrast_key, [])
+    adjust_contrast = params.get(
+        'contrast_adjustment', bool(contrast_limits)
+    )
+    if adjust_contrast:
+        if not contrast_limits:
+            raise ValueError(
+                f"Contrast adjustment is enabled, but no limits were "
+                f"provided for channel '{contrast_key}'."
+            )
+        contrast_tuple = tuple(contrast_limits)
         image = rescale_intensity(image, contrast_tuple)
 
     return image

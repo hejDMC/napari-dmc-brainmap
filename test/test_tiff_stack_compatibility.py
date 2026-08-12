@@ -152,3 +152,41 @@ def test_downsampling_from_memory_map_matches_fully_loaded_image(tmp_path):
     assert mapped_result.dtype == loaded_result.dtype
     assert mapped_result.shape == loaded_result.shape
     np.testing.assert_array_equal(mapped_result, loaded_result)
+
+
+def test_contrast_adjustment_flag_controls_rescaling():
+    image = np.array([[0, 50, 1000, 2000, 65535]], dtype=np.uint16)
+    params = {
+        "downsampling": 1,
+        "contrast_adjustment": False,
+        "cy3": [50, 2000],
+    }
+
+    unchanged = preprocessing_tools.downsample_and_adjust_contrast(
+        image, params, "downsampling", "cy3"
+    )
+    adjusted = preprocessing_tools.downsample_and_adjust_contrast(
+        image,
+        {**params, "contrast_adjustment": True},
+        "downsampling",
+        "cy3",
+    )
+
+    np.testing.assert_array_equal(unchanged, image)
+    assert not np.array_equal(adjusted, image)
+    assert adjusted[0, 2] > image[0, 2]
+    assert adjusted[0, 3] == np.iinfo(np.uint16).max
+
+
+def test_enabled_contrast_requires_channel_limits():
+    image = np.arange(4, dtype=np.uint16).reshape(2, 2)
+    params = {
+        "downsampling": 1,
+        "contrast_adjustment": True,
+        "green": [],
+    }
+
+    with pytest.raises(ValueError, match="no limits.*green"):
+        preprocessing_tools.downsample_and_adjust_contrast(
+            image, params, "downsampling", "green"
+        )

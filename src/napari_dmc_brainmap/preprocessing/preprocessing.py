@@ -281,10 +281,11 @@ class PreprocessingWidget(QWidget):
 
         base_info = {"channels": imaged_chan_list, "downsampling": widget[2].value}
 
-        if item == 'sharpy_track':
-            base_info["contrast_adjustment"] = widget[2].value
-        elif item != 'binary':
-            base_info["contrast_adjustment"] = widget[3].value
+        if item != 'binary':
+            contrast_widget_index = 2 if item == 'sharpy_track' else 3
+            base_info["contrast_adjustment"] = widget[
+                contrast_widget_index
+            ].value
 
         if item == 'binary':
             if widget[4].value:  # manual thresholds
@@ -293,10 +294,23 @@ class PreprocessingWidget(QWidget):
                                   enumerate(chan_list) if channel in imaged_chan_list})
             else:
                 base_info.update({"manual_threshold": widget[4].value, "thresh_method": widget[3].value.value})
+        elif base_info["contrast_adjustment"]:
+            contrast_start_index = 3 if item == 'sharpy_track' else 4
+            base_info.update({
+                channel: [
+                    int(i)
+                    for i in widget[
+                        contrast_start_index + idx
+                    ].value.split(',')
+                ]
+                for idx, channel in enumerate(chan_list)
+                if channel in imaged_chan_list
+            })
         else:
             base_info.update({
-                channel: [int(i) for i in widget[(3 if item == 'sharpy_track' else 4) + idx].value.split(',')]
-                for idx, channel in enumerate(chan_list) if channel in imaged_chan_list
+                channel: []
+                for channel in chan_list
+                if channel in imaged_chan_list
             })
 
         return base_info
