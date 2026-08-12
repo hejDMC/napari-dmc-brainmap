@@ -106,15 +106,100 @@ def test_sharpy_cy3_default_matches_direct_stitching():
 def test_disabled_rgb_contrast_does_not_parse_limit_fields():
     preprocessing_widget = preprocessing.PreprocessingWidget()
     rgb_widget = preprocessing_widget.rgb_widget
-    rgb_widget[3].value = False
+    rgb_widget["contrast_mode"].value = "none"
 
-    for contrast_widget in rgb_widget[4:]:
-        contrast_widget.value = ""
+    for channel in ("cy3", "green"):
+        rgb_widget[f"{channel}_row"][
+            f"{channel}_manual_range"
+        ].value = ""
 
     rgb_params = preprocessing_widget._get_widget_info(rgb_widget, "rgb")
 
+    assert rgb_params["contrast_mode"] == "none"
     assert rgb_params["contrast_adjustment"] is False
     assert rgb_params["green"] == []
     assert rgb_params["cy3"] == []
+
+    preprocessing_widget.close()
+
+
+def test_rgb_manual_mode_preserves_existing_defaults():
+    preprocessing_widget = preprocessing.PreprocessingWidget()
+
+    rgb_params = preprocessing_widget._get_rgb_widget_info()
+
+    assert rgb_params == {
+        "channels": ["cy3", "green"],
+        "downsampling": 3,
+        "contrast_mode": "manual",
+        "contrast_adjustment": True,
+        "cy3": [50, 2000],
+        "green": [50, 1000],
+    }
+
+    preprocessing_widget.close()
+
+
+def test_unselected_rgb_channel_disables_automatic_profile():
+    preprocessing_widget = preprocessing.PreprocessingWidget()
+    rgb_widget = preprocessing_widget.rgb_widget
+    rgb_widget["contrast_mode"].value = "automatic"
+    green_row = rgb_widget["green_row"]
+    green_row["green_profile"].value = "preserve_strong_signal_probe"
+    green_row["green_enabled"].value = False
+
+    rgb_params = preprocessing_widget._get_rgb_widget_info()
+
+    assert green_row["green_profile"].enabled is False
+    assert green_row["green_estimated_range"].value == "Not selected"
+    assert rgb_params["channels"] == ["cy3"]
+    assert rgb_params["automatic_profiles"] == {
+        "cy3": "preserve_strong_signal_probe"
+    }
+
+    green_row["green_enabled"].value = True
+    assert green_row["green_profile"].enabled is True
+    assert (
+        green_row["green_profile"].value
+        == "preserve_strong_signal_probe"
+    )
+
+    preprocessing_widget.close()
+
+
+def test_rgb_estimation_progress_prints_section_cutoffs(capsys):
+    preprocessing_widget = preprocessing.PreprocessingWidget()
+    rgb_widget = preprocessing_widget.rgb_widget
+    rgb_widget["contrast_mode"].value = "automatic"
+    calibration_key = preprocessing_widget._current_rgb_calibration_key()
+
+    preprocessing_widget._update_rgb_estimation_progress(
+        (
+            calibration_key,
+            {
+                "event": "section",
+                "section_index": 2,
+                "total_sections": 5,
+                "image_name": "section_002",
+                "status": "processed",
+                "padding_fraction": 0.125,
+                "channel_cutoffs": {
+                    "cy3": [50, 60000],
+                    "green": [100, 900],
+                },
+            },
+        )
+    )
+
+    assert rgb_widget["estimation_progress"].value == 2
+    assert rgb_widget["estimate_ranges"].text == "Estimating 2/5..."
+    output = capsys.readouterr().out
+    assert "[Automatic RGB contrast] [2/5] section_002" in output
+    assert "cy3=50–60000" in output
+    assert "green=100–900" in output
+    assert "padding excluded=12.50%" in output
+    assert all(
+        widget.name != "estimation_report" for widget in rgb_widget
+    )
 
     preprocessing_widget.close()

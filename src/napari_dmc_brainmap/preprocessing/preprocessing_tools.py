@@ -7,7 +7,32 @@ from skimage.exposure import rescale_intensity
 import tifffile
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.path_utils import get_info
-from typing import Dict, List, Union, Tuple
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
+
+
+RGB_CHANNELS = ('cy3', 'green', 'dapi')
+AUTOMATIC_RGB_PROFILES = {
+    'balanced_cells': {
+        'label': 'Balanced (cells)',
+        'low_clip_fraction': 0.00175,
+        'high_clip_fraction': 0.00175,
+    },
+    'preserve_strong_signal_probe': {
+        'label': 'Preserve strong signal (probe)',
+        'low_clip_fraction': 0.00175,
+        'section_high_quantile': 0.9999,
+        'dataset_high_quantile': 0.99,
+    },
+}
 
 
 def chunk_list(input_list: List[str], chunk_size: int = 4) -> List[List[str]]:
@@ -68,7 +93,7 @@ def get_channels(params: Dict[str, Union[str, dict]]) -> List[str]:
         operation_list = list(params['operations'].keys())
         for operation in operation_list:
             channels.extend(params[f"{operation}_params"]["channels"])
-    return list(set(channels))
+    return list(dict.fromkeys(channels))
 
 
 def load_stitched_images(input_path: Union[str, Path], chan: str, image: str) -> Union[np.ndarray, bool]:
@@ -104,6 +129,319 @@ def load_stitched_images(input_path: Union[str, Path], chan: str, image: str) ->
     except Exception as e:
         print(f"[INFO] OpenCV failed: {e}\nFalling back to tifffile...")
         return tifffile.imread(im_fn)
+
+
+def find_shared_content_bounds(
+    images: Sequence[np.ndarray],
+) -> Union[Tuple[slice, slice], None]:
+    """Return the bounding box outside shared all-channel black padding."""
+    if not images:
+        return None
+
+    shape = images[0].shape
+    if len(shape) != 2:
+        raise ValueError(f"Expected a 2D stitched image, got shape {shape}")
+
+    row_has_data = np.zeros(shape[0], dtype=bool)
+    column_has_data = np.zeros(shape[1], dtype=bool)
+    for image in images:
+        if image.shape != shape:
+            raise ValueError(
+                "All channels for a section must have the same shape; "
+                f"found {shape} and {image.shape}."
+            )
+        nonzero = image != 0
+        if np.issubdtype(image.dtype, np.floating):
+            nonzero &= np.isfinite(image)
+        row_has_data |= np.any(nonzero, axis=1)
+        column_has_data |= np.any(nonzero, axis=0)
+
+    rows = np.flatnonzero(row_has_data)
+    columns = np.flatnonzero(column_has_data)
+    if not rows.size or not columns.size:
+        return None
+    return (
+        slice(int(rows[0]), int(rows[-1]) + 1),
+        slice(int(columns[0]), int(columns[-1]) + 1),
+    )
+
+
+def image_histogram(
+    image: np.ndarray,
+    bounds: Tuple[slice, slice],
+    chunk_rows: int = 512,
+) -> np.ndarray:
+    """Calculate an exact uint8/uint16 histogram inside ``bounds``."""
+    if image.dtype not in (np.dtype('uint8'), np.dtype('uint16')):
+        raise TypeError(
+            "Automatic RGB contrast supports uint8 and uint16 stitched "
+            f"images, not {image.dtype}."
+        )
+
+    row_slice, column_slice = bounds
+    row_start = 0 if row_slice.start is None else row_slice.start
+    row_stop = image.shape[0] if row_slice.stop is None else row_slice.stop
+    histogram = np.zeros(65536, dtype=np.uint64)
+    for start in range(row_start, row_stop, chunk_rows):
+        stop = min(start + chunk_rows, row_stop)
+        chunk = np.asarray(image[start:stop, column_slice]).reshape(-1)
+        histogram += np.bincount(chunk, minlength=65536).astype(
+            np.uint64, copy=False
+        )
+    return histogram
+
+
+def histogram_quantile(histogram: np.ndarray, quantile: float) -> int:
+    """Return an inverse-CDF quantile from histogram counts or weights."""
+    if not 0 <= quantile <= 1:
+        raise ValueError(f"Quantile must be in [0, 1], got {quantile}.")
+    total = float(histogram.sum())
+    if total <= 0:
+        raise ValueError("Cannot estimate contrast from an empty histogram.")
+    cumulative = np.cumsum(histogram, dtype=np.float64)
+    if quantile == 1:
+        return int(np.flatnonzero(histogram > 0)[-1])
+    return int(
+        np.searchsorted(cumulative, quantile * total, side='right')
+    )
+
+
+def average_normalized_histograms(
+    histograms: Sequence[np.ndarray],
+) -> np.ndarray:
+    """Combine histograms while giving every eligible section equal weight."""
+    if not histograms:
+        raise ValueError("At least one section histogram is required.")
+    combined = np.zeros(65536, dtype=np.float64)
+    for histogram in histograms:
+        total = float(histogram.sum())
+        if total > 0:
+            combined += histogram / total
+    total = combined.sum()
+    if total <= 0:
+        raise ValueError("All section histograms are empty.")
+    return combined / total
+
+
+def _stable_histogram_range(
+    histogram: np.ndarray,
+    low: int,
+    high: int,
+) -> List[int]:
+    """Return a non-degenerate integer range supported by the histogram."""
+    if high > low:
+        return [low, high]
+    occupied = np.flatnonzero(histogram > 0)
+    if occupied.size > 1:
+        return [int(occupied[0]), int(occupied[-1])]
+    value = int(occupied[0]) if occupied.size else 0
+    return [value, value + 1] if value < 65535 else [65534, 65535]
+
+
+def estimate_automatic_rgb_ranges(
+    input_path: Union[str, Path],
+    image_names: Sequence[str],
+    source_channels: Sequence[str],
+    target_profiles: Mapping[str, str],
+    progress_callback: Optional[Callable[[Dict[str, object]], None]] = None,
+) -> Dict[str, object]:
+    """Estimate one reproducible automatic contrast range per RGB channel."""
+    source_channels = list(dict.fromkeys(source_channels))
+    if not source_channels:
+        raise ValueError("At least one imaged source channel is required.")
+    if not image_names:
+        raise ValueError("No stitched images were found for calibration.")
+
+    unknown_channels = set(target_profiles) - set(RGB_CHANNELS)
+    if unknown_channels:
+        raise ValueError(
+            f"Unsupported RGB channels: {sorted(unknown_channels)}"
+        )
+    missing_sources = set(target_profiles) - set(source_channels)
+    if missing_sources:
+        raise ValueError(
+            "Automatic RGB channels must be present in imaged channels: "
+            f"{sorted(missing_sources)}"
+        )
+    for channel, profile in target_profiles.items():
+        if profile not in AUTOMATIC_RGB_PROFILES:
+            raise ValueError(
+                f"Unknown automatic profile {profile!r} for {channel}."
+            )
+
+    combined_histograms = {
+        channel: np.zeros(65536, dtype=np.float64)
+        for channel in target_profiles
+    }
+    sections_used = {channel: 0 for channel in target_profiles}
+    section_highs = {channel: [] for channel in target_profiles}
+    padding_fractions = []
+
+    total_sections = len(image_names)
+    for section_index, image_name in enumerate(image_names, start=1):
+        images = {
+            channel: load_stitched_images(input_path, channel, image_name)
+            for channel in source_channels
+        }
+        bounds = find_shared_content_bounds(list(images.values()))
+        if bounds is None:
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        'event': 'section',
+                        'section_index': section_index,
+                        'total_sections': total_sections,
+                        'image_name': image_name,
+                        'status': 'skipped_all_black',
+                        'padding_fraction': 1.0,
+                        'channel_cutoffs': {},
+                    }
+                )
+            continue
+
+        shape = next(iter(images.values())).shape
+        valid_area = (
+            (bounds[0].stop - bounds[0].start)
+            * (bounds[1].stop - bounds[1].start)
+        )
+        padding_fraction = 1.0 - valid_area / np.prod(shape)
+        padding_fractions.append(padding_fraction)
+        channel_cutoffs = {}
+
+        for channel, profile in target_profiles.items():
+            histogram = image_histogram(images[channel], bounds)
+            if not histogram.sum():
+                continue
+            combined_histograms[channel] += histogram / histogram.sum()
+            sections_used[channel] += 1
+            profile_config = AUTOMATIC_RGB_PROFILES[profile]
+            section_low = histogram_quantile(
+                histogram, profile_config['low_clip_fraction']
+            )
+            if profile == 'preserve_strong_signal_probe':
+                section_high = histogram_quantile(
+                    histogram,
+                    profile_config['section_high_quantile'],
+                )
+                section_highs[channel].append(section_high)
+            else:
+                section_high = histogram_quantile(
+                    histogram,
+                    1.0 - profile_config['high_clip_fraction'],
+                )
+            channel_cutoffs[channel] = _stable_histogram_range(
+                histogram, section_low, section_high
+            )
+
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    'event': 'section',
+                    'section_index': section_index,
+                    'total_sections': total_sections,
+                    'image_name': image_name,
+                    'status': 'processed',
+                    'padding_fraction': float(padding_fraction),
+                    'channel_cutoffs': channel_cutoffs,
+                }
+            )
+
+    ranges = {}
+    clipped_percent = {}
+    for channel, profile in target_profiles.items():
+        if not sections_used[channel]:
+            raise ValueError(
+                f"No valid histogram pixels were found for {channel}."
+            )
+        combined = combined_histograms[channel] / sections_used[channel]
+        profile_config = AUTOMATIC_RGB_PROFILES[profile]
+        low = histogram_quantile(
+            combined, profile_config['low_clip_fraction']
+        )
+        if profile == 'balanced_cells':
+            high = histogram_quantile(
+                combined, 1.0 - profile_config['high_clip_fraction']
+            )
+        else:
+            high = int(
+                np.quantile(
+                    section_highs[channel],
+                    profile_config['dataset_high_quantile'],
+                    method='higher',
+                )
+            )
+        low, high = _stable_histogram_range(combined, low, high)
+        ranges[channel] = [low, high]
+        total = combined.sum()
+        clipped_percent[channel] = {
+            'low': float(combined[:low].sum() / total * 100),
+            'high': float(combined[high + 1:].sum() / total * 100),
+        }
+    calibration = {
+        'automatic_ranges': ranges,
+        'automatic_profiles': dict(target_profiles),
+        'automatic_clipped_percent': clipped_percent,
+        'automatic_calibration': {
+            'method': 'equal_section_histogram',
+            'padding_exclusion': 'shared_all_channel_black_border',
+            'source_channels': source_channels,
+            'sections_requested': len(image_names),
+            'sections_used': sections_used,
+            'mean_padding_fraction': (
+                float(np.mean(padding_fractions))
+                if padding_fractions else 0.0
+            ),
+        },
+    }
+    if progress_callback is not None:
+        progress_callback(
+            {
+                'event': 'complete',
+                'section_index': total_sections,
+                'total_sections': total_sections,
+                'automatic_ranges': ranges,
+            }
+        )
+    return calibration
+
+
+def resolve_automatic_rgb_params(
+    input_path: Union[str, Path],
+    image_names: Sequence[str],
+    params: Dict[str, object],
+) -> Dict[str, object]:
+    """Populate automatic ranges in RGB parameters when they are not cached."""
+    rgb_params = params['rgb_params']
+    if rgb_params.get('contrast_mode') != 'automatic':
+        return {}
+
+    channels = rgb_params['channels']
+    profiles = rgb_params['automatic_profiles']
+    ranges = rgb_params.get('automatic_ranges', {})
+    if not all(channel in ranges for channel in channels):
+        calibration = estimate_automatic_rgb_ranges(
+            input_path,
+            image_names,
+            params['general']['chans_imaged'],
+            {channel: profiles[channel] for channel in channels},
+        )
+        rgb_params.update(calibration)
+    else:
+        calibration = {
+            key: rgb_params[key]
+            for key in (
+                'automatic_ranges',
+                'automatic_profiles',
+                'automatic_clipped_percent',
+                'automatic_calibration',
+            )
+            if key in rgb_params
+        }
+
+    for channel in channels:
+        rgb_params[channel] = list(rgb_params['automatic_ranges'][channel])
+    rgb_params['contrast_adjustment'] = True
+    return calibration
 
 
 def downsample_and_adjust_contrast(
