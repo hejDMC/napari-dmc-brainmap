@@ -215,9 +215,10 @@ wheels = [
 
 [[package]]
 name = "brainglobe-atlasapi"
-version = "3.0.0rc1"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "aiobotocore", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "brainglobe-space", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "click", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "dracopy", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
@@ -231,11 +232,12 @@ dependencies = [
     { name = "rich", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "s3fs", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "tifffile", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "tqdm", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "treelib", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/54/23/0aaebebb2b8446f1094b5843d0b263252fb5c6a7b62ae87df4684ac82827/brainglobe_atlasapi-3.0.0rc1.tar.gz", hash = "sha256:7e6f2876c6daa1efe74cab1e3ff9751defd0a48aef158cac6192085a5ca59217", size = 74158, upload-time = "2026-07-17T14:34:55.092Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/a7/702c406ef219a5823cd42fb7ab2c0574df03510691497f3535ee0004b08d/brainglobe_atlasapi-3.0.1.tar.gz", hash = "sha256:c57897faefc03d4bfa7eab9cf727eefa7ae065d875c7acc7ff5a8dc2498e546c", size = 74599, upload-time = "2026-08-10T15:35:52.968Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2d/dd/0297a8648d3b6a0f0076b5a37c99a1d06ed73e64704c0217b033c379e9b6/brainglobe_atlasapi-3.0.0rc1-py3-none-any.whl", hash = "sha256:704cd25397b14a436f7b6aa181cd639ea21c464ccfd944fdc280574b46d5f755", size = 74941, upload-time = "2026-07-17T14:34:53.753Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/fb/d6381e3233ef9036b8012cf93444f6d08c26cd188f3e95b31a266585e3b3/brainglobe_atlasapi-3.0.1-py3-none-any.whl", hash = "sha256:47219ac4487f41c3e395040b86819f1825102597e9fd4154e2781e2d0d82827f", size = 73622, upload-time = "2026-08-10T15:35:51.772Z" },
 ]
 
 [[package]]
@@ -1649,7 +1651,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "brainglobe-atlasapi", specifier = "==3.0.0rc1" },
+    { name = "brainglobe-atlasapi", specifier = "==3.0.1" },
     { name = "distinctipy", specifier = "==1.3.4" },
     { name = "imagecodecs", specifier = "==2026.3.6" },
     { name = "joblib", specifier = "==1.5.3" },
