@@ -101,3 +101,20 @@ def test_sharpy_cy3_default_matches_direct_stitching():
 
     preprocessing_widget.close()
     stitching_widget.native.close()
+
+
+def test_disabled_rgb_contrast_does_not_parse_limit_fields():
+    preprocessing_widget = preprocessing.PreprocessingWidget()
+    rgb_widget = preprocessing_widget.rgb_widget
+    rgb_widget[3].value = False
+
+    for contrast_widget in rgb_widget[4:]:
+        contrast_widget.value = ""
+
+    rgb_params = preprocessing_widget._get_widget_info(rgb_widget, "rgb")
+
+    assert rgb_params["contrast_adjustment"] is False
+    assert rgb_params["green"] == []
+    assert rgb_params["cy3"] == []
+
+    preprocessing_widget.close()
