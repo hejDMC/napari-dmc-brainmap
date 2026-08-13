@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added ProbeInterface 0.3.2 as the supported SpikeGLX metadata and
+  Neuropixels geometry reader for the upcoming multi-shank workflow.
 - Simplified the segmentation widget by showing only controls and
   presegmentation sections relevant to the selected workflow. RGB annotation
   now offers DAPI, green, and Cy3; N3 and Cy5 are available in single-channel

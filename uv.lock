@@ -1622,6 +1622,7 @@ dependencies = [
     { name = "opencv-python", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "pandas", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "platformdirs", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "probeinterface", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "pydantic", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "qtpy", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "scikit-image", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
@@ -1664,6 +1665,7 @@ requires-dist = [
     { name = "opencv-python", specifier = "==4.13.0.92" },
     { name = "pandas", specifier = "==2.3.3" },
     { name = "platformdirs", specifier = "==4.10.1" },
+    { name = "probeinterface", specifier = "==0.3.2" },
     { name = "pydantic", specifier = ">=2.2,<3" },
     { name = "qtpy", specifier = "==2.4.3" },
     { name = "scikit-image", specifier = "==0.26.0" },
@@ -2081,6 +2083,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/43/85ef45e8b36c6a48546af7b266592dc32d7f67837a6514d111bced6d7d75/pooch-1.9.0.tar.gz", hash = "sha256:de46729579b9857ffd3e741987a2f6d5e0e03219892c167c6578c0091fb511ed", size = 61788, upload-time = "2026-01-30T19:15:09.649Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/2d/d4bf65e47cea8ff2c794a600c4fd1273a7902f268757c531e0ee9f18aa58/pooch-1.9.0-py3-none-any.whl", hash = "sha256:f265597baa9f760d25ceb29d0beb8186c243d6607b0f60b83ecf14078dbc703b", size = 67175, upload-time = "2026-01-30T19:15:08.36Z" },
+]
+
+[[package]]
+name = "probeinterface"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "packaging", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "requests", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/b6/149976dac9228c39a80fd1dee1743b3ba8e878b8c425df4304a7ac395aa1/probeinterface-0.3.2.tar.gz", hash = "sha256:8cf02afb1f344be027e1f29e7a2c54fd35b38573ad77890fc5076f957ddf3db5", size = 6681139, upload-time = "2026-03-20T16:06:09.401Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/c9/7cd477fa3cc6e31b643c1ca8d13a7b398fa8c2b6a9c5926cab916729cf43/probeinterface-0.3.2-py3-none-any.whl", hash = "sha256:f288d013697a73836384a9ee8db6bc979764814b981b6730d463d3bd04d5f317", size = 68822, upload-time = "2026-03-20T16:06:08.059Z" },
 ]
 
 [[package]]
