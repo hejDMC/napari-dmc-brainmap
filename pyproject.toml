@@ -38,6 +38,7 @@ dependencies = [
     "opencv-python==4.13.0.92",
     "pandas==2.3.3",
     "platformdirs==4.10.1",
+    "probeinterface==0.3.2",
     "pydantic>=2.2,<3",
     "qtpy==2.4.3",
     "scikit-image==0.26.0",
