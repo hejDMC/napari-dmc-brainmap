@@ -12,4 +12,5 @@ napari-dmc-brainmap documentation
    :caption: Contents:
 
    registration_prediction
+   coordinate_conventions
    modules

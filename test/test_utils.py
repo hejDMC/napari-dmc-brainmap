@@ -6,7 +6,14 @@ from napari_dmc_brainmap.utils.atlas_utils import get_decimal
 from napari_dmc_brainmap.utils.atlas_utils import coord_mm_transform
 from napari_dmc_brainmap.utils.atlas_utils import sort_ap_dv_ml
 from napari_dmc_brainmap.utils.atlas_utils import get_xyz
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_mm_from_atlas_axis_mm,
+    analysis_ml_from_atlas_coordinate,
+    atlas_mm_to_analysis_mm,
+    get_bregma,
+    get_axis_mm_limits,
+    hemisphere_from_atlas_coordinate,
+)
 
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
 from napari_dmc_brainmap.utils.general_utils import split_to_list
@@ -18,6 +25,7 @@ from napari_dmc_brainmap.utils.params_utils import clean_params_dict
 from napari_dmc_brainmap.utils.params_utils import update_params_dict
 
 import pathlib
+import numpy as np
 import pytest
 from unittest.mock import patch
 import json
@@ -307,6 +315,38 @@ def test_coord_mm_transform():
     assert coord_mm_transform(triplet, bregma, resolution_tuple, mm_to_coord) == expected_output
 
 
+def test_analysis_ml_convention_is_positive_in_atlas_left_hemisphere():
+    converted = analysis_ml_from_atlas_coordinate(
+        np.array([410, 570, 730]),
+        bregma_rl=570,
+        resolution_um=10,
+    )
+
+    np.testing.assert_array_equal(converted, [-1.6, 0.0, 1.6])
+    assert hemisphere_from_atlas_coordinate(730, 570) == 'left'
+    assert hemisphere_from_atlas_coordinate(570, 570) == 'midline'
+    assert hemisphere_from_atlas_coordinate(410, 570) == 'right'
+
+
+def test_axis_limits_use_public_ml_sign_for_asymmetric_atlas():
+    assert get_axis_mm_limits('rl', 1000, 400, 10.0) == (-4.0, 6.0)
+    assert get_axis_mm_limits('ap', 1000, 400, 10.0) == (-6.0, 4.0)
+
+
+def test_axis_native_mm_conversion_only_flips_rl():
+    assert analysis_mm_from_atlas_axis_mm(-1.6, 'rl') == 1.6
+    assert analysis_mm_from_atlas_axis_mm(1.6, 'ap') == 1.6
+
+
+def test_axis_native_ml_is_flipped_for_public_analysis_coordinates():
+    converted = atlas_mm_to_analysis_mm(
+        [2.8, -2.03, -1.6],
+        ('ap', 'si', 'rl'),
+    )
+
+    assert converted == [2.8, -2.03, 1.6]
+
+
 def test_sort_ap_dv_ml():
     # Test case 1: atlas_tuple matches target tuple order
     triplet = [1.1, 2.2, 3.3]
@@ -327,15 +367,15 @@ def test_get_xyz():
     atlas_instance = atlas_mock.return_value
     atlas_instance.space.sections = ['frontal', 'horizontal', 'sagittal']
     atlas_instance.space.index_pairs = [(1, 2), (0, 2), (0, 1)]
-    atlas_instance.space.axes_description = ['ap', 'dv', 'ml']
+    atlas_instance.space.axes_description = ['ap', 'si', 'rl']
     atlas_instance.space.shape = [1320, 800, 1140]
     atlas_instance.space.resolution = [10.0, 10.0, 10.0]
 
     # Test case 1: coronal section
     section_orient = 'coronal'
     expected_output = {
-        'x': ['ml', 1140, 10.0],
-        'y': ['dv', 800, 10.0],
+        'x': ['rl', 1140, 10.0],
+        'y': ['si', 800, 10.0],
         'z': ['ap', 1320, 10.0]
     }
     assert get_xyz(atlas_instance, section_orient) == expected_output
@@ -343,18 +383,18 @@ def test_get_xyz():
     # Test case 2: horizontal section
     section_orient = 'horizontal'
     expected_output = {
-        'x': ['ml', 1140, 10.0],
+        'x': ['rl', 1140, 10.0],
         'y': ['ap', 1320, 10.0],
-        'z': ['dv', 800, 10.0]
+        'z': ['si', 800, 10.0]
     }
     assert get_xyz(atlas_instance, section_orient) == expected_output
 
     # Test case 3: sagittal section
     section_orient = 'sagittal'
     expected_output = {
-        'x': ['dv', 800, 10.0],
+        'x': ['si', 800, 10.0],
         'y': ['ap', 1320, 10.0],
-        'z': ['ml', 1140, 10.0]
+        'z': ['rl', 1140, 10.0]
     }
     assert get_xyz(atlas_instance, section_orient) == expected_output
     # Stop the patch

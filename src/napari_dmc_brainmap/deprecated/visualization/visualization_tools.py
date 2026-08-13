@@ -16,13 +16,16 @@ from shapely.geometry import LineString
 import matplotlib.cm as cm
 from natsort import natsorted
 from napari_dmc_brainmap.utils import get_info, get_bregma, get_xyz, find_key_by_value
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_ml_from_atlas_coordinate,
+)
 from napari_dmc_brainmap.visualization.visualization_utils import match_lists, get_descendants
 
 
 def get_ipsi_contra(df):
     '''
     Function to add a column specifying if cells if ipsi or contralateral to injection site
-    ml_mm values of <0 are on the 'left' hemisphere, >0 are on the 'right hemisphere
+    Positive ml_mm values are left and negative values are right.
     :param df: dataframe with results for animal, not the merged across animals
     :return:
     '''
@@ -112,7 +115,12 @@ def load_data(input_path, atlas, animal_list, channels, data_type='cells', hemis
                 results_data = pd.read_csv(results_file)  # load the data
                 if data_type in ["optic_fiber", "neuropixels_probe"]:
                     results_data = results_data[results_data['inside_brain']]
-                results_data['ml_mm'] *= (-1)  # so that negative values are left hemisphere
+                rl_idx = atlas.space.axes_description.index('rl')
+                results_data['ml_mm'] = analysis_ml_from_atlas_coordinate(
+                    results_data['ml_coords'].to_numpy(),
+                    get_bregma(atlas.atlas_name)[rl_idx],
+                    atlas.space.resolution[rl_idx],
+                )
                 results_data['animal_id'] = [animal_id] * len(
                     results_data)  # add the animal_id as a column for later identification
                 if (data_type == "optic_fiber" or data_type == "neuropixels_probe") and len(animal_list) > 1:
@@ -609,4 +617,3 @@ def get_heatmap_mask(heatmap_data, annot_section_plt):
     mask = mask1 | mask2
 
     return mask
-

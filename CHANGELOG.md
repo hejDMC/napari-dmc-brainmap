@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Standardized public mediolateral coordinates as positive in the anatomical
+  left hemisphere and negative in the anatomical right hemisphere.
+- Corrected the brain-section hemisphere tooltip and coordinate displays, and
+  added compatibility normalization for historical left-negative result CSVs.
+- Documented the relationship between atlas RL indices, all section
+  orientations, 3D voxel exports, and signed ML coordinates.
+- Removed Allen-10-um-specific hemisphere slicing from injection-site coverage
+  and corrected atlas-plane extraction for horizontal and sagittal sections.
+
 ## 0.2.0b1 - 2026-08-11
 
 This is a beta release of the next DMC-BrainMap feature series. It contains

@@ -6,6 +6,7 @@ from natsort import natsorted
 from tifffile import tifffile
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.utils import get_bregma, xyz_atlas_transform, coord_mm_transform
+from napari_dmc_brainmap.utils.atlas_utils import atlas_mm_to_analysis_mm
 import numpy as np
 import json
 from bg_atlasapi import BrainGlobeAtlas
@@ -152,6 +153,10 @@ class sliceHandle():
                     acronym_list.append('root')
                 # calculate Allen coordinates in mm unit
                 vol_mm = coord_mm_transform(triplet, self.bregma, self.atlas.space.resolution)
+                vol_mm = atlas_mm_to_analysis_mm(
+                    vol_mm,
+                    self.atlas.space.axes_description,
+                )
                 vol_mm_list.append(vol_mm)
             name_dict = {
                 'ap': 'ap',
@@ -169,7 +174,6 @@ class sliceHandle():
                                         columns=col_names)
             section_data['section_name'] = [section_name] * len(section_data)
             return section_data
-
 
 
 

@@ -257,7 +257,7 @@ class ProbeVisualizer(QMainWindow):
                          (self.atlas.resolution[self.atlas.space.axes_description.index('ap')]/1000),self.decimal)
         dv_mm = np.round((self.bregma[1] - vox_dv) *
                          (self.atlas.resolution[self.atlas.space.axes_description.index('si')] / 1000), self.decimal)
-        ml_mm = np.round((self.bregma[2] - vox_ml) *
+        ml_mm = np.round((vox_ml - self.bregma[2]) *
                          (self.atlas.resolution[self.atlas.space.axes_description.index('rl')] / 1000), self.decimal)
         return [ap_mm,dv_mm,ml_mm]
 

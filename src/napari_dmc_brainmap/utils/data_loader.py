@@ -4,7 +4,12 @@ from typing import List, Union
 import pandas as pd
 from natsort import natsorted
 from napari_dmc_brainmap.utils.path_utils import get_info
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma, coord_mm_transform
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_ml_from_atlas_coordinate,
+    coord_mm_transform,
+    get_bregma,
+    hemisphere_from_atlas_coordinate,
+)
 from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
 
@@ -60,7 +65,7 @@ class DataLoader:
                     continue
                 if self.data_type in ["optic_fiber", "neuropixels_probe"]:
                     results_data = results_data.loc[results_data['inside_brain']].copy()
-                results_data['ml_mm'] *= -1  # Convert negative values for the left hemisphere
+                results_data = self._normalize_ml_mm(results_data)
                 results_data['animal_id'] = animal_id
                 results_data['channel'] = f"{animal_id}_{channel}" if (
                         self.data_type in ["optic_fiber", "neuropixels_probe"] and len(self.animal_list) > 1) else channel
@@ -179,6 +184,28 @@ class DataLoader:
 
         return pd.read_csv(results_file)
 
+    def _normalize_ml_mm(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return data using positive-left public ML coordinates.
+
+        Historical result files store axis-native ML values (left negative),
+        while current result files store public analysis values (left
+        positive). Rebuilding ML from atlas voxel coordinates makes both file
+        generations load identically.
+        """
+        normalized = df.copy()
+        if 'ml_coords' in normalized.columns:
+            rl_idx = self.atlas.space.axes_description.index('rl')
+            normalized['ml_mm'] = analysis_ml_from_atlas_coordinate(
+                normalized['ml_coords'].to_numpy(),
+                self.bregma[rl_idx],
+                self.atlas.space.resolution[rl_idx],
+            )
+        else:
+            # Compatibility fallback for legacy external tables without atlas
+            # voxel columns; these historically used left-negative ML values.
+            normalized['ml_mm'] *= -1
+        return normalized
+
     def _load_swc_data(self, animal_id: str, channel: str) -> Union[pd.DataFrame, None]:
         """
         Load swc data for a specific channel of an animal.
@@ -210,6 +237,12 @@ class DataLoader:
         coords = swc_merge[["ap_coords", "dv_coords", "ml_coords"]].to_numpy()
         mm_coords = [coord_mm_transform(row, self.bregma, self.atlas.space.resolution) for row in coords]
         swc_merge[["ap_mm", "dv_mm", "ml_mm"]] = pd.DataFrame(mm_coords, index=swc_merge.index)
+        rl_idx = self.atlas.space.axes_description.index('rl')
+        swc_merge['ml_mm'] = analysis_ml_from_atlas_coordinate(
+            swc_merge['ml_coords'].to_numpy(),
+            self.bregma[rl_idx],
+            self.atlas.space.resolution[rl_idx],
+        )
         return swc_merge
 
     def _get_ipsi_contra(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -229,10 +262,21 @@ class DataLoader:
         injection_site = df['injection_site'].iloc[0]
         df['ipsi_contra'] = 'ipsi'
 
+        if 'ml_coords' in df.columns:
+            rl_idx = self.atlas.space.axes_description.index('rl')
+            hemispheres = hemisphere_from_atlas_coordinate(
+                df['ml_coords'].to_numpy(),
+                self.bregma[rl_idx],
+            )
+        else:
+            hemispheres = pd.Series('midline', index=df.index, dtype=object)
+            hemispheres.loc[df['ml_mm'] > 0] = 'left'
+            hemispheres.loc[df['ml_mm'] < 0] = 'right'
+
         if injection_site == 'left':
-            df.loc[df['ml_mm'] < 0, 'ipsi_contra'] = 'contra'
+            df.loc[hemispheres == 'right', 'ipsi_contra'] = 'contra'
         elif injection_site == 'right':
-            df.loc[df['ml_mm'] > 0, 'ipsi_contra'] = 'contra'
+            df.loc[hemispheres == 'left', 'ipsi_contra'] = 'contra'
         else:
             raise ValueError(f"Unexpected value in 'injection_site': {injection_site}. Expected 'left' or 'right'.")
 

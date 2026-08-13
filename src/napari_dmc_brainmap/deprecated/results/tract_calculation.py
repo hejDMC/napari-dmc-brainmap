@@ -4,6 +4,9 @@ import distinctipy
 import matplotlib.pyplot as plt
 from skspatial.objects import Line, Points # scikit-spatial package: https://scikit-spatial.readthedocs.io/en/stable/
 from napari_dmc_brainmap.utils import get_animal_id, get_info, get_bregma, coord_mm_transform
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_ml_from_atlas_coordinate,
+)
 
 def get_primary_axis_idx(direction_vector): # get primary axis from direction vector
     direction_comp = np.abs(direction_vector) # get component absolute value
@@ -238,6 +241,12 @@ def get_probe_tract(input_path, atlas, seg_type, ax_primary, probe_df, probe, pr
                                                                     row[col_names[1]],
                                                                     row[col_names[2]]],
                                                                    bregma, atlas.space.resolution)), axis=1)
+    rl_idx = atlas.space.axes_description.index('rl')
+    probe_tract['ml_mm'] = analysis_ml_from_atlas_coordinate(
+        probe_tract['ml_coords'].to_numpy(),
+        bregma[rl_idx],
+        atlas.space.resolution[rl_idx],
+    )
 
     probe_tract['structure_id'] = annot[probe_tract[col_names[0]], probe_tract[col_names[1]], probe_tract[col_names[2]]]
 

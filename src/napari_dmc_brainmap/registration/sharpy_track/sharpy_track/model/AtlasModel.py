@@ -11,7 +11,14 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
     homography_to_registration_points,
 )
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform, sort_ap_dv_ml
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_mm_from_atlas_axis_mm,
+    atlas_mm_to_analysis_mm,
+    coord_mm_transform,
+    get_bregma,
+    sort_ap_dv_ml,
+    xyz_atlas_transform,
+)
 from napari_dmc_brainmap.utils.atlas_cache import load_template_8bit
 
 from importlib.resources import files
@@ -115,6 +122,10 @@ class AtlasModel():
         # get coordinates in mm
         tripled_coord = xyz_atlas_transform([x, y, z], self.regi_dict, self.atlas.space.axes_description)
         tripled_mm = coord_mm_transform(tripled_coord, self.bregma, self.atlas.space.resolution)
+        tripled_mm = atlas_mm_to_analysis_mm(
+            tripled_mm,
+            self.atlas.space.axes_description,
+        )
 
         tripled_mm_sorted = sort_ap_dv_ml(tripled_mm, self.atlas.space.axes_description)
         # from cursor position get annotation index
@@ -141,12 +152,16 @@ class AtlasModel():
             'rl': 'ML'
         }
         z_str = name_dict[self.xyz_dict['z'][0]]
+        z_mm = analysis_mm_from_atlas_axis_mm(
+            self.regViewer.status.current_z,
+            self.xyz_dict['z'][0],
+        )
         x_str = name_dict[self.xyz_dict['x'][0]]
         y_str = name_dict[self.xyz_dict['y'][0]]
         # get textbox size and calculate textbox coordinates
         offset =  int(self.fontscale * 10) # integer
 
-        text_w, text_h = cv2.getTextSize(z_str + ": " + str(self.regViewer.status.current_z)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
+        text_w, text_h = cv2.getTextSize(z_str + ": " + str(z_mm)+"mm", cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         ap_text_location = [display_slice.shape[1]-offset-text_w,text_h+offset]
 
         text_w, text_h = cv2.getTextSize(x_str + " Angle: " + str(self.regViewer.status.x_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
@@ -155,7 +170,7 @@ class AtlasModel():
         text_w, text_h = cv2.getTextSize(y_str + " Angle: " + str(self.regViewer.status.y_angle), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, self.fontthickness)[0]
         yangle_text_location = [offset,offset+text_h+offset+text_h]
         # put text
-        cv2.putText(display_slice, z_str + ": " + str(self.regViewer.status.current_z)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
+        cv2.putText(display_slice, z_str + ": " + str(z_mm)+"mm", (ap_text_location[0], ap_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
         cv2.putText(display_slice, x_str + " Angle: " + str(self.regViewer.status.x_angle), (xangle_text_location[0], xangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
         cv2.putText(display_slice, y_str + " Angle: " + str(self.regViewer.status.y_angle), (yangle_text_location[0],yangle_text_location[1]), cv2.FONT_HERSHEY_SIMPLEX, self.fontscale, 255, self.fontthickness, cv2.LINE_AA)
 

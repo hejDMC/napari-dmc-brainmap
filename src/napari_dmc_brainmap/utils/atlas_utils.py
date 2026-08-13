@@ -92,6 +92,97 @@ def coord_mm_transform(triplet: List[Union[int, float]], bregma: List[int], reso
         return triplet_new
 
 
+def analysis_ml_from_atlas_coordinate(
+        ml_coordinate: Union[int, float, np.ndarray],
+        bregma_rl: Union[int, float],
+        resolution_um: float
+) -> Union[float, np.ndarray]:
+    """Convert atlas RL indices to the public left-positive ML convention.
+
+    BrainGlobe's ``rl`` index increases from anatomical right to left. DMC-
+    BrainMap therefore reports ``ml_mm`` as positive in the left hemisphere,
+    negative in the right hemisphere, and zero at the midline.
+    """
+    decimal = get_decimal([resolution_um])[0]
+    converted = np.round(
+        (np.asarray(ml_coordinate, dtype=float) - bregma_rl)
+        * (resolution_um / 1000),
+        decimal,
+    )
+    if converted.ndim == 0:
+        return float(converted)
+    return converted
+
+
+def atlas_mm_to_analysis_mm(
+        triplet: List[Union[int, float]],
+        atlas_tuple: Tuple[str, str, str]
+) -> List[float]:
+    """Convert axis-native atlas millimeters to public analysis coordinates.
+
+    ``coord_mm_transform`` follows atlas index direction for every axis, so its
+    RL value is negative on the anatomical left. Public results and displays
+    use the opposite ML sign. AP and DV values are unchanged.
+    """
+    triplet_new = list(triplet)
+    rl_idx = atlas_tuple.index('rl')
+    triplet_new[rl_idx] = -triplet_new[rl_idx]
+    if triplet_new[rl_idx] == 0:
+        triplet_new[rl_idx] = 0.0
+    return triplet_new
+
+
+def analysis_mm_from_atlas_axis_mm(
+        coordinate: Union[int, float, np.ndarray],
+        axis: str
+) -> Union[float, np.ndarray]:
+    """Convert one axis-native millimetre value to public coordinates."""
+    converted = np.asarray(coordinate, dtype=float)
+    if axis == 'rl':
+        converted = -converted
+    if converted.ndim == 0:
+        value = float(converted)
+        return 0.0 if value == 0 else value
+    converted[converted == 0] = 0.0
+    return converted
+
+
+def hemisphere_from_atlas_coordinate(
+        ml_coordinate: Union[int, float, np.ndarray],
+        bregma_rl: Union[int, float]
+) -> Union[str, np.ndarray]:
+    """Return anatomical hemisphere labels from atlas RL indices."""
+    coordinates = np.asarray(ml_coordinate)
+    hemispheres = np.full(coordinates.shape, 'midline', dtype=object)
+    hemispheres[coordinates > bregma_rl] = 'left'
+    hemispheres[coordinates < bregma_rl] = 'right'
+    if hemispheres.ndim == 0:
+        return str(hemispheres.item())
+    return hemispheres
+
+
+def get_axis_mm_limits(
+        axis: str,
+        axis_size: int,
+        bregma_coordinate: Union[int, float],
+        resolution_um: float
+) -> Tuple[float, float]:
+    """Return increasing public-coordinate limits for an atlas axis."""
+    if axis == 'rl':
+        endpoints = analysis_ml_from_atlas_coordinate(
+            np.asarray([0, axis_size]),
+            bregma_coordinate,
+            resolution_um,
+        )
+    else:
+        endpoints = coord_mm_transform(
+            [0, axis_size],
+            [bregma_coordinate, bregma_coordinate],
+            [resolution_um, resolution_um],
+        )
+    return float(np.min(endpoints)), float(np.max(endpoints))
+
+
 def sort_ap_dv_ml(triplet: List[Union[int, float]], atlas_tuple: Tuple[str, str, str]) -> List[float]:
     """
     Reorder the input triplet to match the atlas orientation.
