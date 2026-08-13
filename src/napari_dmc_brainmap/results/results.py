@@ -23,7 +23,10 @@ from napari_dmc_brainmap.utils.dataframe_utils import clip_negative_first_row
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import split_to_list
 from napari_dmc_brainmap.utils.params_utils import load_params
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma, coord_mm_transform
+from napari_dmc_brainmap.utils.atlas_utils import (
+    get_axis_mm_limits,
+    get_bregma,
+)
 from napari_dmc_brainmap.utils.gui_utils import ProgressBar, check_input_path
 from napari_dmc_brainmap.utils.data_loader import DataLoader
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.ProbeVisualizer import ProbeVisualizer
@@ -497,8 +500,13 @@ class ResultsWidget(QWidget):
                 axis_idx = self.atlas.space.sections.index(x_key[2])
                 axis_dim = self.atlas.shape[axis_idx]
 
-                xmin = coord_mm_transform([axis_dim], [bregma[axis_idx]], [self.atlas.resolution[axis_idx]])
-                xmax = coord_mm_transform([0], [bregma[axis_idx]], [self.atlas.resolution[axis_idx]])
+                axis_name = self.atlas.space.axes_description[axis_idx]
+                xmin, xmax = get_axis_mm_limits(
+                    axis_name,
+                    axis_dim,
+                    bregma[axis_idx],
+                    self.atlas.resolution[axis_idx],
+                )
                 xticks = np.linspace(xmin, xmax, 5)
 
                 static_ax[1].set_xlim([xmin, xmax])
@@ -518,14 +526,24 @@ class ResultsWidget(QWidget):
 
                 x_axis_idx = self.atlas.space.sections.index(x_key[2])
                 x_axis_dim = self.atlas.shape[x_axis_idx]
-                xmin = coord_mm_transform([x_axis_dim], [bregma[x_axis_idx]], [self.atlas.resolution[x_axis_idx]])
-                xmax = coord_mm_transform([0], [bregma[x_axis_idx]], [self.atlas.resolution[x_axis_idx]])
+                x_axis_name = self.atlas.space.axes_description[x_axis_idx]
+                xmin, xmax = get_axis_mm_limits(
+                    x_axis_name,
+                    x_axis_dim,
+                    bregma[x_axis_idx],
+                    self.atlas.resolution[x_axis_idx],
+                )
                 xticks = np.linspace(xmin, xmax, 5)
 
                 y_axis_idx = self.atlas.space.sections.index(y_key[2])
                 y_axis_dim = self.atlas.shape[y_axis_idx]
-                ymin = coord_mm_transform([y_axis_dim], [bregma[y_axis_idx]], [self.atlas.resolution[y_axis_idx]])
-                ymax = coord_mm_transform([0], [bregma[y_axis_idx]], [self.atlas.resolution[y_axis_idx]])
+                y_axis_name = self.atlas.space.axes_description[y_axis_idx]
+                ymin, ymax = get_axis_mm_limits(
+                    y_axis_name,
+                    y_axis_dim,
+                    bregma[y_axis_idx],
+                    self.atlas.resolution[y_axis_idx],
+                )
                 yticks = np.linspace(ymin, ymax, 5)
 
                 if expression:

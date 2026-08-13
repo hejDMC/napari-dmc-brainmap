@@ -8,7 +8,11 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage.transform import resize
 from scipy.ndimage import gaussian_filter
 from scipy.spatial.distance import cdist
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma, get_xyz
+from napari_dmc_brainmap.utils.atlas_utils import (
+    get_bregma,
+    get_xyz,
+    hemisphere_from_atlas_coordinate,
+)
 from napari_dmc_brainmap.visualization.vis_utils.visualization_utils import get_descendants, match_lists
 from brainglobe_atlasapi import BrainGlobeAtlas
 from napari.utils.notifications import show_info
@@ -44,7 +48,8 @@ class BrainsectionPlotter:
 
         Parameters:
             slice_idx (int): Index of the brain slice.
-            orient_idx (int): Orientation index (0: coronal, 1: sagittal, 2: horizontal).
+            orient_idx (int): BrainGlobe section index (0: coronal,
+                1: horizontal, 2: sagittal).
 
         Returns:
             List: Annotated section, unique IDs, and color dictionary.
@@ -96,7 +101,8 @@ class BrainsectionPlotter:
 
         Parameters:
             slice_idx (int): Index of the brain slice.
-            orient_idx (int): Orientation index (0: coronal, 1: sagittal, 2: horizontal).
+            orient_idx (int): BrainGlobe section index (0: coronal,
+                1: horizontal, 2: sagittal).
 
         Returns:
             np.ndarray: Extracted slice from the atlas.
@@ -114,7 +120,8 @@ class BrainsectionPlotter:
 
         Parameters:
             annot_section (np.ndarray): Annotated section.
-            orient_idx (int): Orientation index (0: coronal, 1: sagittal, 2: horizontal).
+            orient_idx (int): BrainGlobe section index (0: coronal,
+                1: horizontal, 2: sagittal).
 
         Returns:
             np.ndarray: Adjusted annotated section.
@@ -245,8 +252,17 @@ class BrainsectionPlotter:
         Returns:
             Tuple[List[str], List[str]]: Sorted brain areas and corresponding colors.
         """
-        df = self.data_dict[self.plotting_params['area_density']].assign(
-            left_right=np.where(self.data_dict[self.plotting_params['area_density']]['ml_mm'] < 0, 'right', 'left'))
+        source = self.data_dict[self.plotting_params['area_density']]
+        rl_idx = self.atlas.space.axes_description.index('rl')
+        hemispheres = hemisphere_from_atlas_coordinate(
+            source['ml_coords'].to_numpy(),
+            get_bregma(self.atlas.atlas_name)[rl_idx],
+        )
+        # Preserve the historical density behavior that includes exact
+        # midline points with the left half instead of creating a third side.
+        df = source.assign(
+            left_right=np.where(hemispheres == 'right', 'right', 'left')
+        )
         animal_list = df['animal_id'].unique()
         df_density = self._calculate_density_pivot(df, animal_list)
         df_density = self._normalize_density(df_density)
@@ -556,9 +572,6 @@ class BrainsectionPlotter:
         mask = mask1 | mask2
 
         return mask
-
-
-
 
 
 

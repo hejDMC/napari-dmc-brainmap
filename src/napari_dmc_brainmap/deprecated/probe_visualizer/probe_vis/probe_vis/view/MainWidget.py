@@ -57,7 +57,11 @@ class MainWidget():
             # rotate AP axis to screen width axis
             self.slice = probeV.template[:, :, probeV.currentML].T.copy()
             cv2.putText(self.slice, "ML: "+str(probeV.currentML), (10,text_h+10), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA)
-            cv2.putText(self.slice, "("+str(np.round((probeV.bregma[2] -probeV.currentML) * self.resolution[2],probeV.decimal))+" mm)" , 
+            ml_mm = np.round(
+                (probeV.currentML - probeV.bregma[2]) * self.resolution[2],
+                probeV.decimal,
+            )
+            cv2.putText(self.slice, "("+str(ml_mm)+" mm)" ,
                         (10,text_h*2+20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 3, cv2.LINE_AA) # mm coordinate
         
         # add active probe to slice

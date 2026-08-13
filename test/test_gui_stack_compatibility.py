@@ -81,6 +81,9 @@ def test_representative_widget_defaults_are_preserved(monkeypatch):
     assert visualization_widget.save_fig.value is False
     assert visualization_widget.section_orient.value == "coronal"
     assert visualization_widget.hemisphere.value == "both"
+    assert "left (ML > 0 mm)/right (ML < 0 mm)" in (
+        visualization_widget.unilateral.tooltip
+    )
 
     params_widget.native.close()
     segment_widget.native.close()

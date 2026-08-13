@@ -470,7 +470,7 @@ def initialize_brainsection_widget() -> FunctionGui:
                               label='plotting hemisphere',
                               choices=['both', 'left', 'right'],
                               value='both',
-                              tooltip="choose to either plot both hemisphere, or left (ML<0 mm)/right (ML > 0 mm) "
+                              tooltip="choose to either plot both hemispheres, or left (ML > 0 mm)/right (ML < 0 mm) "
                                       "hemisphere (only for coronal/horizontal orientations)"),
               brain_areas=dict(widget_type='LineEdit', 
                                label='list of brain areas',

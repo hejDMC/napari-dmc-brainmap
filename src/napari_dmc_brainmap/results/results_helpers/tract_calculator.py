@@ -13,7 +13,11 @@ from pathlib import Path
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma, coord_mm_transform
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_ml_from_atlas_coordinate,
+    coord_mm_transform,
+    get_bregma,
+)
 from napari_dmc_brainmap.results.results_helpers.slice_handle import SliceHandle
 
 class TractCalculator:
@@ -362,6 +366,12 @@ class TractCalculator:
                                                                         row[col_names[1]],
                                                                         row[col_names[2]]],
                                                                        bregma, self.atlas.space.resolution)), axis=1)
+        rl_idx = self.atlas.space.axes_description.index('rl')
+        probe_tract['ml_mm'] = analysis_ml_from_atlas_coordinate(
+            probe_tract['ml_coords'].to_numpy(),
+            bregma[rl_idx],
+            self.atlas.space.resolution[rl_idx],
+        )
 
         probe_tract['structure_id'] = self.annot[
             probe_tract[col_names[0]], probe_tract[col_names[1]], probe_tract[col_names[2]]]

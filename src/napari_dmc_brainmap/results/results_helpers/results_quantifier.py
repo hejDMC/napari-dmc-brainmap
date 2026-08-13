@@ -8,7 +8,12 @@ from napari.utils.notifications import show_info
 from napari_dmc_brainmap.utils.path_utils import get_info
 from napari_dmc_brainmap.utils.general_utils import split_strings_layers, get_animal_id
 from napari_dmc_brainmap.utils.data_loader import DataLoader
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma
+from napari_dmc_brainmap.utils.atlas_utils import (
+    get_bregma,
+    get_xyz,
+    hemisphere_from_atlas_coordinate,
+)
+from napari_dmc_brainmap.utils.params_utils import load_params
 
 class ResultsQuantifier:
     """
@@ -205,7 +210,6 @@ class ResultsQuantifier:
         return animal_data
 
     def _calculate_injection_site_coverage(self, quant_df_pivot_raw):
-        # todo hemispheres
         fn_plane_data = self.results_dir.joinpath(f'{get_animal_id(self.input_path)}_{self.seg_type}_plane_data.npz')
         plane_data = np.load(fn_plane_data)
         section_list = self.results_data['section_name'].unique().tolist()
@@ -218,21 +222,40 @@ class ResultsQuantifier:
         )
         region_count = {v: 0 for v in id_to_parent_map.values()}
 
-        # todo work in progress - injection sites need to be on one hemisphere alone
         bregma = get_bregma(self.atlas.atlas_name)
-        if len(self.results_data[self.results_data['ml_coords'] >= bregma[2]]) >= \
-                len(self.results_data[self.results_data['ml_coords'] < bregma[2]]):
-            larger_bregma = True
-        else:
-            larger_bregma = False
+        rl_idx = self.atlas.space.axes_description.index('rl')
+        bregma_rl = bregma[rl_idx]
+        injection_hemisphere = self._majority_hemisphere(
+            self.results_data['ml_coords'].to_numpy(),
+            bregma_rl,
+        )
+        orientation = load_params(self.input_path)['atlas_info']['orientation']
+        xyz_dict = get_xyz(self.atlas, orientation)
+        rl_axis = next(
+            axis for axis in ('x', 'y', 'z')
+            if xyz_dict[axis][0] == 'rl'
+        )
 
         for section in section_list:
             try:
                 p_d = plane_data[section[:-len(ds_suffix)]]
-                if larger_bregma:
-                    p_d = p_d[:,570:]
+                if rl_axis == 'z':
+                    section_data = self.results_data.loc[
+                        self.results_data['section_name'] == section,
+                        'ml_coords',
+                    ]
+                    if section_data.empty or self._majority_hemisphere(
+                        section_data.to_numpy(),
+                        bregma_rl,
+                    ) != injection_hemisphere:
+                        continue
                 else:
-                    p_d = p_d[:,:570]
+                    p_d = self._crop_plane_to_hemisphere(
+                        p_d,
+                        rl_axis,
+                        bregma_rl,
+                        injection_hemisphere,
+                    )
 
                 for k, v in id_to_parent_map.items():
                     region_count[v] += int(np.sum(p_d == k))
@@ -248,6 +271,44 @@ class ResultsQuantifier:
                 show_info(f'Error for calculating 2D estimate!')
 
         return quant_df_inj_coverage
+
+    @staticmethod
+    def _majority_hemisphere(ml_coords, bregma_rl):
+        """Return the dominant anatomical hemisphere for atlas RL indices."""
+        hemispheres = hemisphere_from_atlas_coordinate(
+            np.asarray(ml_coords),
+            bregma_rl,
+        )
+        left_count = np.count_nonzero(
+            (hemispheres == 'left') | (hemispheres == 'midline')
+        )
+        right_count = np.count_nonzero(hemispheres == 'right')
+        return 'left' if left_count >= right_count else 'right'
+
+    @staticmethod
+    def _crop_plane_to_hemisphere(
+        plane,
+        rl_axis,
+        bregma_rl,
+        hemisphere,
+    ):
+        """Crop an atlas plane along its in-plane RL axis."""
+        if rl_axis not in ('x', 'y'):
+            raise ValueError("The in-plane RL axis must be 'x' or 'y'.")
+        if hemisphere not in ('left', 'right'):
+            raise ValueError("Hemisphere must be 'left' or 'right'.")
+
+        if rl_axis == 'x':
+            return (
+                plane[:, bregma_rl:]
+                if hemisphere == 'left'
+                else plane[:, :bregma_rl]
+            )
+        return (
+            plane[bregma_rl:, :]
+            if hemisphere == 'left'
+            else plane[:bregma_rl, :]
+        )
     # def _plot_quant_data(self, df):
     #
     #     clrs = sns.color_palette(self.plotting_params["cmap"])

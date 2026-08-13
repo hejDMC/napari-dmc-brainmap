@@ -2,7 +2,10 @@ from qtpy.QtGui import QAction
 from qtpy.QtWidgets import QMainWindow, QMenu, QFileDialog, QApplication
 from napari_dmc_brainmap.results.probe_vis.probe_vis.view.MainWidget import MainWidget
 # from napari_dmc_brainmap.preprocessing.preprocessing_tools import adjust_contrast, do_8bit
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma
+from napari_dmc_brainmap.utils.atlas_utils import (
+    analysis_ml_from_atlas_coordinate,
+    get_bregma,
+)
 from napari_dmc_brainmap.utils.atlas_cache import load_template_8bit
 
 import numpy as np
@@ -232,8 +235,12 @@ class ProbeVisualizer(QMainWindow):
                          (self.atlas.resolution[self.atlas.space.axes_description.index('ap')]/1000),self.decimal)
         dv_mm = np.round((self.bregma[1] - vox_dv) *
                          (self.atlas.resolution[self.atlas.space.axes_description.index('si')] / 1000), self.decimal)
-        ml_mm = np.round((self.bregma[2] - vox_ml) *
-                         (self.atlas.resolution[self.atlas.space.axes_description.index('rl')] / 1000), self.decimal)
+        rl_idx = self.atlas.space.axes_description.index('rl')
+        ml_mm = analysis_ml_from_atlas_coordinate(
+            vox_ml,
+            self.bregma[2],
+            self.atlas.resolution[rl_idx],
+        )
         return [ap_mm,dv_mm,ml_mm]
 
     def createMenus(self):

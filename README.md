@@ -117,6 +117,16 @@ Plugins > dmc_brainmap
 
 ### Usage
 
+#### Coordinate convention
+
+DMC-BrainMap uses a left-positive mediolateral convention in result CSV files
+and user-facing analysis: `ML > 0` is anatomical left and `ML < 0` is
+anatomical right. In an unflipped coronal BrainGlobe atlas image, anatomical
+left appears on image-right because the atlas `rl` index increases from right
+to left. See the
+[coordinate and hemisphere conventions](https://napari-dmc-brainmap.readthedocs.io/en/latest/coordinate_conventions.html)
+for result-file compatibility and mirroring details.
+
 Please refer to the Wiki pages for detailed instructions and a short tutorial on how to use DMC-BrainMap. When working with DMC-BrainMap on your own data, please keep the following points in mind:
 - DMC-BrainMap requires single-channel 16-bit .tif/.tiff images to work (in principle 8-bit also work)
 - DMC-BrainMap requires that your data is organized by animals in separate folders (you can pool data later down the lane)

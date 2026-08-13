@@ -7,7 +7,12 @@ from pathlib import Path
 from napari.utils.notifications import show_info
 from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.calculation import fitGeoTrans, mapPointTransform
 from napari_dmc_brainmap.utils.general_utils import get_animal_id
-from napari_dmc_brainmap.utils.atlas_utils import get_bregma, xyz_atlas_transform, coord_mm_transform
+from napari_dmc_brainmap.utils.atlas_utils import (
+    atlas_mm_to_analysis_mm,
+    coord_mm_transform,
+    get_bregma,
+    xyz_atlas_transform,
+)
 from brainglobe_atlasapi import BrainGlobeAtlas
 
 class SliceHandle():
@@ -227,6 +232,10 @@ class SliceHandle():
                     acronym_list.append('root')
                 # calculate Allen coordinates in mm unit
                 vol_mm = coord_mm_transform(triplet, self.bregma, self.atlas.space.resolution)
+                vol_mm = atlas_mm_to_analysis_mm(
+                    vol_mm,
+                    self.atlas.space.axes_description,
+                )
                 vol_mm_list.append(vol_mm)
             name_dict = {
                 'ap': 'ap',
@@ -250,15 +259,19 @@ class SliceHandle():
         Function to get atlas plane data for respective registered image
         :return: np.array: containing atlas plane data
         """
-        z_plane = self.get_z_plane(str(self.currentSlice))
-        z_flat = z_plane.astype(int).ravel()
+        z_plane = self.get_z_plane(str(self.currentSlice)).astype(np.intp)
         x_max = self.regi_dict['xyz_dict']['x'][1]
         y_max = self.regi_dict['xyz_dict']['y'][1]
         y = np.arange(y_max)
         x = np.arange(x_max)
         grid_x, grid_y = np.meshgrid(x, y)
-        r_grid_x = grid_x.ravel()
-        r_grid_y = grid_y.ravel()
-        sliceAnnot = self.annot[z_flat, r_grid_y, r_grid_x].reshape(self.regi_dict['xyz_dict']['y'][1],
-                                                                         self.regi_dict['xyz_dict']['x'][1]).astype(np.int32)
-        return sliceAnnot
+        section_coordinates = {
+            self.regi_dict['xyz_dict']['x'][0]: grid_x,
+            self.regi_dict['xyz_dict']['y'][0]: grid_y,
+            self.regi_dict['xyz_dict']['z'][0]: z_plane,
+        }
+        atlas_indices = tuple(
+            section_coordinates[axis]
+            for axis in self.atlas.space.axes_description
+        )
+        return self.annot[atlas_indices].astype(np.int32)

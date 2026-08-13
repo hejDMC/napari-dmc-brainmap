@@ -83,12 +83,20 @@ def test_inside_brain_filter_does_not_warn_or_mutate_loaded_data(
         {
             "inside_brain": [True, False],
             "ml_mm": [1.0, 2.0],
+            "ml_coords": [400, 300],
         }
     )
 
     loader = object.__new__(DataLoader)
     loader.input_path = tmp_path
-    loader.atlas = SimpleNamespace(metadata={"name": "custom_atlas"})
+    loader.atlas = SimpleNamespace(
+        metadata={"name": "custom_atlas"},
+        space=SimpleNamespace(
+            axes_description=("ap", "si", "rl"),
+            resolution=(10.0, 10.0, 10.0),
+        ),
+    )
+    loader.bregma = [0, 0, 500]
     loader.animal_list = ["animal-1"]
     loader.channels = ["probe"]
     loader.data_type = "neuropixels_probe"
@@ -106,9 +114,52 @@ def test_inside_brain_filter_does_not_warn_or_mutate_loaded_data(
     assert source.to_dict("list") == {
         "inside_brain": [True, False],
         "ml_mm": [1.0, 2.0],
+        "ml_coords": [400, 300],
     }
     assert result["ml_mm"].tolist() == [-1.0]
     assert result["ipsi_contra"].tolist() == ["ipsi"]
+
+
+def test_ml_normalization_accepts_legacy_and_current_result_signs():
+    loader = object.__new__(DataLoader)
+    loader.atlas = SimpleNamespace(
+        space=SimpleNamespace(
+            axes_description=("ap", "si", "rl"),
+            resolution=(10.0, 10.0, 10.0),
+        )
+    )
+    loader.bregma = [0, 0, 570]
+    source = pd.DataFrame(
+        {
+            "ml_coords": [730, 410],
+            # First is legacy left-negative; second is current right-negative.
+            "ml_mm": [-1.6, -1.6],
+        }
+    )
+
+    result = loader._normalize_ml_mm(source)
+
+    assert source["ml_mm"].tolist() == [-1.6, -1.6]
+    assert result["ml_mm"].tolist() == [1.6, -1.6]
+
+
+def test_ipsi_contra_uses_atlas_hemisphere_not_input_ml_sign():
+    loader = object.__new__(DataLoader)
+    loader.atlas = SimpleNamespace(
+        space=SimpleNamespace(axes_description=("ap", "si", "rl"))
+    )
+    loader.bregma = [0, 0, 570]
+    source = pd.DataFrame(
+        {
+            "ml_coords": [730, 410],
+            "ml_mm": [-99.0, 99.0],
+            "injection_site": ["left", "left"],
+        }
+    )
+
+    result = loader._get_ipsi_contra(source)
+
+    assert result["ipsi_contra"].tolist() == ["ipsi", "contra"]
 
 
 def test_heatmap_binning_accepts_a_filtered_frame_without_warning():
@@ -212,7 +263,10 @@ def test_swc_loader_accepts_mixed_whitespace_without_future_warning(
     loader.data_type = "swc"
     loader.bregma = [0, 0, 0]
     loader.atlas = SimpleNamespace(
-        space=SimpleNamespace(resolution=[1, 1, 1])
+        space=SimpleNamespace(
+            axes_description=("ap", "si", "rl"),
+            resolution=[1, 1, 1],
+        )
     )
     monkeypatch.setattr(
         "napari_dmc_brainmap.utils.data_loader.get_info",
@@ -242,6 +296,7 @@ def test_swc_loader_accepts_mixed_whitespace_without_future_warning(
     }
     assert result["neuron_id"].tolist() == ["neuron", "neuron"]
     assert result["group_id"].tolist() == ["control", "control"]
+    assert result["ml_mm"].tolist() == [0.01, 0.011]
 
 
 def test_heatmap_pivot_preserves_unobserved_bins():
