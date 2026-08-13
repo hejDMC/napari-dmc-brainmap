@@ -1,4 +1,5 @@
 import os
+from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -104,6 +105,99 @@ def test_sharpy_cy3_default_matches_direct_stitching():
 
     preprocessing_widget.close()
     stitching_widget.native.close()
+
+
+@pytest.mark.parametrize(
+    (
+        "seg_type",
+        "show_probe_count",
+        "show_point_size",
+        "show_cells",
+        "show_centroids",
+        "show_projections",
+    ),
+    [
+        ("cells", False, True, True, True, False),
+        ("injection_site", False, False, False, False, False),
+        ("optic_fiber", True, True, False, False, False),
+        ("neuropixels_probe", True, True, False, False, False),
+        ("projections", False, True, False, False, True),
+    ],
+)
+def test_segmentation_type_shows_only_relevant_controls(
+    seg_type,
+    show_probe_count,
+    show_point_size,
+    show_cells,
+    show_centroids,
+    show_projections,
+):
+    widget = segment.SegmentWidget(SimpleNamespace())
+
+    widget.segment.seg_type.value = seg_type
+
+    assert widget.segment.n_probes.native.isHidden() is not show_probe_count
+    assert widget.segment.point_size.native.isHidden() is not show_point_size
+    assert widget._collapse_cells.isHidden() is not show_cells
+    assert widget._collapse_centroid.isHidden() is not show_centroids
+    assert widget._collapse_projections.isHidden() is not show_projections
+    assert widget._collapse_load_preseg.isHidden() is False
+
+    widget.close()
+
+
+def test_segmentation_annotation_channels_follow_image_mode():
+    widget = segment.SegmentWidget(SimpleNamespace())
+    channels = widget.segment.channels
+
+    assert [child.name for child in widget.segment][1:5] == [
+        "input_path",
+        "seg_type",
+        "single_channel_bool",
+        "channels",
+    ]
+    assert tuple(channels.choices) == ("dapi", "green", "cy3")
+    assert channels.value == ["green", "cy3"]
+    assert widget.segment.contrast_dapi.native.isHidden() is True
+    assert widget.segment.contrast_green.native.isHidden() is False
+    assert widget.segment.contrast_cy3.native.isHidden() is False
+    assert widget.segment.contrast_n3.native.isHidden() is True
+    assert widget.segment.contrast_cy5.native.isHidden() is True
+
+    widget.segment.single_channel_bool.value = True
+    assert tuple(channels.choices) == (
+        "dapi",
+        "green",
+        "n3",
+        "cy3",
+        "cy5",
+    )
+
+    channels.value = ["green", "n3"]
+    assert widget.segment.contrast_green.native.isHidden() is False
+    assert widget.segment.contrast_n3.native.isHidden() is False
+    assert widget.segment.contrast_cy3.native.isHidden() is True
+
+    widget.segment.single_channel_bool.value = False
+    assert tuple(channels.choices) == ("dapi", "green", "cy3")
+    assert channels.value == ["green"]
+    assert widget.segment.contrast_n3.native.isHidden() is True
+
+    widget.close()
+
+
+def test_hidden_contrast_fields_are_not_parsed():
+    widget = segment.SegmentWidget(SimpleNamespace())
+    widget.segment.contrast_n3.value = ""
+    widget.segment.contrast_cy5.value = "not,a,range"
+
+    contrast = widget._get_contrast_dict(
+        widget.segment,
+        widget.segment.channels.value,
+    )
+
+    assert contrast == {"green": [0, 100], "cy3": [0, 100]}
+    widget.close()
 
 
 def test_disabled_rgb_contrast_does_not_parse_limit_fields():

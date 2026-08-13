@@ -23,6 +23,16 @@ from napari_dmc_brainmap.segment.processing.presegmentation_tools import Project
 from napari_dmc_brainmap.segment.processing.centroid_finder import CentroidFinder
 
 
+RGB_CHANNELS = ('dapi', 'green', 'cy3')
+SINGLE_CHANNELS = ('dapi', 'green', 'n3', 'cy3', 'cy5')
+TRACT_SEGMENTATION_TYPES = ('optic_fiber', 'neuropixels_probe')
+POINT_SEGMENTATION_TYPES = (
+    'cells',
+    'optic_fiber',
+    'neuropixels_probe',
+    'projections',
+)
+
 
 def get_cmap(name: str) -> Dict[str, str]:
     """
@@ -180,10 +190,10 @@ def initialize_segment_widget() -> FunctionGui:
                               tooltip='directory of folder containing subfolders with e.g. images, segmentation results, NOT '
                                       'folder containing segmentation results'),
               single_channel_bool=dict(widget_type='CheckBox',
-                                       text='use single channel',
+                                       text='use single-channel images for annotation',
                                        value=False,
-                                       tooltip='tick to use single channel images (not RGB), one can still select '
-                                               'multiple channels'),
+                                       tooltip='tick to annotate separate single-channel images instead of an RGB image; '
+                                               'N3 and Cy5 are available only in this mode'),
               seg_type=dict(widget_type='ComboBox',
                             label='segmentation type',
                             choices=['cells', 'injection_site', 'optic_fiber', 'neuropixels_probe', 'projections'],
@@ -203,7 +213,7 @@ def initialize_segment_widget() -> FunctionGui:
               channels=dict(widget_type='Select',
                             label='selected channels',
                             value=['green', 'cy3'],
-                            choices=['dapi', 'green', 'n3', 'cy3', 'cy5'],
+                            choices=RGB_CHANNELS,
                             tooltip='select channels to be used for segmentation, '
                                     'to select multiple hold ctrl/shift'),
               contrast_dapi=dict(widget_type='LineEdit',
@@ -235,16 +245,17 @@ def initialize_segment_widget() -> FunctionGui:
             viewer: Viewer,
             input_path,  # posix path
             seg_type,
-            n_probes,
-            point_size,
+            single_channel_bool,
             channels,
             contrast_dapi,
             contrast_green,
             contrast_n3,
             contrast_cy3,
             contrast_cy5,
+            n_probes,
+            point_size,
             image_idx,
-            single_channel_bool):
+    ):
         pass
 
     return segment_widget
@@ -290,10 +301,10 @@ def initialize_presegcells_widget():
     """
     @magicgui(layout='vertical',
               single_channel_bool=dict(widget_type='CheckBox',
-                                       text='use single channel',
+                                       text='use single-channel images for cell presegmentation',
                                        value=False,
-                                       tooltip='tick to use single channel images (not RGB), one can still select '
-                                               'multiple channels'),
+                                       tooltip='tick to run cell presegmentation on separate single-channel images '
+                                               'instead of RGB images'),
               regi_bool=dict(widget_type='CheckBox',
                              text='registration done?',
                              value=True,
@@ -521,6 +532,65 @@ class SegmentWidget(QWidget):
         self.layout().addWidget(self._collapse_centroid)
         self.layout().addWidget(self.btn)
 
+        self.segment.seg_type.changed.connect(self._update_segmentation_ui)
+        self.segment.single_channel_bool.changed.connect(
+            self._update_channel_options
+        )
+        self.segment.channels.changed.connect(
+            self._update_contrast_visibility
+        )
+        self._update_channel_options()
+        self._update_segmentation_ui()
+
+    def _update_segmentation_ui(self, *_args) -> None:
+        """Show only controls relevant to the selected segmentation type."""
+        seg_type = self.segment.seg_type.value
+        self.segment.n_probes.visible = seg_type in TRACT_SEGMENTATION_TYPES
+        self.segment.point_size.visible = seg_type in POINT_SEGMENTATION_TYPES
+
+        cells_selected = seg_type == 'cells'
+        self._collapse_cells.setVisible(cells_selected)
+        self._collapse_centroid.setVisible(cells_selected)
+        self._collapse_projections.setVisible(seg_type == 'projections')
+
+    def _update_channel_options(self, *_args) -> None:
+        """Limit RGB annotation to channels represented by the RGB image."""
+        channels_widget = self.segment.channels
+        selected_channels = list(channels_widget.value)
+        allowed_channels = (
+            SINGLE_CHANNELS
+            if self.segment.single_channel_bool.value
+            else RGB_CHANNELS
+        )
+
+        if tuple(channels_widget.choices) != allowed_channels:
+            # Clearing first preserves the intended order when choices that
+            # were previously removed are restored by magicgui.
+            channels_widget.choices = []
+            channels_widget.choices = allowed_channels
+
+        valid_selection = [
+            channel
+            for channel in selected_channels
+            if channel in allowed_channels
+        ]
+        if not valid_selection:
+            valid_selection = [
+                channel
+                for channel in ('green', 'cy3')
+                if channel in allowed_channels
+            ]
+        channels_widget.value = valid_selection
+        self._update_contrast_visibility()
+
+    def _update_contrast_visibility(self, *_args) -> None:
+        """Show contrast limits only for channels selected for annotation."""
+        selected_channels = set(self.segment.channels.value)
+        for channel in SINGLE_CHANNELS:
+            self.segment[f'contrast_{channel}'].visible = (
+                channel in selected_channels
+            )
+
     def _default_save_dict(self) -> Dict[str, Union[bool, int]]:
         """
         Create a default save dictionary for storing segmentation data.
@@ -553,23 +623,28 @@ class SegmentWidget(QWidget):
         self.save_dict['n_probes'] = n_probes
         return self.save_dict
 
-    def _get_contrast_dict(self, widget: FunctionGui) -> Dict[str, List[int]]:
+    def _get_contrast_dict(
+        self,
+        widget: FunctionGui,
+        channels: List[str],
+    ) -> Dict[str, List[int]]:
         """
         Retrieve contrast settings for each channel from the widget.
 
         Parameters:
             widget (FunctionGui): The widget containing contrast settings.
+            channels (List[str]): Selected annotation channels.
 
         Returns:
             Dict[str, List[int]]: A dictionary of contrast limits for each channel.
         """
 
         return {
-            "dapi": [int(i) for i in widget.contrast_dapi.value.split(',')],
-            "green": [int(i) for i in widget.contrast_green.value.split(',')],
-            "n3": [int(i) for i in widget.contrast_n3.value.split(',')],
-            "cy3": [int(i) for i in widget.contrast_cy3.value.split(',')],
-            "cy5": [int(i) for i in widget.contrast_cy5.value.split(',')]
+            channel: [
+                int(value)
+                for value in widget[f'contrast_{channel}'].value.split(',')
+            ]
+            for channel in channels
         }
 
     def _save_and_load(self) -> None:
@@ -587,9 +662,13 @@ class SegmentWidget(QWidget):
         image_idx = int(self.segment.image_idx.value)
         seg_type = self.segment.seg_type.value
         channels = self.segment.channels.value
-        n_probes = int(self.segment.n_probes.value)
+        n_probes = (
+            int(self.segment.n_probes.value)
+            if seg_type in TRACT_SEGMENTATION_TYPES
+            else 1
+        )
         single_channel = self.segment.single_channel_bool.value
-        contrast_dict = self._get_contrast_dict(self.segment)
+        contrast_dict = self._get_contrast_dict(self.segment, channels)
 
         if len(self.viewer.layers) == 0:  # no open images, set save_dict to defaults
             self.save_dict = self._default_save_dict()
