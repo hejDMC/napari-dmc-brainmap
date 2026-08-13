@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Simplified the segmentation widget by showing only controls and
+  presegmentation sections relevant to the selected workflow. RGB annotation
+  now offers DAPI, green, and Cy3; N3 and Cy5 are available in single-channel
+  mode.
 - Standardized public mediolateral coordinates as positive in the anatomical
   left hemisphere and negative in the anatomical right hemisphere.
 - Corrected the brain-section hemisphere tooltip and coordinate displays, and
