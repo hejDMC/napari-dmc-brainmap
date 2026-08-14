@@ -84,6 +84,9 @@ Thumbs.db
 .env
 .python-version
 local_settings.py
+.codex
+AGENTS.md
+SESSION_LOG.md
 
 # PyInstaller
 *.manifest
