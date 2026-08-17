@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -38,16 +37,22 @@ jobs:
             tox-env: py311
             coverage: false
           - platform: ubuntu-latest
+            python-version: '3.12'
+            tox-env: py312-full
+            coverage: false
+          - platform: ubuntu-latest
             python-version: '3.13'
             tox-env: py313-full
             coverage: false
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        # v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        # v6.3.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -74,8 +79,20 @@ jobs:
       - name: Install Windows OpenGL
         if: runner.os == 'Windows'
         run: |
-          git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
-          powershell gl-ci-helpers/appveyor/install_opengl.ps1
+          # The former pyvista/gl-ci-helpers install_opengl.ps1 helper was
+          # inspected at d1c3a005634166a4acee81e8e0446e528ffbd0a9. It downloads
+          # this Mesa DLL from vispy/demo-data@main, so fetch the equivalent
+          # file from this immutable commit and verify its digest instead.
+          $url = 'https://raw.githubusercontent.com/vispy/demo-data/5a3db8447d3e13ed402545662f20f5ff191a6d42/mesa/opengl32_mingw_64.dll'
+          $path = "$env:WINDIR\System32\opengl32.dll"
+          $expectedHash = '83BA03739D9378ECC57631A02847597511E8387CD386CA97C6C9E29206D943CC'
+          Invoke-WebRequest -Uri $url -OutFile mesa-opengl32.dll
+          if ((Get-FileHash mesa-opengl32.dll -Algorithm SHA256).Hash -ne $expectedHash) {
+            throw 'Downloaded Mesa OpenGL DLL hash did not match the expected SHA-256.'
+          }
+          takeown /F $path /A
+          icacls $path /grant "${env:ComputerName}\${env:UserName}:F"
+          Move-Item -Path mesa-opengl32.dll -Destination $path -Force
 
       - name: Install test tooling
         run: |
@@ -90,9 +107,112 @@ jobs:
         if: runner.os != 'Linux'
         run: python -m tox -e "${{ matrix.tox-env }}"
 
-      - name: Upload coverage
+      - name: Upload coverage report
         if: matrix.coverage
-        uses: codecov/codecov-action@v7
+        # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: coverage-py311
+          path: coverage.xml
+          if-no-files-found: error
+
+  coverage:
+    name: Coverage (Python 3.11)
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download coverage report
+        # v6.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: coverage-py311
+          path: .
+
+      - name: Upload coverage
+        # v7.0.0; this is the only job requiring OIDC.
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f
         with:
           files: ./coverage.xml
           use_oidc: true
+
+  release-artifact:
+    name: Build and validate release artifacts
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Check out repository
+        # v6.1.0
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Set up Python 3.12
+        # v6.3.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+
+      - name: Build wheel and source distribution
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build --outdir dist
+
+      - name: Validate distribution metadata
+        run: python -m twine check --strict dist/*
+
+      - name: Validate artifact filenames and metadata
+        run: |
+          set -euo pipefail
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
+          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.0b2-py3-none-any.whl' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.0b2.tar.gz' | wc -l)" -eq 1
+          python - <<'PY'
+          from email import policy
+          from email.parser import Parser
+          from pathlib import Path
+          from tarfile import open as open_tarfile
+          from zipfile import ZipFile
+
+          wheel = next(Path("dist").glob("*.whl"))
+          with ZipFile(wheel) as archive:
+              metadata = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
+              wheel_metadata = Parser(policy=policy.default).parsestr(archive.read(metadata).decode())
+          assert wheel_metadata["Name"] == "napari-dmc-brainmap"
+          assert wheel_metadata["Version"] == "0.2.0b2"
+
+          sdist = next(Path("dist").glob("*.tar.gz"))
+          with open_tarfile(sdist) as archive:
+              metadata = next(member for member in archive.getmembers() if member.name.endswith("/PKG-INFO"))
+              sdist_metadata = Parser(policy=policy.default).parsestr(archive.extractfile(metadata).read().decode())
+          assert sdist_metadata["Name"] == "napari-dmc-brainmap"
+          assert sdist_metadata["Version"] == "0.2.0b2"
+          PY
+
+      - name: Fresh-install and verify the napari manifest
+        run: |
+          python -m venv artifact-venv
+          artifact-venv/bin/python -m pip install dist/napari_dmc_brainmap-0.2.0b2-py3-none-any.whl
+          artifact-venv/bin/python - <<'PY'
+          from importlib import resources
+          from importlib.metadata import distribution, version
+
+          assert version("napari-dmc-brainmap") == "0.2.0b2"
+          entry_points = distribution("napari-dmc-brainmap").entry_points
+          manifest = tuple(entry_points.select(group="napari.manifest", name="napari-dmc-brainmap"))
+          assert len(manifest) == 1
+          assert manifest[0].value == "napari_dmc_brainmap:napari.yaml"
+          assert resources.files("napari_dmc_brainmap").joinpath("napari.yaml").is_file()
+          import napari_dmc_brainmap
+          PY
+          artifact-venv/bin/python -m npe2 validate napari-dmc-brainmap
+
+      - name: Upload validated release artifacts
+        # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: napari-dmc-brainmap-0.2.0b2
+          path: |
+            dist/napari_dmc_brainmap-0.2.0b2-py3-none-any.whl
+            dist/napari_dmc_brainmap-0.2.0b2.tar.gz
+          if-no-files-found: error
