@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.0b2 - 2026-08-17
+
+- Upgraded BrainGlobe Atlas API to `3.0.1`.
+- Added automatic RGB contrast calibration with reproducible per-channel ranges,
+  selectable signal-preservation profiles, all-black-section handling, and
+  progress reporting in preprocessing. Fixed disabled/manual contrast behavior
+  and replaced stale RGB parameter metadata.
 - Added ProbeInterface 0.3.2 as the supported SpikeGLX metadata and
   Neuropixels geometry reader for the upcoming multi-shank workflow.
 - Simplified the segmentation widget by showing only controls and
@@ -16,6 +23,22 @@
   orientations, 3D voxel exports, and signed ML coordinates.
 - Removed Allen-10-um-specific hemisphere slicing from injection-site coverage
   and corrected atlas-plane extraction for horizontal and sagittal sections.
+
+### Compatibility and testing
+
+- The automatic RGB calibration path supports uint8 and uint16 stitched images;
+  regression coverage includes calibration, preprocessing, atlas, and platform
+  compatibility contracts.
+- BrainGlobe Atlas API is pinned to `3.0.1`.
+
+### Installation
+
+Pre-releases are not selected by a normal pip upgrade. Install this beta
+explicitly:
+
+```bash
+pip install napari-dmc-brainmap==0.2.0b2
+```
 
 ## 0.2.0b1 - 2026-08-11
 
