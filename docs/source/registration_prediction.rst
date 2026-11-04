@@ -59,9 +59,9 @@ version 2.0.0 architecture had lower validation error than the spatial
 architecture on every held-out animal. The model card reports the measured
 errors. Prediction times were measured for one
 1140 × 800 section on a desktop CPU with two to eight threads; slower computers
-take longer. Version 2.0.0 requires this or a later DMC-BrainMap release;
-earlier releases report that the model file is not supported. Version 1.0.0
-remains supported.
+take longer. Version 2.0.0 requires DMC-BrainMap 0.2.1 or later; earlier
+releases report that the model file is not supported. Version 1.0.0 remains
+supported.
 
 Select the model
 ----------------

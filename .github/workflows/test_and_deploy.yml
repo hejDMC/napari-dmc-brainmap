@@ -173,8 +173,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
-          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.0b2-py3-none-any.whl' | wc -l)" -eq 1
-          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.0b2.tar.gz' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.1-py3-none-any.whl' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.1.tar.gz' | wc -l)" -eq 1
           python - <<'PY'
           from email import policy
           from email.parser import Parser
@@ -187,25 +187,25 @@ jobs:
               metadata = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
               wheel_metadata = Parser(policy=policy.default).parsestr(archive.read(metadata).decode())
           assert wheel_metadata["Name"] == "napari-dmc-brainmap"
-          assert wheel_metadata["Version"] == "0.2.0b2"
+          assert wheel_metadata["Version"] == "0.2.1"
 
           sdist = next(Path("dist").glob("*.tar.gz"))
           with open_tarfile(sdist) as archive:
               metadata = next(member for member in archive.getmembers() if member.name.endswith("/PKG-INFO"))
               sdist_metadata = Parser(policy=policy.default).parsestr(archive.extractfile(metadata).read().decode())
           assert sdist_metadata["Name"] == "napari-dmc-brainmap"
-          assert sdist_metadata["Version"] == "0.2.0b2"
+          assert sdist_metadata["Version"] == "0.2.1"
           PY
 
       - name: Fresh-install and verify the napari manifest
         run: |
           python -m venv artifact-venv
-          artifact-venv/bin/python -m pip install dist/napari_dmc_brainmap-0.2.0b2-py3-none-any.whl
+          artifact-venv/bin/python -m pip install dist/napari_dmc_brainmap-0.2.1-py3-none-any.whl
           artifact-venv/bin/python - <<'PY'
           from importlib import resources
           from importlib.metadata import distribution, version
 
-          assert version("napari-dmc-brainmap") == "0.2.0b2"
+          assert version("napari-dmc-brainmap") == "0.2.1"
           entry_points = distribution("napari-dmc-brainmap").entry_points
           manifest = tuple(entry_points.select(group="napari.manifest", name="napari-dmc-brainmap"))
           assert len(manifest) == 1
@@ -219,8 +219,8 @@ jobs:
         # v6.0.0
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: napari-dmc-brainmap-0.2.0b2
+          name: napari-dmc-brainmap-0.2.1
           path: |
-            dist/napari_dmc_brainmap-0.2.0b2-py3-none-any.whl
-            dist/napari_dmc_brainmap-0.2.0b2.tar.gz
+            dist/napari_dmc_brainmap-0.2.1-py3-none-any.whl
+            dist/napari_dmc_brainmap-0.2.1.tar.gz
           if-no-files-found: error
