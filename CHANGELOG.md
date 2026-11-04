@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.2.1 - 2026-11-04
+
+This is the first stable release since `0.1.8`. Upgrading from `0.1.x` also
+brings every change from the `0.2.0b1` and `0.2.0b2` beta releases below,
+including the BrainGlobe Atlas API 3.x migration, the platform-specific atlas
+cache, and the standardized hemisphere and mediolateral coordinate
+conventions. Review those entries before upgrading existing projects.
+
 - Registration prediction now supports version 2.0.0 of the DMC-BrainMap
   Registration Predictor, a residual feature-pyramid model, and the
   prediction guide recommends it. Version 1.0.0 checkpoints still load
@@ -17,6 +25,14 @@
   they are skipped otherwise. Release checks confirmed identical
   offsets to the training implementation on 24 held-out section pairs for both
   model versions.
+
+### Installation
+
+As a stable release, `0.2.1` is selected by a normal installation or upgrade:
+
+```bash
+pip install --upgrade napari-dmc-brainmap
+```
 
 ## 0.2.0b2 - 2026-08-17
 
