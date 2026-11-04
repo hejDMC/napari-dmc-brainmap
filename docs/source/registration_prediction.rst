@@ -3,7 +3,7 @@ Prediction-assisted registration
 
 DMC-BrainMap can use an optional PyTorch checkpoint to propose an initial
 projective alignment between a histological section and a selected Allen Mouse
-Brain Atlas reference slice. The supported checkpoint and its model card are
+Brain Atlas reference slice. The supported checkpoints and their model card are
 published in the `DMC-BrainMap Registration Predictor repository
 <https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor>`_.
 
@@ -28,12 +28,40 @@ Download the model
 
 #. Open the model repository linked above.
 #. Select **Files and versions**.
-#. Download the `version 1.0.0 checkpoint
-   <https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor/resolve/v1.0.0/dmc-brainmap-registration-predictor-v1.0.0.pt?download=true>`_.
-   The filename is ``dmc-brainmap-registration-predictor-v1.0.0.pt``.
+#. Download the `version 2.0.0 checkpoint
+   <https://huggingface.co/xiao-1011/dmc-brainmap-registration-predictor/resolve/v2.0.0/dmc-brainmap-registration-predictor-v2.0.0.pt?download=true>`_.
+   The filename is ``dmc-brainmap-registration-predictor-v2.0.0.pt``.
 
 The model card documents the checkpoint version, supported inputs, evaluation
 results, limitations, license, and SHA-256 checksum.
+
+Supported checkpoints
+^^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+
+   * - Version
+     - Architecture
+     - File size
+     - CPU time per prediction
+   * - 2.0.0 (recommended)
+     - Residual feature pyramid, 14.0 M parameters
+     - 56 MB
+     - About 0.6–1 s
+   * - 1.0.0
+     - Spatial convolutional network, 2.3 M parameters
+     - 9 MB
+     - About 0.03 s
+
+In the developers' controlled comparison over three training runs, the
+version 2.0.0 architecture had lower validation error than the spatial
+architecture on every held-out animal. The model card reports the measured
+errors. Prediction times were measured for one
+1140 × 800 section on a desktop CPU with two to eight threads; slower computers
+take longer. Version 2.0.0 requires this or a later DMC-BrainMap release;
+earlier releases report that the model file is not supported. Version 1.0.0
+remains supported.
 
 Select the model
 ----------------

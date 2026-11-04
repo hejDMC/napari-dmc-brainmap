@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Registration prediction now supports version 2.0.0 of the DMC-BrainMap
+  Registration Predictor, a residual feature-pyramid model, and the
+  prediction guide recommends it. Version 1.0.0 checkpoints still load
+  unchanged.
+- Prediction checkpoints with an unsupported model type or a newer file format
+  now fail with a specific error message naming the supported types.
+
+### Compatibility and testing
+
+- Inference remains CPU-only FP32. When the optional `prediction` extra is
+  installed, prediction tests save and load small synthetic spatial and pyramid
+  checkpoints with real PyTorch and check the released pyramid weight layout;
+  they are skipped otherwise. Release checks confirmed identical
+  offsets to the training implementation on 24 held-out section pairs for both
+  model versions.
+
 ## 0.2.0b2 - 2026-08-17
 
 - Upgraded BrainGlobe Atlas API to `3.0.1`.

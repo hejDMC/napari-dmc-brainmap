@@ -6,6 +6,8 @@ import numpy as np
 
 
 VALIDATED_IMAGE_SHAPE = (800, 1140)
+SUPPORTED_CHECKPOINT_MODELS = ("spatial", "pyramid")
+SUPPORTED_CHECKPOINT_FORMAT_VERSION = 1
 
 
 CORNER_ORDER = np.float32(
@@ -175,8 +177,10 @@ class RegistrationTransformPredictor:
     ) -> np.ndarray:
         self._validate_inputs(sample_image, reference_image)
         self._ensure_model_loaded()
-        expected_channels = self._model_input_channels()
-        force_gray = expected_channels == 2
+        force_gray = (
+            getattr(self.model, "requires_grayscale_inputs", False)
+            or self._model_input_channels() == 2
+        )
         sample_tensor = self._image_to_tensor(sample_image, force_gray=force_gray)
         reference_tensor = self._image_to_tensor(reference_image, force_gray=force_gray)
 
@@ -244,10 +248,10 @@ class RegistrationTransformPredictor:
                 self.model = checkpoint["model"]
             elif (
                 isinstance(checkpoint, dict)
-                and checkpoint.get("model_config", {}).get("model_name") == "spatial"
+                and isinstance(checkpoint.get("model_config"), dict)
                 and "model_state_dict" in checkpoint
             ):
-                self.model = self._load_spatial_model(checkpoint)
+                self.model = self._load_state_dict_model(checkpoint)
             else:
                 raise ValueError(
                     "Model file must be a TorchScript model or a checkpoint "
@@ -256,15 +260,55 @@ class RegistrationTransformPredictor:
         self.model.to(self.device)
         self.model.eval()
 
+    def _load_state_dict_model(self, checkpoint: dict):
+        format_version = checkpoint.get("format_version", 1)
+        if not isinstance(format_version, int) or isinstance(format_version, bool):
+            raise ValueError(f"Invalid model file format version {format_version!r}.")
+        if format_version > SUPPORTED_CHECKPOINT_FORMAT_VERSION:
+            raise ValueError(
+                f"Model file format version {format_version} is newer than this "
+                f"plugin supports ({SUPPORTED_CHECKPOINT_FORMAT_VERSION}). "
+                "Update napari-dmc-brainmap to use this model."
+            )
+        model_name = checkpoint["model_config"].get("model_name")
+        if model_name == "spatial":
+            return self._load_spatial_model(checkpoint)
+        if model_name == "pyramid":
+            return self._load_pyramid_model(checkpoint)
+        raise ValueError(
+            f"Unsupported prediction model type {model_name!r}. Supported "
+            f"checkpoint types: {', '.join(SUPPORTED_CHECKPOINT_MODELS)}."
+        )
+
     def _load_spatial_model(self, checkpoint: dict):
         config = checkpoint["model_config"]
         model = _SpatialOffsetModel(
             self.torch,
             base_channels=int(config.get("base_channels", 24)),
-            max_corner_offset_px=float(config.get("max_corner_offset_px", 512.0)),
-            spatial_pool_size=tuple(config.get("spatial_pool_size", [5, 8])),
+            max_corner_offset_px=_optional_float(
+                config.get("max_corner_offset_px", 512.0)
+            ),
+            spatial_pool_size=_pool_size(config),
             spatial_hidden_channels=int(
                 config.get("spatial_hidden_channels", 256)
+            ),
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        return model
+
+    def _load_pyramid_model(self, checkpoint: dict):
+        config = checkpoint["model_config"]
+        model = _PyramidOffsetModel(
+            self.torch,
+            encoder_base_channels=int(config.get("encoder_base_channels", 64)),
+            pyramid_channels=int(config.get("pyramid_channels", 128)),
+            pyramid_head_channels=int(config.get("pyramid_head_channels", 64)),
+            spatial_pool_size=_pool_size(config),
+            spatial_hidden_channels=int(
+                config.get("spatial_hidden_channels", 256)
+            ),
+            max_corner_offset_px=_optional_float(
+                config.get("max_corner_offset_px", 512.0)
             ),
         )
         model.load_state_dict(checkpoint["model_state_dict"])
@@ -301,6 +345,8 @@ class _SpatialOffsetModel:
         nn = torch_module.nn
 
         class SpatialOffsetModel(nn.Module):
+            requires_grayscale_inputs = True
+
             def __init__(self):
                 super().__init__()
                 channels = [
@@ -351,3 +397,257 @@ class _SpatialOffsetModel:
                 return offsets
 
         return SpatialOffsetModel()
+
+
+def _optional_float(value: Any) -> float | None:
+    return None if value is None else float(value)
+
+
+def _pool_size(config: dict) -> tuple[int, int]:
+    height, width = config.get("spatial_pool_size", [5, 8])
+    return int(height), int(width)
+
+
+class _PyramidOffsetModel:
+    """Architecture for residual feature-pyramid state-dict checkpoints.
+
+    Copy of sharpy-model's ``PairPyramidHomographyNet`` regression variant
+    (``model_name="pyramid"``, coarse matching disabled). Module names, layer
+    order and numerics must stay identical so released state dicts load with
+    ``strict=True`` and reproduce training-time predictions.
+    """
+
+    CORRESPONDENCE_CHANNELS = 8
+    STRIDES = (8, 16, 32)
+
+    def __new__(
+        cls,
+        torch_module,
+        encoder_base_channels: int,
+        pyramid_channels: int,
+        pyramid_head_channels: int,
+        spatial_pool_size: tuple[int, int],
+        spatial_hidden_channels: int,
+        max_corner_offset_px: float | None,
+    ):
+        torch = torch_module
+        nn = torch.nn
+        functional = torch.nn.functional
+        correspondence_channels = cls.CORRESPONDENCE_CHANNELS
+        strides = cls.STRIDES
+
+        def norm(channels):
+            groups = min(8, channels)
+            while channels % groups:
+                groups -= 1
+            return nn.GroupNorm(groups, channels)
+
+        def conv(in_channels, out_channels, kernel=3, stride=1):
+            return nn.Sequential(
+                nn.Conv2d(
+                    in_channels,
+                    out_channels,
+                    kernel,
+                    stride=stride,
+                    padding=kernel // 2,
+                    bias=False,
+                ),
+                norm(out_channels),
+                nn.ReLU(inplace=True),
+            )
+
+        class ResidualBlock(nn.Module):
+            def __init__(self, in_channels, out_channels, stride=1):
+                super().__init__()
+                self.conv1 = conv(in_channels, out_channels, stride=stride)
+                self.conv2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False),
+                    norm(out_channels),
+                )
+                if in_channels == out_channels and stride == 1:
+                    self.skip = nn.Identity()
+                else:
+                    self.skip = nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels, 1, stride=stride, bias=False),
+                        norm(out_channels),
+                    )
+
+            def forward(self, x):
+                return functional.relu(self.conv2(self.conv1(x)) + self.skip(x))
+
+        class SharedResidualPyramid(nn.Module):
+            def __init__(self):
+                super().__init__()
+                channels = [encoder_base_channels * n for n in (1, 2, 4, 8)]
+                self.stages = nn.ModuleList(
+                    [
+                        nn.Sequential(
+                            ResidualBlock(
+                                channels[max(i - 1, 0)],
+                                c,
+                                stride=1 if i == 0 else 2,
+                            ),
+                            ResidualBlock(c, c),
+                        )
+                        for i, c in enumerate(channels)
+                    ]
+                )
+                self.lateral = nn.ModuleList(
+                    [nn.Conv2d(c, pyramid_channels, 1) for c in channels[1:]]
+                )
+                self.smooth = nn.ModuleList(
+                    [
+                        nn.Sequential(
+                            nn.Conv2d(
+                                pyramid_channels,
+                                pyramid_channels,
+                                3,
+                                padding=1,
+                                bias=False,
+                            ),
+                            norm(pyramid_channels),
+                        )
+                        for _ in range(3)
+                    ]
+                )
+
+            def forward(self, x):
+                features = []
+                for i, stage in enumerate(self.stages):
+                    x = stage(x)
+                    if i > 0:
+                        features.append(x)
+                lateral = [layer(value) for layer, value in zip(self.lateral, features)]
+                for i in (1, 0):
+                    lateral[i] = lateral[i] + functional.interpolate(
+                        lateral[i + 1], size=lateral[i].shape[-2:], mode="nearest"
+                    )
+                return [layer(value) for layer, value in zip(self.smooth, lateral)]
+
+        def support_mask(image):
+            # Bounding rectangle of nonzero pixels: padding is masked, dark
+            # anatomy inside the tissue rectangle is kept (training rule).
+            _, _, h, w = image.shape
+            xs = torch.arange(w, device=image.device)
+            ys = torch.arange(h, device=image.device)
+            nonzero = image[:, 0] != 0
+            columns = nonzero.any(dim=1)
+            rows = nonzero.any(dim=2)
+            x0 = torch.where(columns, xs, w).amin(dim=1)
+            x1 = torch.where(columns, xs + 1, 0).amax(dim=1)
+            y0 = torch.where(rows, ys, h).amin(dim=1)
+            y1 = torch.where(rows, ys + 1, 0).amax(dim=1)
+            x_valid = (xs[None, :] >= x0[:, None]) & (xs[None, :] < x1[:, None])
+            y_valid = (ys[None, :] >= y0[:, None]) & (ys[None, :] < y1[:, None])
+            return (y_valid[:, :, None] & x_valid[:, None, :]).unsqueeze(1)
+
+        def grid_xy(h, w, stride, device):
+            # Feature centers at 0, stride, 2*stride, ... in image pixels.
+            y, x = torch.meshgrid(
+                torch.arange(h, device=device, dtype=torch.float32) * stride,
+                torch.arange(w, device=device, dtype=torch.float32) * stride,
+                indexing="ij",
+            )
+            return torch.stack((x, y), dim=-1).reshape(1, h * w, 2)
+
+        class PyramidOffsetModel(nn.Module):
+            requires_grayscale_inputs = True
+
+            def __init__(self):
+                super().__init__()
+                self.max_corner_offset_px = max_corner_offset_px
+                self.spatial_pool_size = spatial_pool_size
+                self.sample_stem = nn.Sequential(
+                    conv(1, encoder_base_channels, kernel=7, stride=2),
+                    nn.MaxPool2d(3, stride=2, padding=1),
+                )
+                self.reference_stem = nn.Sequential(
+                    conv(1, encoder_base_channels, kernel=7, stride=2),
+                    nn.MaxPool2d(3, stride=2, padding=1),
+                )
+                self.encoder = SharedResidualPyramid()
+                self.fusion = nn.ModuleList(
+                    [
+                        nn.Sequential(
+                            conv(
+                                4 * pyramid_channels
+                                + 4
+                                + (correspondence_channels if i == 2 else 0),
+                                pyramid_head_channels,
+                                kernel=1,
+                            ),
+                            conv(pyramid_head_channels, pyramid_head_channels),
+                        )
+                        for i in range(3)
+                    ]
+                )
+                pooled = 3 * pyramid_head_channels * spatial_pool_size[0] * spatial_pool_size[1]
+                self.head = nn.Sequential(
+                    nn.Flatten(),
+                    nn.Linear(pooled, spatial_hidden_channels),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(spatial_hidden_channels, spatial_hidden_channels),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(spatial_hidden_channels, 8),
+                )
+
+            def forward(self, sample, reference):
+                if (
+                    sample.shape != reference.shape
+                    or sample.ndim != 4
+                    or sample.shape[1] != 1
+                ):
+                    raise ValueError(
+                        "Expected equal grayscale sample/reference shapes (B, 1, H, W)."
+                    )
+                b, _, height, width = sample.shape
+                sample_mask = support_mask(sample)
+                reference_mask = support_mask(reference)
+                stems = torch.cat(
+                    (
+                        self.sample_stem((sample * 2 - 1) * sample_mask),
+                        self.reference_stem((reference * 2 - 1) * reference_mask),
+                    ),
+                    dim=0,
+                )
+                pyramid = self.encoder(stems)
+                pooled = []
+                for i, (features, stride, fusion) in enumerate(
+                    zip(pyramid, strides, self.fusion)
+                ):
+                    s, r = features.split(b, dim=0)
+                    sm = sample_mask[..., ::stride, ::stride]
+                    rm = reference_mask[..., ::stride, ::stride]
+                    s, r = s * sm, r * rm
+                    h, w = s.shape[-2:]
+                    xy = grid_xy(h, w, stride, sample.device)
+                    scale = xy.new_tensor([max(width - 1, 1), max(height - 1, 1)])
+                    xy = (
+                        (xy * (2 / scale) - 1)
+                        .transpose(1, 2)
+                        .reshape(1, 2, h, w)
+                        .expand(b, -1, -1, -1)
+                    )
+                    parts = [
+                        s,
+                        r,
+                        s - r,
+                        s * r,
+                        xy.to(s.dtype),
+                        sm.to(s.dtype),
+                        rm.to(s.dtype),
+                    ]
+                    if i == 2:
+                        # The released regression model saw zero
+                        # correspondence channels during training.
+                        parts.append(s.new_zeros(b, correspondence_channels, h, w))
+                    fused = fusion(torch.cat(parts, dim=1)) * (sm | rm)
+                    pooled.append(
+                        functional.adaptive_avg_pool2d(fused, self.spatial_pool_size)
+                    )
+                offsets = self.head(torch.cat(pooled, dim=1)).float().reshape(b, 4, 2)
+                if self.max_corner_offset_px is not None:
+                    offsets = torch.tanh(offsets) * self.max_corner_offset_px
+                return offsets
+
+        return PyramidOffsetModel()
