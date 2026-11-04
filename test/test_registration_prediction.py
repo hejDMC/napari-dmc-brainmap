@@ -297,6 +297,47 @@ def test_predictor_missing_torch_shows_cpu_install_command(monkeypatch, tmp_path
         predictor.load()
 
 
+def _fake_torch_loading(checkpoint):
+    def fail_to_load_torchscript(path, map_location):
+        raise ValueError("not a TorchScript model")
+
+    return SimpleNamespace(
+        device=lambda name: name,
+        jit=SimpleNamespace(load=fail_to_load_torchscript),
+        load=lambda path, map_location, weights_only: checkpoint,
+    )
+
+
+def test_predictor_rejects_unsupported_checkpoint_model(monkeypatch, tmp_path):
+    checkpoint = {
+        "format_version": 1,
+        "model_config": {"model_name": "pyramid_matching"},
+        "model_state_dict": {},
+    }
+    monkeypatch.setitem(sys.modules, "torch", _fake_torch_loading(checkpoint))
+    predictor = RegistrationTransformPredictor(tmp_path / "model.pt")
+
+    with np.testing.assert_raises_regex(
+        ValueError,
+        "'pyramid_matching'.*spatial, pyramid",
+    ):
+        predictor.load()
+
+
+def test_predictor_rejects_newer_or_invalid_checkpoint_format(monkeypatch, tmp_path):
+    for format_version, message in ((2, "newer than this plugin"), ("1", "Invalid")):
+        checkpoint = {
+            "format_version": format_version,
+            "model_config": {"model_name": "pyramid"},
+            "model_state_dict": {},
+        }
+        monkeypatch.setitem(sys.modules, "torch", _fake_torch_loading(checkpoint))
+        predictor = RegistrationTransformPredictor(tmp_path / "model.pt")
+
+        with np.testing.assert_raises_regex(ValueError, message):
+            predictor.load()
+
+
 def test_predictor_validates_native_input_contract():
     sample = np.zeros((800, 1140), dtype=np.uint8)
     reference = np.zeros((800, 1140), dtype=np.uint8)
