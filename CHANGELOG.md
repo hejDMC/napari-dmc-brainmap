@@ -7,8 +7,9 @@
 - The plugin can now be installed into a current napari environment, as the
   quick start describes. Runtime dependencies are minimum versions instead of
   exact pins, and the `napari<0.9` limit was removed, so installing the plugin
-  no longer downgrades napari, pandas, SciPy, or other packages that napari
-  already installed. Only NumPy (`<3`) and pandas (`<4`) keep upper limits.
+  no longer replaces napari, pandas, SciPy, superqt, and other packages with
+  the plugin's former pinned versions. Only NumPy (`<3`), pandas (`<4`), and
+  Pydantic (`<3`) keep upper limits.
 - Registration prediction now uses `torch.jit.load` only for legacy
   TorchScript model files. Recommended state-dict checkpoints (predictor
   v2.0.0) no longer trigger PyTorch's warning that TorchScript is unsupported
@@ -18,13 +19,14 @@
 
 - Tested with napari 0.10 and pandas 3 on Python 3.14, in an environment
   created with `pip install "napari[all]"` before installing the plugin.
-- BrainGlobe Atlas API 3.0.3 currently requires `numpy<2.5`, so pip may still
-  install an older NumPy release than the one napari brought in.
+- Two packages can still be downgraded by the plugin's own dependencies:
+  BrainGlobe Atlas API 3.0.3 requires `numpy<2.5`, and its S3 dependencies
+  (botocore) require `python-dateutil<3`.
 - The release check in CI now installs `napari[all]` first, then the built
   wheel, and fails if napari's version changes or `pip check` reports
   conflicts.
-- Automated tests still also run against the oldest supported dependency
-  versions.
+- Automated tests also still run against the previous pinned versions
+  (napari 0.8, pandas 2.3, NumPy 2.4) as a baseline.
 
 ### Installation
 
