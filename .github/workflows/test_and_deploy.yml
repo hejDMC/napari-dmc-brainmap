@@ -44,6 +44,10 @@ jobs:
             python-version: '3.13'
             tox-env: py313-full
             coverage: false
+          - platform: ubuntu-latest
+            python-version: '3.14'
+            tox-env: py314-full
+            coverage: false
 
     steps:
       - name: Check out repository
