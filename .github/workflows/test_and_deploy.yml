@@ -159,11 +159,11 @@ jobs:
         # v6.1.0
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.14
         # v6.3.0
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Build wheel and source distribution
         run: |
@@ -177,8 +177,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 2
-          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.1-py3-none-any.whl' | wc -l)" -eq 1
-          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.1.tar.gz' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.2-py3-none-any.whl' | wc -l)" -eq 1
+          test "$(find dist -maxdepth 1 -type f -name 'napari_dmc_brainmap-0.2.2.tar.gz' | wc -l)" -eq 1
           python - <<'PY'
           from email import policy
           from email.parser import Parser
@@ -191,25 +191,39 @@ jobs:
               metadata = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
               wheel_metadata = Parser(policy=policy.default).parsestr(archive.read(metadata).decode())
           assert wheel_metadata["Name"] == "napari-dmc-brainmap"
-          assert wheel_metadata["Version"] == "0.2.1"
+          assert wheel_metadata["Version"] == "0.2.2"
 
           sdist = next(Path("dist").glob("*.tar.gz"))
           with open_tarfile(sdist) as archive:
               metadata = next(member for member in archive.getmembers() if member.name.endswith("/PKG-INFO"))
               sdist_metadata = Parser(policy=policy.default).parsestr(archive.extractfile(metadata).read().decode())
           assert sdist_metadata["Name"] == "napari-dmc-brainmap"
-          assert sdist_metadata["Version"] == "0.2.1"
+          assert sdist_metadata["Version"] == "0.2.2"
           PY
 
-      - name: Fresh-install and verify the napari manifest
+      - name: Install into a fresh napari environment and verify the manifest
+        # Follows the README quick start: napari first, then the plugin, which
+        # must not downgrade napari.
         run: |
+          set -euo pipefail
           python -m venv artifact-venv
-          artifact-venv/bin/python -m pip install dist/napari_dmc_brainmap-0.2.1-py3-none-any.whl
+          artifact-venv/bin/python -m pip install --upgrade pip
+          artifact-venv/bin/python -m pip install "napari[all]"
+          napari_before="$(artifact-venv/bin/python -c 'from importlib.metadata import version; print(version("napari"))')"
+          artifact-venv/bin/python -m pip freeze --all | sort > freeze-before.txt
+          artifact-venv/bin/python -m pip install dist/napari_dmc_brainmap-0.2.2-py3-none-any.whl
+          artifact-venv/bin/python -m pip freeze --all | sort > freeze-after.txt
+          echo "Packages changed by installing the plugin:"
+          comm -23 freeze-before.txt freeze-after.txt | sed 's/^/  - /'
+          napari_after="$(artifact-venv/bin/python -c 'from importlib.metadata import version; print(version("napari"))')"
+          echo "napari before: $napari_before, after: $napari_after"
+          test "$napari_before" = "$napari_after"
+          artifact-venv/bin/python -m pip check
           artifact-venv/bin/python - <<'PY'
           from importlib import resources
           from importlib.metadata import distribution, version
 
-          assert version("napari-dmc-brainmap") == "0.2.1"
+          assert version("napari-dmc-brainmap") == "0.2.2"
           entry_points = distribution("napari-dmc-brainmap").entry_points
           manifest = tuple(entry_points.select(group="napari.manifest", name="napari-dmc-brainmap"))
           assert len(manifest) == 1
@@ -223,8 +237,8 @@ jobs:
         # v6.0.0
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: napari-dmc-brainmap-0.2.1
+          name: napari-dmc-brainmap-0.2.2
           path: |
-            dist/napari_dmc_brainmap-0.2.1-py3-none-any.whl
-            dist/napari_dmc_brainmap-0.2.1.tar.gz
+            dist/napari_dmc_brainmap-0.2.2-py3-none-any.whl
+            dist/napari_dmc_brainmap-0.2.2.tar.gz
           if-no-files-found: error

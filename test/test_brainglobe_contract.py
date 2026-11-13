@@ -36,6 +36,8 @@ STRUCTURES = [
 
 def _offline_atlas() -> Atlas:
     atlas = object.__new__(Atlas)
+    # brainglobe-atlasapi 3.0.3 added lazy dask-backed volumes.
+    atlas.dask = False
     atlas.metadata = {
         "name": "contract_mouse",
         "shape": [2, 2, 2],

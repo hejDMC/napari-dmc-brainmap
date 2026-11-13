@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import warnings
 from types import SimpleNamespace
 
@@ -41,8 +41,13 @@ class _AtlasStub:
 
 @contextmanager
 def _setting_with_copy_is_error():
+    # pandas 3 always uses Copy-on-Write and removed SettingWithCopyWarning.
+    setting_with_copy_warning = getattr(
+        pd.errors, "SettingWithCopyWarning", None
+    )
     with warnings.catch_warnings():
-        warnings.simplefilter("error", pd.errors.SettingWithCopyWarning)
+        if setting_with_copy_warning is not None:
+            warnings.simplefilter("error", setting_with_copy_warning)
         yield
 
 
@@ -235,7 +240,13 @@ def test_clip_negative_first_row_is_copy_on_write_safe():
         columns=["a", "b"],
     )
 
-    with pd.option_context("mode.copy_on_write", True):
+    # pandas 3 always uses Copy-on-Write and deprecates the option.
+    copy_on_write = (
+        nullcontext()
+        if int(pd.__version__.split(".")[0]) >= 3
+        else pd.option_context("mode.copy_on_write", True)
+    )
+    with copy_on_write:
         result = clip_negative_first_row(source)
 
     assert source.to_numpy().tolist() == [[-2.0, 3.0], [-4.0, 5.0]]

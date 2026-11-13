@@ -1,13 +1,40 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 - 2026-11-13
 
 - Python 3.14 is now supported, matching napari's default Python version.
   Automated tests also run on Ubuntu with Python 3.14.
+- The plugin can now be installed into a current napari environment, as the
+  quick start describes. Runtime dependencies are minimum versions instead of
+  exact pins, and the `napari<0.9` limit was removed, so installing the plugin
+  no longer replaces napari, pandas, SciPy, superqt, and other packages with
+  the plugin's former pinned versions. Only NumPy (`<3`), pandas (`<4`), and
+  Pydantic (`<3`) keep upper limits.
 - Registration prediction now uses `torch.jit.load` only for legacy
   TorchScript model files. Recommended state-dict checkpoints (predictor
   v2.0.0) no longer trigger PyTorch's warning that TorchScript is unsupported
   on Python 3.14.
+
+### Compatibility and testing
+
+- Tested with napari 0.10 and pandas 3 on Python 3.14, in an environment
+  created with `pip install "napari[all]"` before installing the plugin.
+- Two packages can still be downgraded by the plugin's own dependencies:
+  BrainGlobe Atlas API 3.0.3 requires `numpy<2.5`, and its S3 dependencies
+  (botocore) require `python-dateutil<3`.
+- The release check in CI now installs `napari[all]` first, then the built
+  wheel, and fails if napari's version changes or `pip check` reports
+  conflicts.
+- Automated tests also still run against the previous pinned versions
+  (napari 0.8, pandas 2.3, NumPy 2.4) as a baseline.
+
+### Installation
+
+Install or upgrade the plugin in the same environment as napari:
+
+```bash
+python -m pip install --upgrade napari-dmc-brainmap
+```
 
 ## 0.2.1 - 2026-11-04
 
