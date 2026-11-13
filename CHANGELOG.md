@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Python 3.14 is now supported, matching napari's default Python version.
+  Automated tests also run on Ubuntu with Python 3.14.
+
 ## 0.2.1 - 2026-11-04
 
 This is the first stable release since `0.1.8`. Upgrading from `0.1.x` also
