@@ -26,7 +26,7 @@ DMC-BrainMap supports Python 3.11 through 3.14. On macOS, Apple Silicon is requi
 
 #### Users
 
-For reproducible regular use, first install napari by following the [napari installation guide](https://napari.org/dev/getting_started/installation.html). Then install DMC-BrainMap from napari's graphical plugin manager:
+First install napari by following the [napari installation guide](https://napari.org/dev/getting_started/installation.html). DMC-BrainMap works with napari 0.7 and newer, including the current napari release, and installs into the same environment without replacing your napari version. Then install DMC-BrainMap from napari's graphical plugin manager:
 
 ```text
 Plugins > Install/Uninstall Plugins...
@@ -34,11 +34,13 @@ Plugins > Install/Uninstall Plugins...
 
 Search for `napari-dmc-brainmap`, then install it from the plugin manager. Napari handles the plugin installation graphically.
 
-You can also install the released plugin with pip:
+You can also install the released plugin from the command line, in the same environment as napari:
 
 ```bash
-pip install napari-dmc-brainmap
+python -m pip install napari-dmc-brainmap
 ```
+
+If you installed napari with uv, use `uv pip install napari-dmc-brainmap` instead.
 
 ##### Optional registration prediction
 
