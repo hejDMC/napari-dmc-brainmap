@@ -1,5 +1,6 @@
 import builtins
 import sys
+import zipfile
 from types import SimpleNamespace
 
 import cv2
@@ -230,6 +231,9 @@ def test_predictor_loads_model_on_cpu(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
 
     model_path = tmp_path / "model.pt"
+    with zipfile.ZipFile(model_path, "w") as archive:
+        archive.writestr("model/data.pkl", b"")
+        archive.writestr("model/constants.pkl", b"")
     predictor = RegistrationTransformPredictor(model_path)
     predictor.load()
 
@@ -256,21 +260,20 @@ def test_predictor_loads_checkpoint_weights_only(monkeypatch, tmp_path):
     model = FakeModel()
     load_calls = []
 
-    def fail_to_load_torchscript(path, map_location):
-        raise ValueError("not a TorchScript model")
-
     def load_checkpoint(path, map_location, weights_only):
         load_calls.append((path, map_location, weights_only))
         return model
 
     fake_torch = SimpleNamespace(
         device=lambda name: name,
-        jit=SimpleNamespace(load=fail_to_load_torchscript),
+        jit=SimpleNamespace(load=_unexpected_torchscript_load),
         load=load_checkpoint,
     )
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
 
     model_path = tmp_path / "model.pt"
+    with zipfile.ZipFile(model_path, "w") as archive:
+        archive.writestr("model/data.pkl", b"")
     predictor = RegistrationTransformPredictor(model_path)
     predictor.load()
 
@@ -297,13 +300,14 @@ def test_predictor_missing_torch_shows_cpu_install_command(monkeypatch, tmp_path
         predictor.load()
 
 
-def _fake_torch_loading(checkpoint):
-    def fail_to_load_torchscript(path, map_location):
-        raise ValueError("not a TorchScript model")
+def _unexpected_torchscript_load(path, map_location):
+    raise AssertionError("torch.jit.load must only be used for TorchScript")
 
+
+def _fake_torch_loading(checkpoint):
     return SimpleNamespace(
         device=lambda name: name,
-        jit=SimpleNamespace(load=fail_to_load_torchscript),
+        jit=SimpleNamespace(load=_unexpected_torchscript_load),
         load=lambda path, map_location, weights_only: checkpoint,
     )
 

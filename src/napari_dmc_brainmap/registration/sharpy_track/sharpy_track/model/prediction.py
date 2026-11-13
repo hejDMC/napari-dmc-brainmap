@@ -1,3 +1,4 @@
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,20 @@ def _validate_bounds(
             )
 
 
+def _is_torchscript_archive(path: Path) -> bool:
+    """Return whether ``path`` is a TorchScript zip archive.
+
+    Mirrors PyTorch's own check: unlike ``torch.save`` archives, TorchScript
+    archives contain a top-level ``constants.pkl`` record.
+    """
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = archive.namelist()
+    except (OSError, zipfile.BadZipFile):
+        return False
+    return any(name.split("/", 1)[-1] == "constants.pkl" for name in names)
+
+
 class RegistrationTransformPredictor:
     """Lazy PyTorch adapter for preview-only registration predictions."""
 
@@ -234,9 +249,11 @@ class RegistrationTransformPredictor:
 
         self.torch = torch
         self.device = torch.device("cpu")
-        try:
+        # torch.jit.load is unsupported on Python 3.14+, so only legacy
+        # TorchScript archives use it; checkpoints go straight to torch.load.
+        if _is_torchscript_archive(self.model_path):
             self.model = torch.jit.load(str(self.model_path), map_location=self.device)
-        except Exception:
+        else:
             checkpoint = torch.load(
                 str(self.model_path),
                 map_location=self.device,

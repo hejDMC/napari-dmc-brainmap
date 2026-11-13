@@ -1,4 +1,4 @@
-"""Real-PyTorch checks for state-dict prediction checkpoints.
+"""Real-PyTorch checks for state-dict and TorchScript prediction models.
 
 Skipped when the optional ``prediction`` extra (PyTorch) is not installed.
 """
@@ -16,6 +16,7 @@ from napari_dmc_brainmap.registration.sharpy_track.sharpy_track.model.prediction
     RegistrationTransformPredictor,
     _PyramidOffsetModel,
     _SpatialOffsetModel,
+    _is_torchscript_archive,
 )
 
 
@@ -111,9 +112,16 @@ def test_released_pyramid_architecture_matches_training_layout():
 
 
 @pytest.mark.parametrize("config", [TINY_PYRAMID_CONFIG, TINY_SPATIAL_CONFIG])
-def test_predictor_loads_state_dict_checkpoint_and_reproduces_model(tmp_path, config):
+def test_predictor_loads_state_dict_checkpoint_and_reproduces_model(
+    monkeypatch, tmp_path, config
+):
     path, model = _save_release(tmp_path, config)
     gray, reference = _pair()
+
+    def unexpected_torchscript_load(*args, **kwargs):
+        raise AssertionError("state-dict checkpoints must not use torch.jit.load")
+
+    monkeypatch.setattr(torch.jit, "load", unexpected_torchscript_load)
     predictor = RegistrationTransformPredictor(path)
     predictor.load()
 
@@ -141,3 +149,46 @@ def test_pyramid_checkpoint_allows_unbounded_offsets(tmp_path):
 
     assert predictor.model.max_corner_offset_px is None
     assert np.isfinite(predictor.predict_offsets(*_pair())).all()
+
+
+class _TinyTorchScriptModel(torch.nn.Module):
+    def forward(self, sample, reference):
+        corners = torch.arange(8, dtype=sample.dtype).reshape(1, 8)
+        return corners * (sample.mean() - reference.mean())
+
+
+@pytest.mark.filterwarnings("ignore:`torch.jit.*:DeprecationWarning")
+def test_predictor_loads_legacy_torchscript_model(tmp_path):
+    gray, reference = _pair()
+    sample_tensor = torch.zeros(1, 1, 800, 1140)
+    traced = torch.jit.trace(
+        _TinyTorchScriptModel().eval(), (sample_tensor, sample_tensor)
+    )
+    path = tmp_path / "torchscript.pt"
+    torch.jit.save(traced, str(path))
+
+    predictor = RegistrationTransformPredictor(path)
+    predictor.load()
+
+    assert isinstance(predictor.model, torch.jit.ScriptModule)
+
+    def to_tensor(image):
+        return torch.from_numpy(image.astype(np.float32) / 255.0)[None, None]
+
+    with torch.no_grad():
+        expected = traced(to_tensor(gray), to_tensor(reference)).numpy().reshape(4, 2)
+    np.testing.assert_array_equal(predictor.predict_offsets(gray, reference), expected)
+
+
+@pytest.mark.filterwarnings("ignore:`torch.jit.*:DeprecationWarning")
+def test_torchscript_archive_detection(tmp_path):
+    torchscript_path = tmp_path / "torchscript.pt"
+    torch.jit.save(
+        torch.jit.trace(torch.nn.Identity(), torch.zeros(1)),
+        str(torchscript_path),
+    )
+    checkpoint_path, _ = _save_release(tmp_path, TINY_SPATIAL_CONFIG)
+
+    assert _is_torchscript_archive(torchscript_path)
+    assert not _is_torchscript_archive(checkpoint_path)
+    assert not _is_torchscript_archive(tmp_path / "missing.pt")

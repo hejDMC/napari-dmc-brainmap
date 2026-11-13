@@ -4,6 +4,10 @@
 
 - Python 3.14 is now supported, matching napari's default Python version.
   Automated tests also run on Ubuntu with Python 3.14.
+- Registration prediction now uses `torch.jit.load` only for legacy
+  TorchScript model files. Recommended state-dict checkpoints (predictor
+  v2.0.0) no longer trigger PyTorch's warning that TorchScript is unsupported
+  on Python 3.14.
 
 ## 0.2.1 - 2026-11-04
 
