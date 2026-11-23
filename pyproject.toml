@@ -3,7 +3,7 @@ name = "napari-dmc-brainmap"
 version = "0.2.2"
 description = "DMC-BrainMap is an end-to-end tool for multi-feature brain mapping across species"
 readme = "README.md"
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.12,<3.15"
 license = "BSD-3-Clause"
 license-files = ["LICENSE.txt"]
 authors = [
@@ -19,14 +19,13 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-    "brainglobe-atlasapi>=3.0.1",
+    "brainglobe-atlasapi>=3.0.3",
     "distinctipy>=1.3.4",
     "imagecodecs>=2026.3.6",
     "joblib>=1.5.3",

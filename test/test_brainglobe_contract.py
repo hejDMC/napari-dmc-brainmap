@@ -6,6 +6,7 @@ from brainglobe_atlasapi import BrainGlobeAtlas
 from brainglobe_atlasapi.core import Atlas
 from brainglobe_atlasapi.list_atlases import get_all_atlases_lastversions
 from brainglobe_atlasapi.structure_class import StructuresDict
+from brainglobe_atlasapi.utils import load_structures_from_csv
 from brainglobe_space import AnatomicalSpace
 
 
@@ -122,6 +123,32 @@ def test_v3_structure_mapping_and_hierarchy_contract() -> None:
     assert atlas.hierarchy.is_branch(997) == [1]
     assert atlas.get_structure_ancestors(2) == ["root", "CHILD"]
     assert atlas.get_structure_descendants(997) == ["CHILD", "LEAF"]
+
+
+def test_v3_terminology_keeps_large_parent_ids(tmp_path: Path) -> None:
+    # Issue #47: brainglobe-atlasapi 3.0.1/3.0.2 read parent IDs as uint16,
+    # which raises with pandas 3 and silently wraps with pandas 2.
+    terminology = tmp_path / "terminology.csv"
+    terminology.write_text(
+        "identifier,parent_identifier,annotation_value,name,abbreviation,"
+        "color_hex_triplet,root_identifier_path\n"
+        "997,,997,root,root,#FFFFFF,[997]\n"
+        '182305689,997,182305689,"Primary somatosensory area, unassigned",'
+        'SSp-un,#188064,"[997, 182305689]"\n'
+        '182305693,182305689,182305693,"Primary somatosensory area, '
+        'unassigned, layer 1",SSp-un1,#188064,"[997, 182305689, 182305693]"\n',
+        encoding="utf-8",
+    )
+
+    structures = StructuresDict(load_structures_from_csv(terminology))
+
+    assert structures["SSp-un1"]["id"] == 182305693
+    assert structures["SSp-un1"]["parent_structure_id"] == 182305689
+    assert structures["SSp-un1"]["structure_id_path"] == [
+        997,
+        182305689,
+        182305693,
+    ]
 
 
 def test_v3_volume_and_coordinate_lookup_contract() -> None:
