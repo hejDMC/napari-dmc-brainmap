@@ -25,20 +25,16 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-latest
-            python-version: '3.11'
-            tox-env: py311-full
-            coverage: true
-          - platform: windows-latest
-            python-version: '3.11'
-            tox-env: py311
-            coverage: false
-          - platform: macos-15
-            python-version: '3.11'
-            tox-env: py311
-            coverage: false
-          - platform: ubuntu-latest
             python-version: '3.12'
             tox-env: py312-full
+            coverage: true
+          - platform: windows-latest
+            python-version: '3.12'
+            tox-env: py312
+            coverage: false
+          - platform: macos-15
+            python-version: '3.12'
+            tox-env: py312
             coverage: false
           - platform: ubuntu-latest
             python-version: '3.13'
@@ -116,12 +112,12 @@ jobs:
         # v6.0.0
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: coverage-py311
+          name: coverage-py312
           path: coverage.xml
           if-no-files-found: error
 
   coverage:
-    name: Coverage (Python 3.11)
+    name: Coverage (Python 3.12)
     runs-on: ubuntu-latest
     needs: test
     permissions:
@@ -139,7 +135,7 @@ jobs:
         # v6.0.0
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
-          name: coverage-py311
+          name: coverage-py312
           path: .
 
       - name: Upload coverage

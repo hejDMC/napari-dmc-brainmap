@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+- Fixed "Create params.json" failing with `cannot safely cast non-equivalent
+  int64 to uint16` when loading `allen_mouse_10um` with pandas 3
+  ([#47](https://github.com/hejDMC/napari-dmc-brainmap/issues/47)). BrainGlobe
+  Atlas API 3.0.1 and 3.0.2 read parent structure IDs as 16-bit integers, but
+  Allen IDs go up to 312782628. With pandas 2 the same bug silently gave wrong
+  parent IDs instead of an error. The minimum BrainGlobe Atlas API version is
+  now 3.0.3, which reads these IDs correctly.
+- Python 3.11 is no longer supported, because BrainGlobe Atlas API 3.0.3 and
+  later require Python 3.12 or newer. On Python 3.11, pip could only install
+  the affected BrainGlobe Atlas API 3.0.2. Supported versions are Python 3.12
+  to 3.14.
+
+### Compatibility and testing
+
+- Windows and macOS CI, and the coverage job, now run on Python 3.12. The
+  previous-pin baseline uses BrainGlobe Atlas API 3.0.3.
+- A new offline test checks that parent structure IDs above 65535 are read
+  unchanged from an atlas terminology file.
+
+### Upgrading from Python 3.11
+
+Create a new environment with Python 3.12 or newer, then install napari and
+the plugin again. On Python 3.11, pip keeps installing 0.2.2, which has this
+bug.
+
 ## 0.2.2 - 2026-11-13
 
 - Python 3.14 is now supported, matching napari's default Python version.
