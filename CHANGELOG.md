@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3 - 2026-11-23
 
 - Fixed "Create params.json" failing with `cannot safely cast non-equivalent
   int64 to uint16` when loading `allen_mouse_10um` with pandas 3
@@ -21,11 +21,18 @@
 - A new offline test checks that parent structure IDs above 65535 are read
   unchanged from an atlas terminology file.
 
-### Upgrading from Python 3.11
+### Installation
 
-Create a new environment with Python 3.12 or newer, then install napari and
-the plugin again. On Python 3.11, pip keeps installing 0.2.2, which has this
-bug.
+Install or upgrade the plugin in the same environment as napari (Python 3.12
+or newer):
+
+```bash
+python -m pip install --upgrade napari-dmc-brainmap
+```
+
+If you are on Python 3.11, create a new environment with Python 3.12 or newer,
+then install napari and the plugin again. On Python 3.11, pip keeps installing
+0.2.2, which has this bug.
 
 ## 0.2.2 - 2026-11-13
 
