@@ -126,6 +126,7 @@ class RegistrationViewer(QMainWindow):
                 # create widgets
                 self.widget.createImageTitle() # create title first
                 self.widget.createSampleSlider()
+                self.widget.createContrastSlider()
                 self.widget.createTransformToggle()
                 self.widget.connect_actions()
 

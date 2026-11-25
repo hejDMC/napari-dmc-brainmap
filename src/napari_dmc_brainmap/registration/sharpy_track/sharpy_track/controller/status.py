@@ -57,6 +57,10 @@ class StatusContainer():
         self.regViewer.widget.updatePredictButton()
 
 
+    def contrastChanged(self):
+        gain = self.regViewer.widget.contrastSlider.value() / 10
+        self.regViewer.atlasModel.setSampleContrast(gain)
+
     def z_changed(self):
         self.regViewer.atlasModel.clearPredictedPreview()
         self.current_z = np.round(coord_mm_transform([0], [self.bregma[self.z_idx]],

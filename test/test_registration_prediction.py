@@ -752,3 +752,21 @@ def test_materialized_native_dots_do_not_depend_on_display_size():
         for point in point_set
         for value in point
     )
+
+
+def test_sample_contrast_changes_display_but_not_native_image():
+    image = np.arange(48, dtype=np.uint8).reshape(6, 8)
+    model = AtlasModel.__new__(AtlasModel)
+    model.regViewer = SimpleNamespace(
+        status=SimpleNamespace(sliceNum=1, currentSliceNumber=0, imageRGB=False),
+        singleWindowSize=[8, 6],
+    )
+    model.imgStack = image[np.newaxis].copy()
+
+    model.getSample()
+    np.testing.assert_array_equal(model.sample, image)
+
+    model.contrast_gain = 2.0
+    model.getSample()
+    np.testing.assert_array_equal(model.sample, image * 2)
+    np.testing.assert_array_equal(model.sample_native, image)

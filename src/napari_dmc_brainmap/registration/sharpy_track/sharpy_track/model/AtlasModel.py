@@ -27,6 +27,8 @@ from brainglobe_atlasapi import BrainGlobeAtlas
 
 
 class AtlasModel():
+    contrast_gain = 1.0 # display brightness of the sample image
+
     def __init__(self, regViewer, predictor=None) -> None:
         self.regViewer = regViewer
         self.regi_dict = regViewer.regi_dict
@@ -192,11 +194,31 @@ class AtlasModel():
                 self.regViewer.status.currentSliceNumber
             ]
             self.sample = cv2.resize(self.sample_native,(self.regViewer.singleWindowSize[0],self.regViewer.singleWindowSize[1]))
+            # display only: sample_native stays unchanged for saving and prediction
+            self.sample = cv2.convertScaleAbs(self.sample, alpha=self.contrast_gain)
             if self.regViewer.status.imageRGB is False:
                 self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_Grayscale8) # if grayscale sample
             else:
                 self.sampleQimg = QImage(self.sample.data, self.sample.shape[1],self.sample.shape[0],self.sample.strides[0],QImage.Format_BGR888) # if RGB sample
 
+
+    def setSampleContrast(self, gain):
+        self.contrast_gain = gain
+        self.regViewer.widget.viewerRight.loadSample()
+        # redraw the overlay with the new contrast
+        if self.hasPredictedPreview():
+            (
+                self.predictedWarp,
+                self.predictedBlend,
+                self.qPredictedWarp,
+                self.qPredictedBlend,
+            ) = self._render_transform(self.predictedTransformDisplay)
+            self.showPredictedPreview()
+        elif len(self.atlas_pts) >= 5:
+            self.updateTransform(
+                self._native_points_to_display(self.atlas_pts),
+                self._native_points_to_display(self.sample_pts),
+            )
 
     def simpleSlice(self):
         z_coord = coord_mm_transform([self.regViewer.status.current_z], [self.bregma[self.z_idx]],

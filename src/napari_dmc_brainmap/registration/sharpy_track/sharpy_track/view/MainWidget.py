@@ -42,6 +42,7 @@ class MainWidget(QWidget):
         self.regViewer.status.y_changed()
         self.sampleSlider.valueChanged.connect(self.regViewer.status.sampleChanged)
         self.regViewer.status.sampleChanged()
+        self.contrastSlider.valueChanged.connect(self.regViewer.status.contrastChanged)
         self.toggle.clicked.connect(self.regViewer.status.toggleChanged)
         self.regViewer.status.toggleChanged()
         
@@ -79,6 +80,19 @@ class MainWidget(QWidget):
         
         self.layoutGrid.addWidget(self.sampleSlider,2,3)
     
+    def createContrastSlider(self):
+        # sample brightness, from 1x (unchanged) to 10x
+        self.contrastSlider = QSlider(Qt.Horizontal)
+        self.contrastSlider.setMinimum(10)
+        self.contrastSlider.setMaximum(100)
+        self.contrastSlider.setSingleStep(1)
+        self.contrastSlider.setToolTip("Sample contrast (display only)")
+        self.contrastSlider.setFocusPolicy(Qt.NoFocus) # keep keyboard shortcuts on the viewers
+
+        self.layoutGrid.addWidget(self.contrastSlider, 3, 3)
+        # the window has a fixed size, make room for the extra row
+        self.regViewer.setFixedHeight(self.regViewer.height() + self.contrastSlider.sizeHint().height())
+
     def createImageTitle(self):
         self.imageTitle = QLabel()
         self.imageTitle.setText(str(self.regViewer.status.currentSliceNumber) +
